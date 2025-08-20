@@ -30,7 +30,7 @@ export default async function DashboardLayout({
     `)
     .eq('user_id', session.user.id)
 
-  const restaurant = userRestaurants?.[0]?.restaurants
+  const restaurant = userRestaurants?.[0]?.restaurants as any
   const userRole = userRestaurants?.[0]?.role || 'viewer'
 
   if (!restaurant || !restaurant.is_active || !restaurant.is_verified) {
