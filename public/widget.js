@@ -5,6 +5,45 @@
   const WIDGET_VERSION = '1.0.0';
   const API_BASE = window.location.origin;
   
+  // Design tokens (from our UI/UX Playbook)
+  const tokens = {
+    colors: {
+      bg: '#0B0D12',
+      surface: '#0F131A',
+      'surface-2': '#141A23',
+      border: '#232B36',
+      text: '#E7EEF7',
+      'text-muted': '#A8B3C2',
+      accent: '#2EE6A6',
+      'accent-blue': '#4DA3FF',
+      success: '#2EE6A6',
+      warning: '#F6C34A',
+      danger: '#FF6B6B'
+    },
+    spacing: {
+      2: '2px', 4: '4px', 6: '6px', 8: '8px', 12: '12px',
+      16: '16px', 20: '20px', 24: '24px', 32: '32px',
+      40: '40px', 48: '48px'
+    },
+    borderRadius: {
+      button: '9999px',
+      input: '12px',
+      card: '16px',
+      modal: '20px'
+    },
+    shadows: {
+      card: '0 6px 24px rgba(0,0,0,.25)',
+      modal: '0 12px 32px rgba(0,0,0,.35)'
+    },
+    duration: {
+      fast: '150ms',
+      normal: '250ms'
+    },
+    easing: {
+      smooth: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
+    }
+  };
+  
   // State management
   let state = {
     restaurantId: null,
@@ -120,33 +159,40 @@
       </div>
     `;
 
-    // Add styles
+    // Add styles using our design tokens
     const styles = document.createElement('style');
     styles.textContent = `
       #stjarna-fab {
         position: fixed;
-        bottom: 20px;
-        right: 20px;
+        bottom: ${tokens.spacing[20]};
+        right: ${tokens.spacing[20]};
         z-index: 9999;
-        background: #2563eb;
-        color: white;
+        background: ${tokens.colors.accent};
+        color: ${tokens.colors.bg};
         border: none;
-        border-radius: 50px;
-        padding: 12px 20px;
+        border-radius: ${tokens.borderRadius.button};
+        padding: ${tokens.spacing[12]} ${tokens.spacing[20]};
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        box-shadow: ${tokens.shadows.card};
         display: flex;
         align-items: center;
-        gap: 8px;
-        transition: all 0.2s ease;
+        gap: ${tokens.spacing[8]};
+        transition: all ${tokens.duration.normal} ${tokens.easing.smooth};
+        min-height: 44px;
+        min-width: 44px;
       }
       
       #stjarna-fab:hover {
-        background: #1d4ed8;
+        background: ${tokens.colors.accent}dd;
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        box-shadow: ${tokens.shadows.modal};
+      }
+      
+      #stjarna-fab:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px ${tokens.colors.accent}, ${tokens.shadows.card};
       }
       
       #stjarna-modal {
@@ -160,69 +206,80 @@
       }
       
       .stjarna-overlay {
-        background: rgba(0,0,0,0.5);
+        background: rgba(11, 13, 18, 0.8);
         width: 100%;
         height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
+        padding: ${tokens.spacing[20]};
       }
       
       .stjarna-modal-content {
-        background: white;
-        border-radius: 12px;
+        background: ${tokens.colors.surface};
+        border-radius: ${tokens.borderRadius.modal};
         width: 100%;
-        max-width: 900px;
+        max-width: 960px;
         max-height: 80vh;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        box-shadow: ${tokens.shadows.modal};
+        border: 1px solid ${tokens.colors.border};
       }
       
       .stjarna-modal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 20px 24px;
-        border-bottom: 1px solid #e5e7eb;
+        padding: ${tokens.spacing[20]} ${tokens.spacing[24]};
+        border-bottom: 1px solid ${tokens.colors.border};
       }
       
       .stjarna-modal-header h2 {
         margin: 0;
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 600;
-        color: #111827;
+        color: ${tokens.colors.text};
       }
       
       .stjarna-close {
         background: none;
         border: none;
         cursor: pointer;
-        padding: 8px;
-        border-radius: 6px;
-        color: #6b7280;
-        transition: all 0.2s ease;
+        padding: ${tokens.spacing[8]};
+        border-radius: ${tokens.borderRadius.input};
+        color: ${tokens.colors['text-muted']};
+        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+        min-height: 44px;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
       .stjarna-close:hover {
-        background: #f3f4f6;
-        color: #374151;
+        background: ${tokens.colors['surface-2']};
+        color: ${tokens.colors.text};
+      }
+      
+      .stjarna-close:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px ${tokens.colors.accent};
       }
       
       .stjarna-closed-banner {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: 8px;
-        margin: 16px 24px;
-        padding: 12px 16px;
+        background: ${tokens.colors.danger}20;
+        border: 1px solid ${tokens.colors.danger}40;
+        border-radius: ${tokens.borderRadius.card};
+        margin: ${tokens.spacing[16]} ${tokens.spacing[24]};
+        padding: ${tokens.spacing[12]} ${tokens.spacing[16]};
       }
       
       .stjarna-closed-message {
         display: flex;
         align-items: center;
-        gap: 8px;
-        color: #dc2626;
+        gap: ${tokens.spacing[8]};
+        color: ${tokens.colors.danger};
         font-weight: 500;
       }
       
@@ -234,75 +291,101 @@
       
       .stjarna-chat-section {
         flex: 1;
-        border-right: 1px solid #e5e7eb;
+        border-right: 1px solid ${tokens.colors.border};
         display: flex;
         flex-direction: column;
       }
       
       .stjarna-chat-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid #e5e7eb;
+        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
+        border-bottom: 1px solid ${tokens.colors.border};
       }
       
       .stjarna-chat-header h3 {
         margin: 0;
         font-size: 16px;
         font-weight: 600;
-        color: #111827;
+        color: ${tokens.colors.text};
       }
       
       .stjarna-chat-messages {
         flex: 1;
-        padding: 16px 20px;
+        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
         overflow-y: auto;
         max-height: 300px;
       }
       
       .stjarna-message {
-        margin-bottom: 12px;
-        padding: 12px 16px;
-        border-radius: 12px;
+        margin-bottom: ${tokens.spacing[12]};
+        padding: ${tokens.spacing[12]} ${tokens.spacing[16]};
+        border-radius: ${tokens.borderRadius.card};
         max-width: 80%;
+        line-height: 1.4;
       }
       
       .stjarna-message.user {
-        background: #2563eb;
-        color: white;
+        background: ${tokens.colors.accent};
+        color: ${tokens.colors.bg};
         margin-left: auto;
       }
       
       .stjarna-message.assistant {
-        background: #f3f4f6;
-        color: #111827;
+        background: ${tokens.colors['surface-2']};
+        color: ${tokens.colors.text};
+        border: 1px solid ${tokens.colors.border};
       }
       
       .stjarna-chat-input {
-        padding: 16px 20px;
-        border-top: 1px solid #e5e7eb;
+        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
+        border-top: 1px solid ${tokens.colors.border};
         display: flex;
-        gap: 8px;
+        gap: ${tokens.spacing[8]};
       }
       
       .stjarna-chat-input input {
         flex: 1;
-        padding: 10px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
+        padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
+        border: 1px solid ${tokens.colors.border};
+        border-radius: ${tokens.borderRadius.input};
         font-size: 14px;
+        background: ${tokens.colors.surface};
+        color: ${tokens.colors.text};
+        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+        min-height: 40px;
+      }
+      
+      .stjarna-chat-input input::placeholder {
+        color: ${tokens.colors['text-muted']};
+      }
+      
+      .stjarna-chat-input input:focus {
+        outline: none;
+        border-color: ${tokens.colors.accent};
+        box-shadow: 0 0 0 2px ${tokens.colors.accent}40;
       }
       
       .stjarna-chat-input button {
-        background: #2563eb;
-        color: white;
+        background: ${tokens.colors.accent};
+        color: ${tokens.colors.bg};
         border: none;
-        border-radius: 8px;
-        padding: 10px 12px;
+        border-radius: ${tokens.borderRadius.input};
+        padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+        min-height: 40px;
+        min-width: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
       .stjarna-chat-input button:hover {
-        background: #1d4ed8;
+        background: ${tokens.colors.accent}dd;
+      }
+      
+      .stjarna-chat-input button:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px ${tokens.colors.accent};
       }
       
       .stjarna-suggestions-section {
@@ -312,15 +395,15 @@
       }
       
       .stjarna-suggestions-header {
-        padding: 16px 20px;
-        border-bottom: 1px solid #e5e7eb;
+        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
+        border-bottom: 1px solid ${tokens.colors.border};
       }
       
       .stjarna-suggestions-header h3 {
-        margin: 0 0 12px 0;
+        margin: 0 0 ${tokens.spacing[12]} 0;
         font-size: 16px;
         font-weight: 600;
-        color: #111827;
+        color: ${tokens.colors.text};
       }
       
       .stjarna-cart-summary {
@@ -331,29 +414,48 @@
       
       .stjarna-cart-total {
         font-weight: 600;
-        color: #111827;
+        color: ${tokens.colors.text};
+        font-size: 16px;
       }
       
       .stjarna-cart-actions {
         display: flex;
-        gap: 8px;
+        gap: ${tokens.spacing[8]};
       }
       
       .stjarna-dine-in-btn,
       .stjarna-pickup-btn {
-        padding: 6px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background: white;
+        padding: ${tokens.spacing[6]} ${tokens.spacing[12]};
+        border: 1px solid ${tokens.colors.border};
+        border-radius: ${tokens.borderRadius.button};
+        background: ${tokens.colors.surface};
+        color: ${tokens.colors.text};
         font-size: 12px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+        min-height: 32px;
+        font-weight: 500;
       }
       
-      .stjarna-dine-in-btn:hover:not(:disabled),
+      .stjarna-dine-in-btn {
+        background: ${tokens.colors.accent};
+        color: ${tokens.colors.bg};
+        border-color: ${tokens.colors.accent};
+      }
+      
+      .stjarna-dine-in-btn:hover:not(:disabled) {
+        background: ${tokens.colors.accent}dd;
+      }
+      
       .stjarna-pickup-btn:hover:not(:disabled) {
-        background: #f9fafb;
-        border-color: #9ca3af;
+        background: ${tokens.colors['surface-2']};
+        border-color: ${tokens.colors.accent};
+      }
+      
+      .stjarna-dine-in-btn:focus,
+      .stjarna-pickup-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px ${tokens.colors.accent};
       }
       
       .stjarna-dine-in-btn:disabled,
@@ -364,101 +466,120 @@
       
       .stjarna-suggestions-list {
         flex: 1;
-        padding: 16px 20px;
+        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: ${tokens.spacing[12]};
       }
       
       .stjarna-item-card {
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 16px;
-        background: white;
+        border: 1px solid ${tokens.colors.border};
+        border-radius: ${tokens.borderRadius.card};
+        padding: ${tokens.spacing[16]};
+        background: ${tokens.colors.surface};
+        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+      }
+      
+      .stjarna-item-card:hover {
+        border-color: ${tokens.colors.accent}40;
+        box-shadow: ${tokens.shadows.card};
       }
       
       .stjarna-item-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 8px;
+        margin-bottom: ${tokens.spacing[8]};
       }
       
       .stjarna-item-name {
         font-weight: 600;
-        color: #111827;
+        color: ${tokens.colors.text};
         margin: 0;
+        font-size: 16px;
       }
       
       .stjarna-item-price {
         font-weight: 600;
-        color: #059669;
+        color: ${tokens.colors.success};
+        font-size: 16px;
       }
       
       .stjarna-item-description {
-        color: #6b7280;
+        color: ${tokens.colors['text-muted']};
         font-size: 14px;
-        margin-bottom: 12px;
+        margin-bottom: ${tokens.spacing[12]};
         line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
       
       .stjarna-item-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 12px;
+        gap: ${tokens.spacing[6]};
+        margin-bottom: ${tokens.spacing[12]};
       }
       
       .stjarna-tag {
-        background: #f3f4f6;
-        color: #374151;
-        padding: 4px 8px;
-        border-radius: 4px;
+        background: ${tokens.colors['surface-2']};
+        color: ${tokens.colors['text-muted']};
+        padding: ${tokens.spacing[4]} ${tokens.spacing[8]};
+        border-radius: ${tokens.borderRadius.button};
         font-size: 12px;
         font-weight: 500;
+        border: 1px solid ${tokens.colors.border};
       }
       
       .stjarna-add-btn {
-        background: #2563eb;
-        color: white;
+        background: ${tokens.colors.accent};
+        color: ${tokens.colors.bg};
         border: none;
-        border-radius: 6px;
-        padding: 8px 16px;
+        border-radius: ${tokens.borderRadius.button};
+        padding: ${tokens.spacing[8]} ${tokens.spacing[16]};
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
         width: 100%;
+        min-height: 40px;
       }
       
       .stjarna-add-btn:hover {
-        background: #1d4ed8;
+        background: ${tokens.colors.accent}dd;
+      }
+      
+      .stjarna-add-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px ${tokens.colors.accent};
       }
       
       .stjarna-empty-suggestions {
         text-align: center;
-        color: #6b7280;
-        padding: 40px 20px;
+        color: ${tokens.colors['text-muted']};
+        padding: ${tokens.spacing[40]} ${tokens.spacing[20]};
       }
       
       .stjarna-loading {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 20px;
-        color: #6b7280;
+        padding: ${tokens.spacing[20]};
+        color: ${tokens.colors['text-muted']};
       }
       
       .stjarna-loading::after {
         content: '';
         width: 20px;
         height: 20px;
-        border: 2px solid #e5e7eb;
-        border-top: 2px solid #2563eb;
+        border: 2px solid ${tokens.colors.border};
+        border-top: 2px solid ${tokens.colors.accent};
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin-left: 8px;
+        margin-left: ${tokens.spacing[8]};
       }
       
       @keyframes spin {
@@ -479,7 +600,17 @@
         
         .stjarna-chat-section {
           border-right: none;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid ${tokens.colors.border};
+        }
+        
+        .stjarna-cart-actions {
+          flex-direction: column;
+          gap: ${tokens.spacing[6]};
+        }
+        
+        .stjarna-dine-in-btn,
+        .stjarna-pickup-btn {
+          width: 100%;
         }
       }
     `;
