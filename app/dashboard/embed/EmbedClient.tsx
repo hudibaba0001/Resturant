@@ -127,3 +127,4 @@ function EmbedPreview({ restaurantId }: { restaurantId: string }) {
     </div>
   )
 }
+

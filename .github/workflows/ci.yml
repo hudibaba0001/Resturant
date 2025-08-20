@@ -73,6 +73,22 @@ jobs:
           # Client code should never import server-only modules
           ! git grep -nE 'from\s+"@/lib/supabaseAdmin"' -- 'app/**' 'components/**' 'public/**' || (echo '❌ Client importing server-only supabaseAdmin.' && exit 1)
 
+      - name: PR template UI/UX check
+        run: |
+          set -e
+          echo "Checking PR template includes UI/UX QA section..."
+          if [ -f .github/pull_request_template.md ]; then
+            if ! grep -q "UI/UX QA (must pass)" .github/pull_request_template.md; then
+              echo "❌ PR template missing UI/UX QA section"
+              exit 1
+            fi
+            if ! grep -q "docs/ui-ux-pr-checklist.md" .github/pull_request_template.md; then
+              echo "❌ PR template missing link to UI/UX checklist"
+              exit 1
+            fi
+            echo "✅ PR template includes UI/UX QA section"
+          fi
+
       - name: EU-only heuristic lint (warn only)
         run: |
           set +e

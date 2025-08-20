@@ -180,3 +180,4 @@ export default function SettingsForm({ restaurantId, initialOpeningHours }: Sett
     </div>
   )
 }
+
