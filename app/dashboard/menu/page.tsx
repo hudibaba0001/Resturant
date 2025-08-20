@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import MenuManager from './MenuManager'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MenuPage() {
   const supabase = createServerComponentClient({ cookies })
   const { data: { session } } = await supabase.auth.getSession()
