@@ -92,8 +92,15 @@ export default function OnboardForm() {
         password: formData.password,
       });
 
+      // Add a small delay to prevent rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       if (authError) {
-        setErrors({ email: authError.message });
+        if (authError.message.includes('429') || authError.message.includes('rate limit')) {
+          setErrors({ email: 'Too many requests. Please wait a moment and try again.' });
+        } else {
+          setErrors({ email: authError.message });
+        }
         return;
       }
 
@@ -112,12 +119,18 @@ export default function OnboardForm() {
           slug: formData.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
           is_active: true,
           is_verified: false, // Will be verified by admin
+          owner_id: authData.user.id, // Add the owner_id to satisfy RLS policy
         })
         .select()
         .single();
 
       if (restaurantError) {
-        setErrors({ name: restaurantError.message });
+        console.error('Restaurant creation error:', restaurantError);
+        if (restaurantError.message.includes('row-level security')) {
+          setErrors({ name: 'Permission denied. Please try again or contact support.' });
+        } else {
+          setErrors({ name: restaurantError.message });
+        }
         return;
       }
 
