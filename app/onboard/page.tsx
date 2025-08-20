@@ -4,8 +4,8 @@ import dynamicImport from 'next/dynamic';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// Dynamically import the form component to avoid build-time issues
-const OnboardForm = dynamicImport(() => import('./OnboardForm'), {
+// Dynamically import the new signup client component
+const SignupClient = dynamicImport(() => import('./SignupClient'), {
   ssr: false,
   loading: () => <div className="animate-pulse">Loading form...</div>
 });
@@ -23,9 +23,9 @@ export default function OnboardPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <OnboardForm />
-        </div>
+                     <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+               <SignupClient />
+             </div>
       </div>
 
       {/* Features Preview */}
