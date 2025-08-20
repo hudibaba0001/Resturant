@@ -1,8 +1,8 @@
 'use client';
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createTenant } from './actions';
-import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 
 const restaurantSchema = z.object({
@@ -37,13 +37,22 @@ export default function SignupClient() {
   const supabase = getSupabaseBrowser();
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<string | null>(null);
+
+  async function syncCookie(session: any) {
+    // Make server see the session for RLS
+    await fetch('/auth/callback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'SIGNED_IN', session }),
+    });
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    if (err) {
+      setErr(null);
     }
   };
 
@@ -57,7 +66,6 @@ export default function SignupClient() {
         password: formData.get('password') as string,
       };
       restaurantSchema.parse(data);
-      setErrors({});
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -67,7 +75,7 @@ export default function SignupClient() {
             newErrors[err.path[0] as string] = err.message;
           }
         });
-        setErrors(newErrors);
+        setErr(Object.values(newErrors)[0] || 'Please check your input.');
       }
       return false;
     }
@@ -75,72 +83,55 @@ export default function SignupClient() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setErrors({});
-    
-    const formData = new FormData(e.currentTarget);
-    
-    if (!validateForm(formData)) return;
-
-    // Prevent double click / 429
     if (pending) return;
+    setErr(null);
 
-    const email = String(formData.get('email') || '');
-    const password = String(formData.get('password') || '');
+    const fd = new FormData(e.currentTarget);
+    const email = String(fd.get('email') || '').trim();
+    const password = String(fd.get('password') || '');
+
+    // Basic client validation to avoid 422s
+    if (!email.includes('@')) { setErr('Please enter a valid email.'); return; }
+    if (password.length < 6) { setErr('Password must be at least 6 characters.'); return; }
+
+    if (!validateForm(fd)) return;
 
     start(async () => {
       try {
-        // Store form data for after email confirmation
-        const formDataObj = {
-          name: formData.get('name'),
-          description: formData.get('description'),
-          cuisine: formData.get('cuisine_type'),
-        };
-        localStorage.setItem('pendingRestaurantData', JSON.stringify(formDataObj));
+        // 1) Try signUp
+        let { data, error } = await supabase.auth.signUp({ email, password });
 
-        // 1. Sign up the user with email redirect
-        const base = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL;
-        const { data, error } = await supabase.auth.signUp({ 
-          email, 
-          password,
-          options: { emailRedirectTo: `${base}/auth/callback` }
-        });
-        
         if (error) {
-          if (error.message.includes('429') || error.message.includes('rate limit')) {
-            setErrors({ email: 'Too many requests. Please wait a moment and try again.' });
+          // 2) Fallback: if already registered, try signIn
+          const msg = (error.message || '').toLowerCase();
+          const alreadyUser = msg.includes('already') || msg.includes('registered') || error.status === 422;
+          if (alreadyUser) {
+            const signIn = await supabase.auth.signInWithPassword({ email, password });
+            if (signIn.error) { setErr(signIn.error.message); return; }
+            if (signIn.data.session) await syncCookie(signIn.data.session);
           } else {
-            setErrors({ email: error.message });
+            setErr(error.message ?? 'Sign up failed.');
+            return;
           }
-          return;
+        } else {
+          // 3) If signUp returned a session (email confirmation OFF)
+          if (data.session) {
+            await syncCookie(data.session);
+          } else {
+            // (If you re-enable email confirm later)
+            setErr('Check your email to verify your account.');
+            return;
+          }
         }
 
-        if (!data.session) {
-          setErrors({ email: 'Check your inbox to verify your email. After clicking the link, you\'ll be redirected automatically.' });
-          return;
-        }
+        // 4) Create restaurant on server (RLS sees user now)
+        const res = await createTenant(fd);
+        if ((res as any).error) { setErr(String((res as any).error)); return; }
 
-        // Ensure server sees the session immediately
-        await fetch("/auth/callback", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ event: "SIGNED_IN", session: data.session }),
-        });
-
-        // 2. Create restaurant using server action (immediate session case)
-        const res = await createTenant(formData);
-        if ('error' in res) {
-          console.error('Restaurant creation error:', res.error);
-          setErrors({ name: String(res.error) });
-          return;
-        }
-
-        // 3. Success! Redirect to dashboard
-        localStorage.removeItem('pendingRestaurantData'); // Clean up
         router.replace('/dashboard/menu?welcome=true');
-        
       } catch (error) {
         console.error('Onboarding error:', error);
-        setErrors({ email: 'An unexpected error occurred' });
+        setErr('An unexpected error occurred');
       }
     });
   }
