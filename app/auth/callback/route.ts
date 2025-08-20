@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     { cookies }
   );
 
-  const { event, session } = await req.json();
+  const { event, session } = await req.json().catch(() => ({ }));
 
   if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
     if (session?.access_token && session?.refresh_token) {
