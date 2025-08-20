@@ -1,11 +1,17 @@
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+
 export default function WidgetPreviewPage() {
+  // Use the real restaurant ID from our database
+  const restaurantId = 'bc19346b-72fb-423e-a77d-36ae8ffe0d95'
+  const restaurantName = 'Demo Bistro'
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Widget Preview</h1>
         
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h2 className="text-xl font-semibold mb-4">Restaurant Website Demo</h2>
+          <h2 className="text-xl font-semibold mb-4">{restaurantName} - Website Demo</h2>
           <p className="text-gray-600 mb-4">
             This is a demo restaurant website. The widget should appear as a floating button in the bottom right corner.
           </p>
@@ -38,13 +44,16 @@ export default function WidgetPreviewPage() {
             <li>• Allergen information and dietary preferences</li>
             <li>• Mobile-responsive design</li>
           </ul>
+          <div className="mt-4 p-3 bg-blue-100 rounded text-sm">
+            <strong>Restaurant ID:</strong> {restaurantId}
+          </div>
         </div>
       </div>
       
       {/* Widget will be loaded here */}
       <script 
         src="/widget.js" 
-        data-restaurant="demo-restaurant-id"
+        data-restaurant={restaurantId}
         defer
       ></script>
     </div>

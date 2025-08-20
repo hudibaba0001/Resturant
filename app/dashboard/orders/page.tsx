@@ -1,78 +1,74 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import OrdersList from './OrdersList'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import OrdersList from './OrdersList';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
-  const supabase = createServerComponentClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
-
+  const supabase = createServerComponentClient({ cookies });
+  
+  // Check authentication
+  const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    redirect('/login')
+    redirect('/login');
   }
 
-  // Get user's restaurant access
+  // Get user's restaurant with RLS
   const { data: userRestaurants } = await supabase
     .from('restaurant_staff')
     .select(`
       role,
       restaurants (
         id,
-        name
+        name,
+        slug,
+        is_active,
+        is_verified
       )
     `)
-    .eq('user_id', session.user.id)
+    .eq('user_id', session.user.id);
 
-  const restaurant = userRestaurants?.[0]?.restaurants as any
-  const userRole = userRestaurants?.[0]?.role || 'viewer'
-
+  const restaurant = (userRestaurants as any)?.[0]?.restaurants;
+  
   if (!restaurant) {
-    redirect('/login')
+    redirect('/login?error=no_restaurant');
   }
 
-  // Get orders for the last 30 days
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
+  // Get orders with RLS
   const { data: orders } = await supabase
     .from('orders')
     .select('*')
     .eq('restaurant_id', restaurant.id)
-    .gte('created_at', thirtyDaysAgo.toISOString())
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: false });
 
   // Calculate 7-day KPIs
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const orders7d = orders?.filter(order => new Date(order.created_at) >= sevenDaysAgo) || []
-  const paid7d = orders7d.filter(order => order.status === 'paid')
-  const gmv7d = paid7d.reduce((sum, order) => sum + (order.total_cents || 0), 0)
-  const aov7d = paid7d.length > 0 ? gmv7d / paid7d.length : 0
+  const orders7d = orders?.filter(order => new Date(order.created_at) >= sevenDaysAgo) || [];
+  const paidOrders7d = orders7d.filter(order => order.status === 'paid');
+  const totalGMV7d = paidOrders7d.reduce((sum, order) => sum + (order.total_cents || 0), 0);
+  const aov7d = paidOrders7d.length > 0 ? totalGMV7d / paidOrders7d.length : 0;
 
   const kpis = {
     orders7d: orders7d.length,
-    paid7d: paid7d.length,
-    gmv7d: gmv7d / 100, // Convert cents to currency
-    aov7d: aov7d / 100, // Convert cents to currency
-    currency: restaurant.currency || 'SEK'
-  }
+    paid7d: paidOrders7d.length,
+    gmv7d: totalGMV7d,
+    aov7d: aov7d
+  };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Orders</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            View and manage your restaurant orders.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          View and manage customer orders
+        </p>
       </div>
 
       {/* KPI Strip */}
-      <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white overflow-hidden shadow rounded-lg">
           <div className="p-5">
             <div className="flex items-center">
@@ -121,7 +117,7 @@ export default async function OrdersPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">GMV (7d)</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {kpis.gmv7d.toFixed(2)} {kpis.currency}
+                    SEK {(kpis.gmv7d / 100).toFixed(0)}
                   </dd>
                 </dl>
               </div>
@@ -141,7 +137,7 @@ export default async function OrdersPage() {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">AOV (7d)</dt>
                   <dd className="text-lg font-medium text-gray-900">
-                    {kpis.aov7d.toFixed(2)} {kpis.currency}
+                    SEK {(kpis.aov7d / 100).toFixed(0)}
                   </dd>
                 </dl>
               </div>
@@ -151,10 +147,9 @@ export default async function OrdersPage() {
       </div>
 
       <OrdersList 
+        orders={orders || []}
         restaurantId={restaurant.id}
-        userRole={userRole}
-        initialOrders={orders || []}
       />
     </div>
-  )
+  );
 }

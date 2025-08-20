@@ -1,68 +1,69 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import MenuManager from './MenuManager'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import MenuManager from './MenuManager';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 export default async function MenuPage() {
-  const supabase = createServerComponentClient({ cookies })
-  const { data: { session } } = await supabase.auth.getSession()
-
+  const supabase = createServerComponentClient({ cookies });
+  
+  // Check authentication
+  const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
-    redirect('/login')
+    redirect('/login');
   }
 
-  // Get user's restaurant access
+  // Get user's restaurant with RLS
   const { data: userRestaurants } = await supabase
     .from('restaurant_staff')
     .select(`
       role,
       restaurants (
         id,
-        name
+        name,
+        slug,
+        is_active,
+        is_verified
       )
     `)
-    .eq('user_id', session.user.id)
+    .eq('user_id', session.user.id);
 
-  const restaurant = userRestaurants?.[0]?.restaurants as any
-  const userRole = userRestaurants?.[0]?.role || 'viewer'
-
+  const restaurant = (userRestaurants as any)?.[0]?.restaurants;
+  const userRole = (userRestaurants as any)?.[0]?.role || 'viewer';
+  
   if (!restaurant) {
-    redirect('/login')
+    redirect('/login?error=no_restaurant');
   }
 
-  // Get menu sections
+  // Get menu sections and items with RLS
   const { data: sections } = await supabase
     .from('menu_sections')
     .select('*')
     .eq('restaurant_id', restaurant.id)
-    .order('position')
+    .order('position');
 
-  // Get menu items
   const { data: items } = await supabase
     .from('menu_items')
     .select('*')
     .eq('restaurant_id', restaurant.id)
-    .order('name')
+    .order('name');
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-xl font-semibold text-gray-900">Menu Management</h1>
-          <p className="mt-2 text-sm text-gray-700">
-            Manage your menu sections and items.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Menu Management</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Manage your menu sections and items. {userRole === 'viewer' && '(Read-only)'}
+        </p>
       </div>
-      
+
       <MenuManager 
         restaurantId={restaurant.id}
+        sections={sections || []}
+        items={items || []}
         userRole={userRole}
-        initialSections={sections || []}
-        initialItems={items || []}
       />
     </div>
-  )
+  );
 }
