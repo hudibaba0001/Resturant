@@ -41,33 +41,49 @@ async function setupWidgetDemo() {
 
     // 2. Create menu section if it doesn't exist
     console.log('2️⃣ Creating menu section...');
-    const { data: sectionData, error: sectionError } = await supabase
+    
+    // First check if section already exists
+    const { data: existingSection } = await supabase
       .from('menu_sections')
-      .upsert({
-        restaurant_id: RESTAURANT_ID,
-        name: 'Mains',
-        position: 0
-      }, { onConflict: 'restaurant_id,name' })
       .select('id')
+      .eq('restaurant_id', RESTAURANT_ID)
+      .eq('name', 'Mains')
       .single();
 
-    if (sectionError) {
-      console.error('❌ Error creating section:', sectionError);
-      return;
+    let sectionId;
+    if (existingSection) {
+      sectionId = existingSection.id;
+      console.log(`✅ Menu section already exists: ${sectionId}\n`);
+    } else {
+      const { data: sectionData, error: sectionError } = await supabase
+        .from('menu_sections')
+        .insert({
+          restaurant_id: RESTAURANT_ID,
+          name: 'Mains',
+          position: 0
+        })
+        .select('id')
+        .single();
+
+      if (sectionError) {
+        console.error('❌ Error creating section:', sectionError);
+        return;
+      }
+
+      sectionId = sectionData.id;
+      console.log(`✅ Menu section created: ${sectionId}\n`);
     }
 
-    console.log(`✅ Menu section created: ${sectionData.id}\n`);
-
-    // 3. Link items to the section
+    // 3. Link items to the section by setting category to section name
     console.log('3️⃣ Linking menu items to section...');
     const { data: itemsData, error: itemsError } = await supabase
       .from('menu_items')
       .update({ 
-        section_id: sectionData.id, 
+        category: 'Mains',  // Use category instead of section_id
         is_available: true 
       })
       .eq('restaurant_id', RESTAURANT_ID)
-      .select('id, name, section_id, is_available');
+      .select('id, name, category, is_available');
 
     if (itemsError) {
       console.error('❌ Error updating items:', itemsError);
@@ -88,11 +104,11 @@ async function setupWidgetDemo() {
     // Check menu items
     const { data: finalItems } = await supabase
       .from('menu_items')
-      .select('name, section_id, is_available')
+      .select('name, category, is_available')
       .eq('restaurant_id', RESTAURANT_ID);
     
     console.log(`   Menu items: ${finalItems.length} (${finalItems.filter(i => i.is_available).length} available)`);
-    console.log(`   Items with sections: ${finalItems.filter(i => i.section_id).length}`);
+    console.log(`   Items with categories: ${finalItems.filter(i => i.category).length}`);
 
     console.log('\n🎉 Widget demo setup complete!');
     console.log('\n📋 Next steps:');
