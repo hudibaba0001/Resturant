@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { z } from 'zod';
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const restaurantSchema = z.object({
   name: z.string().min(2, 'Restaurant name must be at least 2 characters'),
   description: z.string().optional(),

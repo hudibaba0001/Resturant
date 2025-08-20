@@ -1,8 +1,14 @@
-import OnboardForm from './OnboardForm';
+import dynamicImport from 'next/dynamic';
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+// Dynamically import the form component to avoid build-time issues
+const OnboardForm = dynamicImport(() => import('./OnboardForm'), {
+  ssr: false,
+  loading: () => <div className="animate-pulse">Loading form...</div>
+});
 
 export default function OnboardPage() {
   return (
