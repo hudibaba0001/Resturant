@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "smoke": "node scripts/smoke-orders.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
