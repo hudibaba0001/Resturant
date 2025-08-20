@@ -72,6 +72,11 @@ select id as item_id, name from public.menu_items where restaurant_id=':restaura
 - [ ] Copy **Signing secret** → Vercel env `STRIPE_WEBHOOK_SECRET`
 - [ ] **Redeploy**
 
+### **Quick Webhook Test**
+- [ ] Stripe → Webhooks → your endpoint → **Send test event** → `checkout.session.completed`
+- [ ] Check Vercel Logs → should see 200 response
+- [ ] In Supabase → orders.status flips to **paid** for real checkouts
+
 ---
 
 ## ✅ **4) Smoke Tests**
@@ -80,20 +85,30 @@ select id as item_id, name from public.menu_items where restaurant_id=':restaura
 ```bash
 curl -X POST https://<your-project>.vercel.app/api/chat \
   -H "Content-Type: application/json" \
-  -d '{"restaurantId":"<RESTAURANT_UUID>","sessionToken":"demo-1","message":"vegan options?"}'
+  -d '{"restaurantId":"<RESTAURANT_UUID>","sessionToken":"demo-1","message":"What are your vegan options?"}'
 ```
 
 - [ ] Expect: `{ reply, suggestions: [...] }`
 - [ ] Empty suggestions are OK for first demo
 
-### **Order Test (pickup)**
+### **Order Test (dine-in, no Stripe)**
+```bash
+curl -X POST https://<your-project>.vercel.app/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"restaurantId":"<RESTAURANT_UUID>","sessionToken":"demo-1","type":"dine_in","items":[{"itemId":"<ITEM_UUID>","qty":1}]}'
+```
+
+- [ ] Expect: `{ "orderCode": "XXXXXX" }`
+- [ ] Check Supabase → orders table for new row
+
+### **Order Test (pickup, with Stripe)**
 ```bash
 curl -X POST https://<your-project>.vercel.app/api/orders \
   -H "Content-Type: application/json" \
   -d '{"restaurantId":"<RESTAURANT_UUID>","sessionToken":"demo-1","type":"pickup","items":[{"itemId":"<ITEM_UUID>","qty":1}]}'
 ```
 
-- [ ] Opens Stripe Checkout
+- [ ] Expect: `{ "checkoutUrl": "https://checkout.stripe.com/..." }`
 - [ ] Complete payment → `orders.status` flips to **paid** (webhook)
 
 ---
@@ -113,15 +128,22 @@ curl -X POST https://<your-project>.vercel.app/api/orders \
 
 ## 🎯 **Demo Ready!**
 
+**Acceptance Criteria:**
+- [ ] **Chat** answers basic questions about menu
+- [ ] **Dine-in** creates order with code (no Stripe needed)
+- [ ] **Pickup** opens Stripe checkout; payment → webhook → status=paid
+- [ ] **Embed** works on any real website
+
 **What works:**
 - ✅ AI chat with restaurant context
-- ✅ Menu item suggestions
-- ✅ Stripe checkout for orders
+- ✅ Menu item suggestions (may be empty initially)
+- ✅ Dine-in orders (instant order codes)
+- ✅ Pickup orders (Stripe checkout)
 - ✅ Webhook payment confirmation
 - ✅ Embeddable widget
 
 **Next steps (later):**
-- 🔄 Auto item embeddings job
+- 🔄 Auto item embeddings job (improves suggestions)
 - 📊 Analytics dashboard
 - 🎨 Custom widget styling
 
