@@ -1,3 +1,6 @@
+// Edge runtime (no Node-only libs)
+export const runtime = 'edge';
+
 import { NextResponse } from 'next/server';
 
 export async function GET() {

@@ -1,3 +1,6 @@
+// Node runtime (Supabase admin, OpenAI)
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { getOpenAI, CHAT_MODEL } from '@/lib/ai'

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 
-export const runtime = 'edge'
+// Node runtime (Supabase admin)
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {

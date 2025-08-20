@@ -2,10 +2,13 @@
   "name": "restaurant-platform",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3000",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "smoke": "node scripts/smoke-orders.mjs"
@@ -17,7 +20,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-toast": "^1.2.15",
     "@sentry/nextjs": "^10.5.0",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.39.0",
     "ai": "^2.2.31",
     "class-variance-authority": "^0.7.1",

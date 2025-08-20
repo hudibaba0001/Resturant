@@ -1,3 +1,6 @@
+// Node runtime (Stripe, Supabase admin, heavy libs)
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'

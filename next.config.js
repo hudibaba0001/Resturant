@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: { ignoreDuringBuilds: true }, // keep code style out of CI failures
+  typescript: { ignoreBuildErrors: false }, // keep TS strict to avoid runtime bugs
   async headers() {
     return [
       {

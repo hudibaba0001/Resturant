@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createRouteHandlerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_WIDGET_ORIGIN!,
+  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization,Idempotency-Key",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { headers: CORS_HEADERS });
+}
 
 const createItemSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -16,7 +26,11 @@ const createItemSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createRouteHandlerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies }
+    );
     
     // Check authentication
     const { data: { session } } = await supabase.auth.getSession();
