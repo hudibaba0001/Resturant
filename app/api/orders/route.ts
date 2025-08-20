@@ -145,16 +145,20 @@ export async function POST(request: NextRequest) {
       
       const checkoutSession = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-                  line_items: items.map(item => ({
-            price_data: {
-              currency: currency.toLowerCase(),
-              product_data: {
-                name: itemMap.get(item.itemId)!.name,
+                  line_items: items.map(item => {
+            const menuItem = itemMap.get(item.itemId)!
+            const itemPriceCents = menuItem.price_cents ?? (menuItem.price ? Math.round(menuItem.price * 100) : 0)
+            return {
+              price_data: {
+                currency: currency.toLowerCase(),
+                product_data: {
+                  name: menuItem.name,
+                },
+                unit_amount: itemPriceCents,
               },
-              unit_amount: Math.round(itemMap.get(item.itemId)!.price * 100),
-            },
-            quantity: item.qty,
-          })),
+              quantity: item.qty,
+            }
+          }),
         mode: 'payment',
         success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin}/cancel?session_id={CHECKOUT_SESSION_ID}`,

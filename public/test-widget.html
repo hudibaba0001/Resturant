@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stjarna Widget Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+        .demo-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 24px 0;
+        }
+        .demo-section h2 {
+            margin-top: 0;
+            color: #1e293b;
+        }
+        .restaurant-info {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        .restaurant-info h3 {
+            margin: 0 0 8px 0;
+            color: #1e293b;
+        }
+        .restaurant-info p {
+            margin: 4px 0;
+            color: #64748b;
+        }
+        .widget-demo {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            margin: 24px 0;
+        }
+        .widget-demo h2 {
+            margin: 0 0 16px 0;
+        }
+        .widget-demo p {
+            margin: 0 0 24px 0;
+            opacity: 0.9;
+        }
+        .embed-code {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🍽️ Stjarna Widget Demo</h1>
+    
+    <div class="demo-section">
+        <h2>Restaurant Information</h2>
+        <div class="restaurant-info">
+            <h3>Demo Bistro</h3>
+            <p><strong>ID:</strong> bc19346b-72fb-423e-a77d-36ae8ffe0d95</p>
+            <p><strong>Status:</strong> Active & Verified</p>
+            <p><strong>Location:</strong> Stockholm, Sweden</p>
+            <p><strong>Features:</strong> AI Chat, Smart Cart, Stripe Payments</p>
+        </div>
+    </div>
+
+    <div class="widget-demo">
+        <h2>Try the Widget!</h2>
+        <p>Click the "Menu & Order" button in the bottom right corner to experience the full widget functionality.</p>
+        <p>You can ask questions like "vegan options?" or "what's popular?" and add items to your cart.</p>
+    </div>
+
+    <div class="demo-section">
+        <h2>Widget Features</h2>
+        <ul>
+            <li><strong>AI Chat:</strong> Ask questions about the menu, dietary restrictions, recommendations</li>
+            <li><strong>Smart Cart:</strong> Add items, see total, choose dine-in or pickup</li>
+            <li><strong>Accessibility:</strong> Full keyboard navigation, screen reader support</li>
+            <li><strong>Mobile Responsive:</strong> Works perfectly on all devices</li>
+            <li><strong>Real-time Status:</strong> Shows if restaurant is open/closed</li>
+            <li><strong>Stripe Integration:</strong> Secure payment processing for pickup orders</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h2>Embed Code</h2>
+        <p>To embed this widget on your own website:</p>
+        <div class="embed-code">
+&lt;script src="http://localhost:3002/widget.js" data-restaurant="bc19346b-72fb-423e-a77d-36ae8ffe0d95" defer&gt;&lt;/script&gt;
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>API Endpoints</h2>
+        <p><strong>Status:</strong> <code>GET /api/public/status?restaurantId=...</code></p>
+        <p><strong>Menu:</strong> <code>GET /api/public/menu?restaurantId=...</code></p>
+        <p><strong>Chat:</strong> <code>POST /api/chat</code></p>
+        <p><strong>Orders:</strong> <code>POST /api/orders</code></p>
+    </div>
+
+    <!-- Widget will be loaded here -->
+    <script src="http://localhost:3002/widget.js" data-restaurant="bc19346b-72fb-423e-a77d-36ae8ffe0d95" defer></script>
+</body>
+</html>
