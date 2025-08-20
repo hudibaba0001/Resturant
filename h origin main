@@ -1,0 +1,5 @@
+[33mf0b7ba7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Add production checklists and health endpoint
+[33md80cbf1[m Add CORS, Sentry, security headers, and Lighthouse CI
+[33m90f4106[m Update MenuManager.tsx
+[33me3eca6b[m Update MenuManager.tsx
+[33m86ec788[m Improve API error handling and add dashboard DB indexes
