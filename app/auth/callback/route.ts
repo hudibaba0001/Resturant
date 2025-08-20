@@ -24,3 +24,28 @@ export async function GET(req: Request) {
   // The restaurant creation will be handled by the dashboard component
   return NextResponse.redirect(`${origin}/dashboard/menu?welcome=true&pending=restaurant`);
 }
+
+export async function POST(req: Request) {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies }
+  );
+
+  const { event, session } = await req.json();
+
+  if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+    if (session?.access_token && session?.refresh_token) {
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+    }
+  }
+
+  if (event === "SIGNED_OUT") {
+    await supabase.auth.signOut();
+  }
+
+  return NextResponse.json({ ok: true });
+}
