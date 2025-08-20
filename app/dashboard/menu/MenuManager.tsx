@@ -301,16 +301,18 @@ export default function MenuManager({ restaurantId, sections, items, userRole }:
                  </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Price (cents)</label>
-                    <input
-                      type="number"
-                      value={formData.price_cents}
-                      onChange={(e) => setFormData({...formData, price_cents: parseInt(e.target.value) || 0})}
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
+                                     <div>
+                     <label htmlFor="item-price" className="block text-sm font-medium text-gray-700">Price (cents)</label>
+                     <input
+                       id="item-price"
+                       type="number"
+                       value={formData.price_cents}
+                       onChange={(e) => setFormData({...formData, price_cents: parseInt(e.target.value) || 0})}
+                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                       required
+                       aria-label="Menu item price in cents"
+                     />
+                   </div>
                   
                                      <div>
                      <label className="block text-sm font-medium text-gray-700">Currency</label>
