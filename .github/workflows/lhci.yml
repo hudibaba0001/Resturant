@@ -1,0 +1,41 @@
+name: Lighthouse CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lhci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          OPENAI_API_KEY: test
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost
+          NEXT_PUBLIC_WIDGET_ORIGIN: http://localhost:3000
+          
+      - name: Start server
+        run: npm start &
+        
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000
+        
+      - name: Run Lighthouse CI
+        run: npx @lhci/cli autorun --upload.target=temporary-public-storage
+        env:
+          LHCI_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

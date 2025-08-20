@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { getOpenAI, CHAT_MODEL } from '@/lib/ai'
 import { z } from 'zod'
+import { CORS_HEADERS } from '@/lib/cors'
 
 const chatSchema = z.object({
   restaurantId: z.string().uuid(),
   sessionToken: z.string(),
   message: z.string().min(1),
 })
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: CORS_HEADERS,
+  })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,10 +34,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (restaurantError || !restaurant) {
-      return NextResponse.json(
-        { error: 'Restaurant not found' },
-        { status: 404 }
-      )
+          return NextResponse.json(
+      { error: 'Restaurant not found' },
+      { status: 404, headers: CORS_HEADERS }
+    )
     }
 
     // Get menu items for context
@@ -75,13 +83,13 @@ Customer Question: ${message}
         id: restaurant.id,
         name: restaurant.name,
       }
-    })
+    }, { headers: CORS_HEADERS })
 
   } catch (error) {
     console.error('Chat API error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     )
   }
 }

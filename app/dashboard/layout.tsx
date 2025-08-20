@@ -3,6 +3,10 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Menu, ShoppingCart, Settings, LogOut } from 'lucide-react';
+import { initSentry } from '@/lib/sentry';
+
+// Initialize Sentry for error tracking
+initSentry();
 
 export const dynamic = 'force-dynamic';
 

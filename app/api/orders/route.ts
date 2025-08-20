@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
 import { z } from 'zod'
+import { CORS_HEADERS } from '@/lib/cors'
 import { v4 as uuidv4 } from 'uuid'
 
 const orderSchema = z.object({
@@ -22,6 +23,13 @@ type MenuItem = {
   currency?: string
   restaurant_id: string
   is_available: boolean
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: CORS_HEADERS,
+  })
 }
 
 export async function POST(request: NextRequest) {
