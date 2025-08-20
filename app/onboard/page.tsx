@@ -3,6 +3,7 @@ import dynamicImport from 'next/dynamic';
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const fetchCache = 'default-no-store';
 
 // Dynamically import the new signup client component
 const SignupClient = dynamicImport(() => import('./SignupClient'), {

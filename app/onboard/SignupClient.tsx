@@ -119,6 +119,13 @@ export default function SignupClient() {
           return;
         }
 
+        // Ensure server sees the session immediately
+        await fetch("/auth/callback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event: "SIGNED_IN", session: data.session }),
+        });
+
         // 2. Create restaurant using server action (immediate session case)
         const res = await createTenant(formData);
         if ('error' in res) {
