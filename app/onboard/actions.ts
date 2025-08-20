@@ -1,8 +1,7 @@
 'use server';
 import 'server-only';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 
 const Schema = z.object({
   name: z.string().min(2),
@@ -12,23 +11,7 @@ const Schema = z.object({
 
 export async function createTenant(fd: FormData) {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    const supabase = getSupabaseServer();
 
     const { data: { user }, error: uErr } = await supabase.auth.getUser();
     if (uErr) return { error: `auth_get_user: ${uErr.message}` };

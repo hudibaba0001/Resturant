@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import { z } from 'zod';
 
 const openingHoursSchema = z.object({
@@ -13,11 +12,7 @@ const openingHoursSchema = z.object({
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies }
-    );
+      const supabase = getSupabaseServer();
     
     // Check authentication
     const { data: { session } } = await supabase.auth.getSession();
