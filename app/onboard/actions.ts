@@ -12,10 +12,22 @@ const Schema = z.object({
 
 export async function createTenant(fd: FormData) {
   try {
+    const cookieStore = cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies }
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
+        },
+      }
     );
 
     const { data: { user }, error: uErr } = await supabase.auth.getUser();
