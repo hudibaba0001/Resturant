@@ -4,6 +4,10 @@ import { useSearchParams } from 'next/navigation';
 import { createTenant } from '@/app/onboard/actions';
 import { useRouter } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'default-no-store';
+
 export default function DashboardMenuPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
