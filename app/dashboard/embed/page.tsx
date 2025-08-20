@@ -2,7 +2,6 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { Copy, Check } from 'lucide-react'
-import EmbedPreview from './EmbedPreview'
 import { useState } from 'react'
 
 export default async function EmbedPage() {
