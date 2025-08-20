@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "ai": "^2.2.31",
+    "dotenv": "^17.2.1",
     "next": "14.0.4",
     "openai": "^4.20.1",
     "react": "^18",

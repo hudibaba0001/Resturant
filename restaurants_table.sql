@@ -1,5 +1,6 @@
--- Enable the pg_trgm extension for trigram text searching
+-- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Create cuisines table for flexible cuisine categorization
 CREATE TABLE public.cuisines (
@@ -10,24 +11,11 @@ CREATE TABLE public.cuisines (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create restaurant_staff table for role-based access control
-CREATE TABLE public.restaurant_staff (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'manager', 'editor', 'viewer')),
-    permissions JSONB DEFAULT '{}', -- Flexible permissions storage
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Ensure unique user-restaurant combinations
-    UNIQUE(restaurant_id, user_id)
-);
-
 -- Create restaurants table with foreign key constraint to users table
 CREATE TABLE public.restaurants (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE,
     description TEXT,
     address TEXT NOT NULL,
     city VARCHAR(100) NOT NULL,
@@ -46,7 +34,7 @@ CREATE TABLE public.restaurants (
     search_vector tsvector, -- Full-text search vector
     is_active BOOLEAN DEFAULT true,
     is_verified BOOLEAN DEFAULT false,
-    owner_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
@@ -59,6 +47,20 @@ CREATE TABLE public.restaurants (
         (latitude IS NOT NULL AND longitude IS NOT NULL AND 
          latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)
     )
+);
+
+-- Create restaurant_staff table for role-based access control
+CREATE TABLE public.restaurant_staff (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    restaurant_id UUID NOT NULL REFERENCES public.restaurants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'manager', 'editor', 'viewer')),
+    permissions JSONB DEFAULT '{}', -- Flexible permissions storage
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Ensure unique user-restaurant combinations
+    UNIQUE(restaurant_id, user_id)
 );
 
 -- Create restaurant_cuisines junction table for many-to-many relationship
@@ -74,6 +76,7 @@ CREATE TABLE public.restaurant_cuisines (
 
 -- Create indexes for better performance
 CREATE INDEX idx_restaurants_owner_id ON public.restaurants(owner_id);
+CREATE INDEX idx_restaurants_slug ON public.restaurants(slug);
 CREATE INDEX idx_restaurants_city ON public.restaurants(city);
 CREATE INDEX idx_restaurants_cuisine_type ON public.restaurants(cuisine_type);
 CREATE INDEX idx_restaurants_is_active ON public.restaurants(is_active);
@@ -148,7 +151,7 @@ BEGIN
     -- Check role hierarchy
     RETURN (role_hierarchy->>user_role)::INTEGER >= (role_hierarchy->>required_role)::INTEGER;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER update_restaurants_updated_at 
     BEFORE UPDATE ON public.restaurants 
@@ -219,6 +222,13 @@ CREATE POLICY "Users can manage cuisines for own restaurants" ON public.restaura
             WHERE restaurants.id = restaurant_cuisines.restaurant_id 
             AND (restaurants.owner_id = auth.uid() OR has_restaurant_permission(auth.uid(), restaurants.id, 'editor'))
         )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.restaurants 
+            WHERE restaurants.id = restaurant_cuisines.restaurant_id 
+            AND (restaurants.owner_id = auth.uid() OR has_restaurant_permission(auth.uid(), restaurants.id, 'editor'))
+        )
     );
 
 -- Restaurant staff policies
@@ -238,4 +248,24 @@ CREATE POLICY "Owners can manage staff" ON public.restaurant_staff
             WHERE restaurants.id = restaurant_staff.restaurant_id 
             AND restaurants.owner_id = auth.uid()
         )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.restaurants 
+            WHERE restaurants.id = restaurant_staff.restaurant_id 
+            AND restaurants.owner_id = auth.uid()
+        )
     );
+
+-- Add updated_at triggers to all timestamped tables
+CREATE TRIGGER tg_cuisines_updated
+    BEFORE UPDATE ON public.cuisines
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER tg_restaurant_staff_updated
+    BEFORE UPDATE ON public.restaurant_staff
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER tg_restaurant_cuisines_updated
+    BEFORE UPDATE ON public.restaurant_cuisines
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
