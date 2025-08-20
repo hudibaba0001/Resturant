@@ -179,19 +179,19 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ 
         checkoutUrl: checkoutSession.url 
-      });
+      }, { headers: CORS_HEADERS });
     }
 
     // Dine-in response
     return NextResponse.json({ 
       orderCode: order.order_code 
-    });
+    }, { headers: CORS_HEADERS });
 
   } catch (error: any) {
     console.error("orders route failed", error);
     return NextResponse.json(
       { error: error?.message || "Bad Request" },
-      { status: 400 }
+      { status: 400, headers: CORS_HEADERS }
     )
   } finally {
     console.timeEnd("orders");
