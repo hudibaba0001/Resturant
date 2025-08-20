@@ -102,26 +102,24 @@ async function createDemoData() {
 
     console.log('✅ Menu section created:', section.id);
 
-    // 3. Create menu items
+    // 3. Create menu items (using schema from migration: price as DECIMAL, category instead of section_id)
     const menuItems = [
       {
         restaurant_id: restaurant.id,
-        section_id: section.id,
         name: 'Grilled Veggie Bowl',
         description: 'High-protein, vegan bowl with quinoa and roasted vegetables',
-        price_cents: 11900,
-        currency: 'SEK',
-        tags: ['vegan', 'high-protein'],
+        price: 119.00,
+        category: 'Mains',
+        allergens: ['vegan', 'high-protein'],
         is_available: true
       },
       {
         restaurant_id: restaurant.id,
-        section_id: section.id,
         name: 'Chicken Caesar Salad',
         description: 'Classic Caesar with grilled chicken, contains dairy',
-        price_cents: 12900,
-        currency: 'SEK',
-        tags: ['contains-dairy', 'high-protein'],
+        price: 129.00,
+        category: 'Mains',
+        allergens: ['contains-dairy', 'high-protein'],
         is_available: true
       }
     ];
