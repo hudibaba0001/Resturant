@@ -1,4 +1,4 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import EmbedClient from './EmbedClient';
@@ -6,7 +6,11 @@ import EmbedClient from './EmbedClient';
 export const dynamic = 'force-dynamic';
 
 export default async function EmbedPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies }
+  );
   
   // Check authentication
   const { data: { session } } = await supabase.auth.getSession();
