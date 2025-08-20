@@ -20,7 +20,7 @@ export async function createTenant(fd: FormData) {
     const parsed = Schema.safeParse({
       name: fd.get('name'),
       description: fd.get('description'),
-      cuisine: fd.get('cuisine'),
+      cuisine: fd.get('cuisine_type'),
     });
     if (!parsed.success) return { error: 'validation', details: parsed.error.flatten() };
 
