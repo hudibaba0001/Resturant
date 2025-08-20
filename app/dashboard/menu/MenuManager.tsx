@@ -329,16 +329,18 @@ export default function MenuManager({ restaurantId, sections, items, userRole }:
                    </div>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={formData.tags}
-                    onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                    placeholder="vegan, gluten-free, spicy"
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                                 <div>
+                   <label htmlFor="item-tags" className="block text-sm font-medium text-gray-700">Tags (comma-separated)</label>
+                   <input
+                     id="item-tags"
+                     type="text"
+                     value={formData.tags}
+                     onChange={(e) => setFormData({...formData, tags: e.target.value})}
+                     placeholder="vegan, gluten-free, spicy"
+                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                     aria-label="Menu item tags"
+                   />
+                 </div>
                 
                                  <div>
                    <label className="block text-sm font-medium text-gray-700">Section</label>
