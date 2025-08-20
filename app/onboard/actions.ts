@@ -37,3 +37,5 @@ export async function createTenant(formData: FormData) {
   if (error) return { error: error.message };
   return { ok: true, restaurantId: data as string };
 }
+
+

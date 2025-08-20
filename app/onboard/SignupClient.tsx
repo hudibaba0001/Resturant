@@ -89,8 +89,21 @@ export default function SignupClient() {
 
     start(async () => {
       try {
-        // 1. Sign up the user
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        // Store form data for after email confirmation
+        const formDataObj = {
+          name: formData.get('name'),
+          description: formData.get('description'),
+          cuisine: formData.get('cuisine_type'),
+        };
+        localStorage.setItem('pendingRestaurantData', JSON.stringify(formDataObj));
+
+        // 1. Sign up the user with email redirect
+        const base = typeof window !== "undefined" ? window.location.origin : process.env.NEXT_PUBLIC_SITE_URL;
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: { emailRedirectTo: `${base}/auth/callback` }
+        });
         
         if (error) {
           if (error.message.includes('429') || error.message.includes('rate limit')) {
@@ -102,11 +115,11 @@ export default function SignupClient() {
         }
 
         if (!data.session) {
-          setErrors({ email: 'Check your email to confirm your account.' });
+          setErrors({ email: 'Check your inbox to verify your email. After clicking the link, you\'ll be redirected automatically.' });
           return;
         }
 
-        // 2. Create restaurant using server action
+        // 2. Create restaurant using server action (immediate session case)
         const res = await createTenant(formData);
         if ('error' in res) {
           console.error('Restaurant creation error:', res.error);
@@ -115,6 +128,7 @@ export default function SignupClient() {
         }
 
         // 3. Success! Redirect to dashboard
+        localStorage.removeItem('pendingRestaurantData'); // Clean up
         router.replace('/dashboard/menu?welcome=true');
         
       } catch (error) {

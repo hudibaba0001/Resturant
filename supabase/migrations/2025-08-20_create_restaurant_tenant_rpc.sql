@@ -41,3 +41,6 @@ end $$;
 -- Helpful invariant
 alter table public.restaurants
   add constraint if not exists uniq_owner_name unique (owner_id, name);
+
+-- Grant execute permissions to authenticated users
+grant execute on function public.create_restaurant_tenant(text, text, text) to authenticated;
