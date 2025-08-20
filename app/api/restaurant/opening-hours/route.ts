@@ -51,6 +51,12 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(updatedRestaurant);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Invalid request data', 
+        details: error.errors 
+      }, { status: 400 });
+    }
     console.error('Error in PUT /api/restaurant/opening-hours:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

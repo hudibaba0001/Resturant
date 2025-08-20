@@ -66,6 +66,12 @@ export async function PATCH(
 
     return NextResponse.json(updatedOrder);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Invalid request data', 
+        details: error.errors 
+      }, { status: 400 });
+    }
     console.error('Error in PATCH /api/orders/[id]/mark-paid:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

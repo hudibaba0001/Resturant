@@ -275,26 +275,30 @@ export default function MenuManager({ restaurantId, sections, items, userRole }:
               </h3>
               
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                </div>
+                                 <div>
+                   <label htmlFor="item-name" className="block text-sm font-medium text-gray-700">Name</label>
+                   <input
+                     id="item-name"
+                     type="text"
+                     value={formData.name}
+                     onChange={(e) => setFormData({...formData, name: e.target.value})}
+                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                     required
+                     aria-label="Menu item name"
+                   />
+                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+                                 <div>
+                   <label htmlFor="item-description" className="block text-sm font-medium text-gray-700">Description</label>
+                   <textarea
+                     id="item-description"
+                     value={formData.description}
+                     onChange={(e) => setFormData({...formData, description: e.target.value})}
+                     rows={3}
+                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                     aria-label="Menu item description"
+                   />
+                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -334,19 +338,20 @@ export default function MenuManager({ restaurantId, sections, items, userRole }:
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Section</label>
-                  <select
-                    value={formData.section_id}
-                    onChange={(e) => setFormData({...formData, section_id: e.target.value})}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">No section</option>
-                    {sections.map(section => (
-                      <option key={section.id} value={section.id}>{section.name}</option>
-                    ))}
-                  </select>
-                </div>
+                                 <div>
+                   <label className="block text-sm font-medium text-gray-700">Section</label>
+                   <select
+                     value={formData.section_id}
+                     onChange={(e) => setFormData({...formData, section_id: e.target.value})}
+                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                     aria-label="Select menu section"
+                   >
+                     <option value="">No section</option>
+                     {sections.map(section => (
+                       <option key={section.id} value={section.id}>{section.name}</option>
+                     ))}
+                   </select>
+                 </div>
                 
                 <div className="flex items-center">
                   <input

@@ -71,6 +71,12 @@ export async function PUT(
 
     return NextResponse.json(updatedItem);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Invalid request data', 
+        details: error.errors 
+      }, { status: 400 });
+    }
     console.error('Error in PUT /api/menu/items/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -130,6 +136,12 @@ export async function PATCH(
 
     return NextResponse.json(updatedItem);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ 
+        error: 'Invalid request data', 
+        details: error.errors 
+      }, { status: 400 });
+    }
     console.error('Error in PATCH /api/menu/items/[id]:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
