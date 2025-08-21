@@ -4,12 +4,12 @@ import { z } from 'zod';
 import { getSupabaseServer } from '@/lib/supabaseServer';
 
 const Schema = z.object({
-  name: z.string().min(2),
-  description: z.string().optional(),
-  cuisine: z.string().optional(),
-  address: z.string().min(0).default(''),
-  city: z.string().min(0).default('Stockholm'),
-  country: z.string().length(2).default('SE'),
+  name: z.string().min(2, 'Restaurant name must be at least 2 characters'),
+  description: z.string().max(1000).optional().nullable(),
+  cuisine: z.string().optional().nullable(),
+  address: z.string().min(2, 'Address is required'),
+  city: z.string().min(2, 'City is required'),
+  country: z.string().length(2, 'Country must be a 2-letter code').default('SE'),
 });
 
 export async function createTenant(fd: FormData) {

@@ -26,6 +26,9 @@ export default function SignupClient() {
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
     const cuisine = formData.get('cuisine') as string;
+    const address = formData.get('address') as string;
+    const city = formData.get('city') as string;
+    const country = formData.get('country') as string;
 
     // Client-side validation
     if (!email || !email.includes('@')) {
@@ -40,6 +43,16 @@ export default function SignupClient() {
 
     if (!name || name.length < 2) {
       setErr('Restaurant name must be at least 2 characters');
+      return;
+    }
+
+    if (!address || address.length < 2) {
+      setErr('Address is required');
+      return;
+    }
+
+    if (!city || city.length < 2) {
+      setErr('City is required');
       return;
     }
 
@@ -100,7 +113,21 @@ export default function SignupClient() {
         const result = await createTenant(formData);
 
         if (result.error) {
-          setErr(result.error);
+          if (result.error === 'validation' && result.details) {
+            // Show field-specific validation errors
+            const fieldErrors = result.details.fieldErrors || {};
+            const errorMessages = [
+              ...(fieldErrors.address || []),
+              ...(fieldErrors.city || []),
+              ...(fieldErrors.country || []),
+              ...(fieldErrors.name || []),
+              ...(fieldErrors.description || []),
+              ...(fieldErrors.cuisine || []),
+            ];
+            setErr(errorMessages.join(' • ') || 'Please check the form');
+          } else {
+            setErr(result.error);
+          }
           return;
         }
 
@@ -163,6 +190,62 @@ export default function SignupClient() {
                 placeholder="e.g., Italian, Japanese, etc."
                 className="w-full"
               />
+            </div>
+          </div>
+
+          {/* Location Details */}
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="address" className="block text-sm font-medium text-text mb-2">
+                Address *
+              </label>
+              <Input
+                id="address"
+                name="address"
+                type="text"
+                required
+                minLength={2}
+                autoComplete="street-address"
+                placeholder="123 Main Street"
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="city" className="block text-sm font-medium text-text mb-2">
+                City *
+              </label>
+              <Input
+                id="city"
+                name="city"
+                type="text"
+                required
+                minLength={2}
+                autoComplete="address-level2"
+                placeholder="Stockholm"
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="country" className="block text-sm font-medium text-text mb-2">
+                Country *
+              </label>
+              <select
+                id="country"
+                name="country"
+                required
+                defaultValue="SE"
+                className="w-full rounded-input border border-border bg-surface px-3 py-2 text-text focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+              >
+                <option value="SE">Sweden</option>
+                <option value="NO">Norway</option>
+                <option value="DK">Denmark</option>
+                <option value="FI">Finland</option>
+                <option value="IS">Iceland</option>
+                <option value="DE">Germany</option>
+                <option value="US">United States</option>
+              </select>
             </div>
           </div>
 
