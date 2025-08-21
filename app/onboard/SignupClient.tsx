@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createClientComponentClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createTenant } from './actions';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -12,7 +12,7 @@ export default function SignupClient() {
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = getSupabaseBrowser();
   const router = useRouter();
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
