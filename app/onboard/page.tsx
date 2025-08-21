@@ -3,9 +3,9 @@ export const revalidate = 0;
 export const fetchCache = 'default-no-store';
 
 import { Suspense } from 'react';
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 
-const SignupClient = dynamic(() => import('./SignupClient'), {
+const SignupClient = dynamicImport(() => import('./SignupClient'), {
   ssr: false,
   loading: () => (
     <div className="min-h-screen bg-bg flex items-center justify-center">
