@@ -10,7 +10,7 @@ const restaurantSchema = z.object({
   description: z.string().optional(),
   cuisine_type: z.string().min(1, 'Please select a cuisine type'),
   email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 const cuisineTypes = [
@@ -91,41 +91,36 @@ export default function SignupClient() {
     const password = String(fd.get('password') || '');
 
     // Basic client validation to avoid 422s
-    if (!email.includes('@')) { setErr('Please enter a valid email.'); return; }
-    if (password.length < 6) { setErr('Password must be at least 6 characters.'); return; }
+    if (!email.includes('@')) { setErr('Enter a valid email.'); return; }
+    if (password.length < 8) { setErr('Password must be at least 8 characters.'); return; }
 
     if (!validateForm(fd)) return;
 
     start(async () => {
       try {
         // 1) Try signUp
-        let { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          // ⚠️ Only include emailRedirectTo if you ENABLE email confirmation
+          // options: { emailRedirectTo: `${origin}/auth/callback` }
+        });
 
         if (error) {
-          // Show the real reason in the UI
           setErr(`signup: ${error.status ?? 422} - ${error.message}`);
-
-          // Auto-fallback only for "already registered"
-          const msg = (error.message || '').toLowerCase();
-          const already = msg.includes('already') || msg.includes('registered');
-          
-          if (already) {
-            const signIn = await supabase.auth.signInWithPassword({ email, password });
-            if (signIn.error) { 
-              setErr(`signin: ${signIn.error.message}`); 
-              return; 
-            }
-            if (signIn.data.session) await syncCookie(signIn.data.session);
+          // if user already exists, try sign-in with same password:
+          if ((error.message || '').toLowerCase().includes('already')) {
+            const si = await supabase.auth.signInWithPassword({ email, password });
+            if (si.error) { setErr(`signin: ${si.error.message}`); return; }
+            await fetch('/auth/callback', { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ event:'SIGNED_IN', session: si.data.session }) });
           } else {
-            return; // stop on other 422 causes (policy, captcha, disabled)
+            return; // stop on other 422 causes (policy, disabled signups, captcha)
           }
-        } else if (data.session) {
-          // 3) If signUp returned a session (email confirmation OFF)
-          await syncCookie(data.session);
         } else {
-          // (If you re-enable email confirm later)
-          setErr('Check your email to verify your account.');
-          return;
+          // success: sync cookie
+          await fetch('/auth/callback', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ event:'SIGNED_IN', session: data.session }) });
         }
 
         // 4) Create restaurant on server (RLS sees user now)
