@@ -1,0 +1,50 @@
+name: Database Guardrails
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/db.yml'
+      - 'scripts/schema-doctor.mjs'
+
+jobs:
+  sql-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install SQLFluff
+        run: pip install sqlfluff
+      - name: Lint SQL migrations
+        run: sqlfluff lint supabase/migrations/ --dialect postgres
+
+  schema-doctor:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run schema doctor
+        run: node scripts/schema-doctor.mjs
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
