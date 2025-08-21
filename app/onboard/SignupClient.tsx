@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 import { createTenant } from './actions';
 import { Button } from '@/components/ui/Button';
