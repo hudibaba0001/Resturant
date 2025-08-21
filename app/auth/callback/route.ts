@@ -21,22 +21,19 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const { event, session } = await req.json().catch(() => ({}));
   const supabase = getSupabaseServer();
-
-  const { event, session } = await req.json().catch(() => ({ }));
-
-  if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-    if (session?.access_token && session?.refresh_token) {
-      await supabase.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-    }
+  
+  if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
+    await supabase.auth.setSession({ 
+      access_token: session.access_token, 
+      refresh_token: session?.refresh_token || '' 
+    });
   }
-
-  if (event === "SIGNED_OUT") {
+  
+  if (event === 'SIGNED_OUT') {
     await supabase.auth.signOut();
   }
-
+  
   return NextResponse.json({ ok: true });
 }
