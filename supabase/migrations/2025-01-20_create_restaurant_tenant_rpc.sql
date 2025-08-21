@@ -1,84 +1,43 @@
--- Create the restaurant tenant RPC function
-CREATE OR REPLACE FUNCTION public.create_restaurant_tenant(
-  p_name text,
-  p_desc text DEFAULT NULL,
-  p_cuisine text DEFAULT NULL
+-- Create/replace the tenant creation RPC
+create or replace function public.create_restaurant_tenant(
+  p_name    text,
+  p_desc    text,
+  p_cuisine text default null
 )
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_restaurant_id uuid;
-  v_user_id uuid;
-BEGIN
-  -- Get the current user ID
-  v_user_id := auth.uid();
-  
-  -- Check if user is authenticated
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'User must be authenticated';
-  END IF;
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r_id uuid;
+  uid  uuid := auth.uid();
+begin
+  if uid is null then
+    raise exception 'not_authenticated';
+  end if;
 
-  -- Create the restaurant
-  INSERT INTO public.restaurants (
-    name,
-    description,
-    cuisine_type,
-    owner_id,
-    is_active,
-    is_verified,
-    created_at,
-    updated_at
-  ) VALUES (
-    p_name,
-    p_desc,
-    p_cuisine,
-    v_user_id,
-    true,
-    false,
-    NOW(),
-    NOW()
-  ) RETURNING id INTO v_restaurant_id;
+  -- Upsert restaurant by (owner_id, name)
+  insert into public.restaurants(name, description, cuisine_type, owner_id)
+  values (p_name, p_desc, p_cuisine, uid)
+  on conflict (owner_id, name) do update set updated_at = now()
+  returning id into r_id;
 
-  -- Create the owner staff record
-  INSERT INTO public.restaurant_staff (
-    restaurant_id,
-    user_id,
-    role,
-    created_at,
-    updated_at
-  ) VALUES (
-    v_restaurant_id,
-    v_user_id,
-    'owner',
-    NOW(),
-    NOW()
-  );
+  -- Ensure owner role
+  insert into public.restaurant_staff(restaurant_id, user_id, role)
+  values (r_id, uid, 'owner')
+  on conflict (restaurant_id, user_id) do nothing;
 
-  -- Create a default menu section
-  INSERT INTO public.menu_sections (
-    restaurant_id,
-    name,
-    description,
-    position,
-    is_active,
-    created_at,
-    updated_at
-  ) VALUES (
-    v_restaurant_id,
-    'Main Menu',
-    'Our main menu items',
-    1,
-    true,
-    NOW(),
-    NOW()
-  );
+  -- Ensure a default section
+  insert into public.menu_sections(restaurant_id, name, position)
+  values (r_id, 'Mains', 0)
+  on conflict do nothing;
 
-  RETURN v_restaurant_id;
-END;
-$$;
+  return r_id;
+end $$;
 
--- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION public.create_restaurant_tenant(text, text, text) TO authenticated;
+-- Callable by logged-in users
+grant execute on function public.create_restaurant_tenant(text, text, text) to authenticated;
+
+-- Make PostgREST see new function immediately
+notify pgrst, 'reload schema';
