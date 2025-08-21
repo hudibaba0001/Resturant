@@ -7,6 +7,9 @@ const Schema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
   cuisine: z.string().optional(),
+  address: z.string().min(1).default(''),
+  city: z.string().min(1).default('Stockholm'),
+  country: z.string().length(2).default('SE'),
 });
 
 export async function createTenant(fd: FormData) {
@@ -21,12 +24,20 @@ export async function createTenant(fd: FormData) {
       name: fd.get('name'),
       description: fd.get('description'),
       cuisine: fd.get('cuisine_type'),
+      address: fd.get('address') ?? '',
+      city: fd.get('city') ?? 'Stockholm',
+      country: fd.get('country') ?? 'SE',
     });
     if (!parsed.success) return { error: 'validation', details: parsed.error.flatten() };
 
-    const { name, description, cuisine } = parsed.data;
+    const { name, description, cuisine, address, city, country } = parsed.data;
     const { data, error } = await supabase.rpc('create_restaurant_tenant', {
-      p_name: name, p_desc: description ?? null, p_cuisine: cuisine ?? null
+      p_name: name,
+      p_desc: description ?? null,
+      p_cuisine: cuisine ?? null,
+      p_address: address,
+      p_city: city,
+      p_country: country,
     });
 
     if (error) return { error: `rpc_error: ${error.message}` };

@@ -28,16 +28,18 @@ begin
   end if;
 end $$;
 
--- Update the RPC function with address defaults
+-- Remove the ambiguous 3-arg version first
+drop function if exists public.create_restaurant_tenant(text, text, text);
+
+-- Create the canonical 6-arg version
 create or replace function public.create_restaurant_tenant(
   p_name    text,
   p_desc    text,
   p_cuisine text default null,
-  p_address text default '',              -- NEW: default to empty string
-  p_city    text default 'Stockholm',     -- NEW: required in schema
-  p_country text default 'SE'             -- schema default was 'US'; set EU-friendly
-)
-returns uuid
+  p_address text default '',
+  p_city    text default 'Stockholm',
+  p_country text default 'SE'
+) returns uuid
 language plpgsql
 security definer
 set search_path = public
@@ -53,14 +55,15 @@ begin
   insert into public.restaurants
     (name, description, cuisine_type, owner_id, address, city, country)
   values
-    (p_name, p_desc, p_cuisine, uid, coalesce(p_address,''), coalesce(p_city,'Stockholm'), coalesce(p_country,'SE'))
+    (p_name, p_desc, p_cuisine, uid,
+     coalesce(p_address,''), coalesce(p_city,'Stockholm'), coalesce(p_country,'SE'))
   on conflict (owner_id, name) do update
     set description = excluded.description,
         cuisine_type = excluded.cuisine_type,
-        address = excluded.address,
-        city = excluded.city,
-        country = excluded.country,
-        updated_at = now()
+        address      = excluded.address,
+        city         = excluded.city,
+        country      = excluded.country,
+        updated_at   = now()
   returning id into r_id;
 
   insert into public.restaurant_staff(restaurant_id, user_id, role)
@@ -75,7 +78,7 @@ begin
 end $$;
 
 -- Grant permissions
-grant execute on function public.create_restaurant_tenant(text, text, text, text, text, text) to authenticated;
+grant execute on function public.create_restaurant_tenant(text,text,text,text,text,text) to authenticated;
 
 -- Tell PostgREST to reload schema
 notify pgrst, 'reload schema';
