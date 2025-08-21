@@ -20,7 +20,10 @@ begin
   -- Upsert restaurant by (owner_id, name)
   insert into public.restaurants(name, description, cuisine_type, owner_id)
   values (p_name, p_desc, p_cuisine, uid)
-  on conflict (owner_id, name) do update set updated_at = now()
+  on conflict (owner_id, name) do update set 
+    description = EXCLUDED.description,
+    cuisine_type = EXCLUDED.cuisine_type,
+    updated_at = now()
   returning id into r_id;
 
   -- Ensure owner role
