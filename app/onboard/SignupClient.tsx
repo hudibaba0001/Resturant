@@ -102,26 +102,30 @@ export default function SignupClient() {
         let { data, error } = await supabase.auth.signUp({ email, password });
 
         if (error) {
-          // 2) Fallback: if already registered, try signIn
+          // Show the real reason in the UI
+          setErr(`signup: ${error.status ?? 422} - ${error.message}`);
+
+          // Auto-fallback only for "already registered"
           const msg = (error.message || '').toLowerCase();
-          const alreadyUser = msg.includes('already') || msg.includes('registered') || error.status === 422;
-          if (alreadyUser) {
+          const already = msg.includes('already') || msg.includes('registered');
+          
+          if (already) {
             const signIn = await supabase.auth.signInWithPassword({ email, password });
-            if (signIn.error) { setErr(signIn.error.message); return; }
+            if (signIn.error) { 
+              setErr(`signin: ${signIn.error.message}`); 
+              return; 
+            }
             if (signIn.data.session) await syncCookie(signIn.data.session);
           } else {
-            setErr(error.message ?? 'Sign up failed.');
-            return;
+            return; // stop on other 422 causes (policy, captcha, disabled)
           }
-        } else {
+        } else if (data.session) {
           // 3) If signUp returned a session (email confirmation OFF)
-          if (data.session) {
-            await syncCookie(data.session);
-          } else {
-            // (If you re-enable email confirm later)
-            setErr('Check your email to verify your account.');
-            return;
-          }
+          await syncCookie(data.session);
+        } else {
+          // (If you re-enable email confirm later)
+          setErr('Check your email to verify your account.');
+          return;
         }
 
         // 4) Create restaurant on server (RLS sees user now)
