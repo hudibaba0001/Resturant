@@ -1,16 +1,11 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import SettingsForm from './SettingsForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies }
-  );
+  const supabase = getSupabaseServer();
   
   // Check authentication
   const { data: { session } } = await supabase.auth.getSession();
@@ -18,33 +13,19 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
-  // Get user's restaurant with RLS
-  const { data: userRestaurants } = await supabase
-    .from('restaurant_staff')
-    .select(`
-      role,
-      restaurants (
-        id,
-        name,
-        slug,
-        address,
-        city,
-        country,
-        phone,
-        email,
-        opening_hours,
-        is_active,
-        is_verified
-      )
-    `)
-    .eq('user_id', session.user.id);
+  // Get user's restaurant with RLS - simplified
+  const { data: restaurants, error } = await supabase
+    .from('restaurants')
+    .select('id,name,slug,address,city,country,phone,email,opening_hours,is_active,is_verified')
+    .eq('owner_id', session.user.id)
+    .limit(1);
 
-  const restaurant = (userRestaurants as any)?.[0]?.restaurants;
-  const userRole = (userRestaurants as any)?.[0]?.role || 'viewer';
-  
-  if (!restaurant) {
-    redirect('/login?error=no_restaurant');
+  if (error || !restaurants || restaurants.length === 0) {
+    redirect('/onboard?welcome=true');
   }
+
+  const restaurant = restaurants[0];
+  const userRole = 'owner'; // Since we're querying by owner_id
 
   return (
     <div className="space-y-6">

@@ -1,16 +1,11 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import EmbedClient from './EmbedClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EmbedPage() {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies }
-  );
+  const supabase = getSupabaseServer();
   
   // Check authentication
   const { data: { session } } = await supabase.auth.getSession();
@@ -18,26 +13,18 @@ export default async function EmbedPage() {
     redirect('/login');
   }
 
-  // Get user's restaurant with RLS
-  const { data: userRestaurants } = await supabase
-    .from('restaurant_staff')
-    .select(`
-      role,
-      restaurants (
-        id,
-        name,
-        slug,
-        is_active,
-        is_verified
-      )
-    `)
-    .eq('user_id', session.user.id);
+  // Get user's restaurant with RLS - simplified
+  const { data: restaurants, error } = await supabase
+    .from('restaurants')
+    .select('id,name,slug,is_active,is_verified')
+    .eq('owner_id', session.user.id)
+    .limit(1);
 
-  const restaurant = (userRestaurants as any)?.[0]?.restaurants;
-  
-  if (!restaurant) {
-    redirect('/login?error=no_restaurant');
+  if (error || !restaurants || restaurants.length === 0) {
+    redirect('/onboard?welcome=true');
   }
+
+  const restaurant = restaurants[0];
 
   // Check restaurant status
   const { data: statusData } = await supabase
