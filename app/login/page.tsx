@@ -18,7 +18,10 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const redirectTo = searchParams.get('redirectTo') || '/dashboard/menu'
+
+    // 1) Sign in
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -26,10 +29,30 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
       setLoading(false)
-    } else {
-      const redirectTo = searchParams.get('redirectTo') || '/dashboard'
-      router.push(redirectTo)
+      return
     }
+
+    if (!data.session) {
+      setError('No session returned')
+      setLoading(false)
+      return
+    }
+
+    // 2) Server cookie sync (critical for RLS/SSR)
+    const r = await fetch('/auth/callback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'SIGNED_IN', session: data.session }),
+    })
+
+    if (!r.ok) {
+      setError('Cookie sync failed')
+      setLoading(false)
+      return
+    }
+
+    // 3) Hard redirect so the server re-evaluates auth
+    window.location.replace(redirectTo)
   }
 
   return (

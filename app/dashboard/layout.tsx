@@ -1,9 +1,8 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Menu, ShoppingCart, Settings, LogOut } from 'lucide-react';
 import { initSentry } from '@/lib/sentry';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 
 // Initialize Sentry for error tracking
 initSentry();
@@ -17,11 +16,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies }
-  );
+  const supabase = getSupabaseServer();
   
   // Check authentication
   const { data: { session } } = await supabase.auth.getSession();
@@ -53,11 +48,7 @@ export default async function DashboardLayout({
 
   const handleSignOut = async () => {
     'use server';
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies }
-    );
+    const supabase = getSupabaseServer();
     await supabase.auth.signOut();
     redirect('/login');
   };
