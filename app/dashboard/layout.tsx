@@ -25,25 +25,38 @@ export default async function DashboardLayout({
   }
 
   // Get user's restaurants with RLS
-  const { data: userRestaurants } = await supabase
-    .from('restaurant_staff')
-    .select(`
-      role,
-      restaurants (
-        id,
-        name,
-        slug,
-        is_active,
-        is_verified
-      )
-    `)
-    .eq('user_id', session.user.id);
+  let userRestaurants;
+  let restaurant;
+  
+  try {
+    const { data, error } = await supabase
+      .from('restaurant_staff')
+      .select(`
+        role,
+        restaurants (
+          id,
+          name,
+          slug,
+          is_active,
+          is_verified
+        )
+      `)
+      .eq('user_id', session.user.id);
 
-  // For now, use the first restaurant (in real app, you'd have restaurant selection)
-  const restaurant = (userRestaurants as any)?.[0]?.restaurants;
+    if (error) {
+      console.error('Failed to fetch restaurants:', error);
+      redirect('/onboard?error=fetch_failed');
+    }
+
+    userRestaurants = data;
+    restaurant = (userRestaurants as any)?.[0]?.restaurants;
+  } catch (error) {
+    console.error('Error in dashboard layout:', error);
+    redirect('/onboard?error=layout_error');
+  }
   
   if (!restaurant) {
-    redirect('/login?error=no_restaurant');
+    redirect('/onboard?welcome=true');
   }
 
   const handleSignOut = async () => {
