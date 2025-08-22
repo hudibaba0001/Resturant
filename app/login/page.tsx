@@ -19,8 +19,6 @@ export default function LoginPage() {
     const email = String(formData.get('email') || '').trim()
     const password = String(formData.get('password') || '')
 
-    const redirectTo = searchParams.get('redirectTo') || '/dashboard/menu'
-
     // 1) Sign in
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -40,26 +38,21 @@ export default function LoginPage() {
     }
 
     // 2) Server cookie sync (critical for RLS/SSR)
-    console.log('Attempting cookie sync...', { event: 'SIGNED_IN', session: data.session })
-    
     const r = await fetch('/auth/callback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event: 'SIGNED_IN', session: data.session }),
-    })
-
-    console.log('Cookie sync response:', { status: r.status, ok: r.ok })
-
+    });
+    
     if (!r.ok) {
-      const errorText = await r.text()
-      console.error('Cookie sync failed:', errorText)
-      setError(`Cookie sync failed: ${r.status} ${errorText}`)
-      setLoading(false)
-      return
+      setError('Cookie sync failed');
+      setLoading(false);
+      return;
     }
 
     // 3) Hard redirect so the server re-evaluates auth
-    window.location.replace(redirectTo)
+    const redirectTo = new URLSearchParams(location.search).get('redirectTo') || '/dashboard/menu';
+    window.location.replace(redirectTo);
   }
 
   return (
