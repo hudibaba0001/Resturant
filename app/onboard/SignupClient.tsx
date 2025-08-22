@@ -109,6 +109,9 @@ export default function SignupClient() {
           return;
         }
 
+        // Small delay to ensure cookies are propagated
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Step 4: Create restaurant tenant
         const result = await createTenant(formData);
 

@@ -1,14 +1,30 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
   if (!code) return NextResponse.redirect(`${origin}/onboard?error=missing_code`);
 
-  const supabase = getSupabaseServer();
+  // Create response we will return
+  const res = NextResponse.redirect(`${origin}/dashboard/menu?welcome=true&pending=restaurant`);
+
+  // Bridge cookies between req <-> res
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name) => req.cookies.get(name)?.value,
+        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
+        remove: (name, options) => res.cookies.set({ name, value: '', ...options, maxAge: 0 }),
+      },
+    }
+  );
 
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
@@ -17,15 +33,29 @@ export async function GET(req: Request) {
     );
   }
 
-  // User is now authenticated (cookie set) → go to welcome/dashboard
-  // The restaurant creation will be handled by the dashboard component
-  return NextResponse.redirect(`${origin}/dashboard/menu?welcome=true&pending=restaurant`);
+  return res;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const { event, session } = await req.json().catch(() => ({}));
-  const supabase = getSupabaseServer();
 
+  // 1) Create ONE response we will return
+  const res = NextResponse.json({ ok: true });
+
+  // 2) Bridge cookies between req <-> res (critical!)
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name) => req.cookies.get(name)?.value,
+        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
+        remove: (name, options) => res.cookies.set({ name, value: '', ...options, maxAge: 0 }),
+      },
+    }
+  );
+
+  // 3) Set or clear the session (this will mutate `res.cookies`)
   if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
     const { error } = await supabase.auth.setSession({
       access_token: session.access_token,
@@ -34,7 +64,10 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
   }
   
-  if (event === 'SIGNED_OUT') await supabase.auth.signOut();
+  if (event === 'SIGNED_OUT') {
+    await supabase.auth.signOut();
+  }
 
-  return NextResponse.json({ ok: true });
+  // 4) Return THE SAME `res` that has Set-Cookie
+  return res;
 }

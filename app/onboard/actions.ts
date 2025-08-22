@@ -15,7 +15,11 @@ const Schema = z.object({
 export async function createTenant(fd: FormData) {
   const supabase = getSupabaseServer();
   
+  console.log('createTenant: Starting server action');
+  
   const { data: { user }, error: uErr } = await supabase.auth.getUser();
+  console.log('createTenant: Auth result:', { user: !!user, error: uErr?.message });
+  
   if (uErr) return { error: `auth_get_user: ${uErr.message}` };
   if (!user) return { error: 'not_authenticated' };
 
