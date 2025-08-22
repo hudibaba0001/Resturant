@@ -24,40 +24,24 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // Get user's restaurants with RLS
-  let userRestaurants;
-  let restaurant;
-  
-  try {
-    const { data, error } = await supabase
-      .from('restaurant_staff')
-      .select(`
-        role,
-        restaurants (
-          id,
-          name,
-          slug,
-          is_active,
-          is_verified
-        )
-      `)
-      .eq('user_id', session.user.id);
+  // Get user's restaurants with RLS - simplified and resilient
+  const { data: restaurants, error } = await supabase
+    .from('restaurants')
+    .select('id,name,slug,is_active,is_verified')
+    .eq('owner_id', session.user.id)
+    .limit(1);
 
-    if (error) {
-      console.error('Failed to fetch restaurants:', error);
-      redirect('/onboard?error=fetch_failed');
-    }
-
-    userRestaurants = data;
-    restaurant = (userRestaurants as any)?.[0]?.restaurants;
-  } catch (error) {
-    console.error('Error in dashboard layout:', error);
-    redirect('/onboard?error=layout_error');
-  }
-  
-  if (!restaurant) {
+  // If no tenant yet, send to onboarding instead of crashing
+  if (!error && (!restaurants || restaurants.length === 0)) {
     redirect('/onboard?welcome=true');
   }
+
+  if (error) {
+    console.error('Failed to fetch restaurants:', error);
+    redirect('/onboard?error=fetch_failed');
+  }
+
+  const restaurant = restaurants[0];
 
   const handleSignOut = async () => {
     'use server';
