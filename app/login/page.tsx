@@ -40,14 +40,20 @@ export default function LoginPage() {
     }
 
     // 2) Server cookie sync (critical for RLS/SSR)
+    console.log('Attempting cookie sync...', { event: 'SIGNED_IN', session: data.session })
+    
     const r = await fetch('/auth/callback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event: 'SIGNED_IN', session: data.session }),
     })
 
+    console.log('Cookie sync response:', { status: r.status, ok: r.ok })
+
     if (!r.ok) {
-      setError('Cookie sync failed')
+      const errorText = await r.text()
+      console.error('Cookie sync failed:', errorText)
+      setError(`Cookie sync failed: ${r.status} ${errorText}`)
       setLoading(false)
       return
     }
