@@ -612,11 +612,23 @@
          line-height: 1.4;
        }
        
-       .stjarna-message-content p {
-         margin: 0;
-         color: ${tokens.colors.text};
-         font-size: 14px;
-       }
+               .stjarna-message-content p {
+          margin: 0;
+          color: ${tokens.colors.text};
+          font-size: 14px;
+        }
+        
+        .stjarna-context {
+          margin-top: 4px;
+          font-size: 12px;
+          color: ${tokens.colors['text-muted']};
+        }
+        
+        .stjarna-disclaimer {
+          margin-top: 8px;
+          font-size: 11px;
+          color: ${tokens.colors['text-muted']};
+        }
       
       .stjarna-quick-questions {
         display: flex;
@@ -652,47 +664,51 @@
         border-top: 1px solid ${tokens.colors.border};
       }
       
-      .stjarna-chat-input {
-        display: flex;
-        gap: ${tokens.spacing[8]};
-      }
-      
-      .stjarna-chat-input input {
-        flex: 1;
-        padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
-        border: 1px solid ${tokens.colors.border};
-        border-radius: ${tokens.borderRadius.input};
-        font-size: 14px;
-        background: ${tokens.colors.surface};
-        color: ${tokens.colors.text};
-        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
-        min-height: 40px;
-      }
-      
-      .stjarna-chat-input input::placeholder {
-        color: ${tokens.colors['text-muted']};
-      }
-      
-      .stjarna-chat-input input:focus {
-        outline: none;
-        border-color: ${tokens.colors.accent};
-        box-shadow: 0 0 0 2px ${tokens.colors.accent}40;
-      }
-      
-      .stjarna-chat-input button {
-        background: ${tokens.colors.accent};
-        color: ${tokens.colors.bg};
-        border: none;
-        border-radius: ${tokens.borderRadius.input};
-        padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
-        cursor: pointer;
-        transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
-        min-height: 40px;
-        min-width: 44px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+             .stjarna-chat-input {
+         display: flex;
+         gap: ${tokens.spacing[8]};
+         align-items: center;
+       }
+       
+       .stjarna-chat-input input {
+         flex: 1;
+         padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
+         border: 1px solid ${tokens.colors.border};
+         border-radius: ${tokens.borderRadius.input};
+         font-size: 14px;
+         background: ${tokens.colors.surface};
+         color: ${tokens.colors.text};
+         transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+         min-height: 40px;
+         min-width: 0; /* Allow input to shrink */
+       }
+       
+       .stjarna-chat-input input::placeholder {
+         color: ${tokens.colors['text-muted']};
+       }
+       
+       .stjarna-chat-input input:focus {
+         outline: none;
+         border-color: ${tokens.colors.accent};
+         box-shadow: 0 0 0 2px ${tokens.colors.accent}40;
+       }
+       
+       .stjarna-chat-input button {
+         background: ${tokens.colors.accent};
+         color: ${tokens.colors.bg};
+         border: none;
+         border-radius: ${tokens.borderRadius.input};
+         padding: ${tokens.spacing[8]};
+         cursor: pointer;
+         transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+         min-height: 40px;
+         min-width: 40px;
+         max-width: 40px;
+         flex-shrink: 0; /* Prevent button from shrinking */
+         display: flex;
+         align-items: center;
+         justify-content: center;
+       }
       
       .stjarna-chat-input button:hover {
         background: ${tokens.colors.accent}dd;
@@ -1097,15 +1113,31 @@
             padding: ${tokens.spacing[4]} ${tokens.spacing[8]};
           }
           
-          .stjarna-quick-questions {
-            flex-direction: column;
-            gap: ${tokens.spacing[6]};
-          }
-          
-          .stjarna-quick-btn {
-            width: 100%;
-            text-align: center;
-          }
+                     .stjarna-quick-questions {
+             flex-direction: column;
+             gap: ${tokens.spacing[6]};
+           }
+           
+           .stjarna-quick-btn {
+             width: 100%;
+             text-align: center;
+           }
+           
+           .stjarna-chat-input {
+             gap: ${tokens.spacing[6]};
+           }
+           
+           .stjarna-chat-input input {
+             font-size: 13px;
+             padding: ${tokens.spacing[8]} ${tokens.spacing[10]};
+           }
+           
+           .stjarna-chat-input button {
+             min-width: 36px;
+             max-width: 36px;
+             min-height: 36px;
+             padding: ${tokens.spacing[6]};
+           }
           
           .stjarna-cart-actions {
             flex-direction: column;
@@ -1329,16 +1361,16 @@
       const data = await response.json();
       
       // Use server reply first, fallback to intelligent response
-      if (data.reply) {
-        addMessage('assistant', data.reply);
+      if (data.reply?.text) {
+        addAssistantReply(data.reply);
       } else {
         const intelligentResponse = provideIntelligentResponse(message);
         addMessage('assistant', intelligentResponse);
       }
       
       // If API suggests specific items, show them as cards
-      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-        state.suggestions = data.suggestions;
+      if (Array.isArray(data.cards) && data.cards.length > 0) {
+        state.suggestions = data.cards;
         renderSuggestions();
       }
     } catch (error) {
@@ -1352,7 +1384,7 @@
     }
   }
 
-  // Provide intelligent AI responses
+  // Provide intelligent AI responses (concise version)
   function provideIntelligentResponse(message) {
     if (!state.menu) return "I'm sorry, I don't have access to the menu right now. Please try again later.";
     
@@ -1362,7 +1394,6 @@
     // Handle conversation context first
     if (state.conversationContext) {
       if (lowerMessage.includes('yes') || lowerMessage.includes('sure') || lowerMessage.includes('ok') || lowerMessage.includes('please')) {
-        // Follow up on previous context
         if (state.conversationContext === 'vegan_followup') {
           state.conversationContext = 'vegetarian_shown';
           return provideVegetarianOptions(allItems);
@@ -1378,21 +1409,16 @@
         }
       } else if (state.conversationContext === 'vegetarian_shown' && 
                 (lowerMessage.includes('vegan') || lowerMessage.includes('how') || lowerMessage.includes('make'))) {
-        // User is asking about making vegetarian dishes vegan
         state.conversationContext = null;
         return provideVeganModifications(allItems);
       } else if (lowerMessage.includes('vegan') || lowerMessage.includes('vegetarian') || 
                 lowerMessage.includes('gluten') || lowerMessage.includes('spicy') || 
                 lowerMessage.includes('budget') || lowerMessage.includes('cheap')) {
-        // User is asking about a different dietary preference, clear context
         state.conversationContext = null;
-      } else {
-        // Keep context for other follow-up questions
-        // Don't clear context here
       }
     }
     
-    // Cuisine-specific responses with detailed dish information
+    // Cuisine-specific responses
     if (lowerMessage.includes('indian') || lowerMessage.includes('india')) {
       const indianItems = allItems.filter(item => 
         item.description?.toLowerCase().includes('indian') ||
@@ -1405,26 +1431,9 @@
       );
       
       if (indianItems.length > 0) {
-        let response = "Yes, we have a wonderful selection of Indian dishes! Here are some highlights:\n\n";
-        
-        indianItems.slice(0, 3).forEach(item => {
-          const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-          response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-          
-          // Add detailed descriptions based on dish type
-          if (item.name.toLowerCase().includes('butter chicken')) {
-            response += `  A classic North Indian dish with tender chicken in a rich, creamy tomato-based sauce. Made with aromatic spices like garam masala, turmeric, and fenugreek. Served with basmati rice and naan bread.\n\n`;
-          } else if (item.name.toLowerCase().includes('paneer')) {
-            response += `  Fresh Indian cottage cheese cooked with spinach and aromatic spices. A traditional vegetarian dish rich in protein and flavor. Made with fresh spinach, paneer cheese, and a blend of Indian spices.\n\n`;
-          } else if (item.name.toLowerCase().includes('curry')) {
-            response += `  Aromatic curry prepared with authentic Indian spices. Each curry is carefully crafted with a unique blend of spices including cumin, coriander, turmeric, and chili.\n\n`;
-          } else {
-            response += `  ${item.description || 'A delicious Indian dish prepared with authentic spices and traditional cooking methods.'}\n\n`;
-          }
-        });
-        
-        response += "Would you like me to tell you more about any specific dish or show you our complete Indian menu?";
-        return response;
+        state.suggestions = indianItems.slice(0, 3);
+        renderSuggestions();
+        return "Here are a few Indian picks we serve. Looking for vegetarian or spicy?";
       }
     }
     
@@ -1438,23 +1447,9 @@
       );
       
       if (italianItems.length > 0) {
-        let response = "Absolutely! We have authentic Italian cuisine. Here are some of our Italian specialties:\n\n";
-        
-        italianItems.slice(0, 3).forEach(item => {
-          const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-          response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-          
-          if (item.name.toLowerCase().includes('pizza')) {
-            response += `  Traditional Italian pizza with hand-tossed dough, fresh mozzarella, and authentic tomato sauce. Cooked in a stone oven for that perfect crispy crust.\n\n`;
-          } else if (item.name.toLowerCase().includes('pasta')) {
-            response += `  Al dente pasta prepared with fresh ingredients and traditional Italian sauces. Each pasta dish is made to order with authentic Italian cooking techniques.\n\n`;
-          } else {
-            response += `  ${item.description || 'A classic Italian dish prepared with fresh ingredients and traditional recipes.'}\n\n`;
-          }
-        });
-        
-        response += "Would you like to know more about any specific Italian dish?";
-        return response;
+        state.suggestions = italianItems.slice(0, 3);
+        renderSuggestions();
+        return "Here are a few Italian picks we serve. Looking for vegetarian or spicy?";
       }
     }
     
@@ -1468,23 +1463,9 @@
       );
       
       if (chineseItems.length > 0) {
-        let response = "Yes! We have delicious Chinese and Asian cuisine. Here are some highlights:\n\n";
-        
-        chineseItems.slice(0, 3).forEach(item => {
-          const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-          response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-          
-          if (item.name.toLowerCase().includes('noodle')) {
-            response += `  Fresh Asian noodles stir-fried with vegetables and your choice of protein. Prepared in a traditional wok with authentic Asian sauces and spices.\n\n`;
-          } else if (item.name.toLowerCase().includes('rice')) {
-            response += `  Fragrant jasmine rice cooked with fresh vegetables and aromatic Asian spices. A perfect accompaniment to any Asian dish.\n\n`;
-          } else {
-            response += `  ${item.description || 'A traditional Asian dish prepared with authentic ingredients and cooking methods.'}\n\n`;
-          }
-        });
-        
-        response += "Would you like to know more about any specific Asian dish?";
-        return response;
+        state.suggestions = chineseItems.slice(0, 3);
+        renderSuggestions();
+        return "Here are a few Asian picks we serve. Looking for vegetarian or spicy?";
       }
     }
     
@@ -1498,48 +1479,27 @@
       );
       
       if (mexicanItems.length > 0) {
-        let response = "¡Sí! We have authentic Mexican cuisine. Here are some of our Mexican favorites:\n\n";
-        
-        mexicanItems.slice(0, 3).forEach(item => {
-          const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-          response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-          
-          if (item.name.toLowerCase().includes('taco')) {
-            response += `  Fresh corn tortillas filled with your choice of protein, topped with fresh salsa, guacamole, and Mexican spices. Served with lime and cilantro.\n\n`;
-          } else if (item.name.toLowerCase().includes('burrito')) {
-            response += `  Large flour tortilla wrapped around rice, beans, meat, and fresh vegetables. Topped with melted cheese and served with sour cream and salsa.\n\n`;
-          } else {
-            response += `  ${item.description || 'A traditional Mexican dish prepared with authentic spices and fresh ingredients.'}\n\n`;
-          }
-        });
-        
-        response += "Would you like to know more about any specific Mexican dish?";
-        return response;
+        state.suggestions = mexicanItems.slice(0, 3);
+        renderSuggestions();
+        return "Here are a few Mexican picks we serve. Looking for vegetarian or spicy?";
       }
     }
     
     // Dietary preferences
-         if (lowerMessage.includes('vegan') || lowerMessage.includes('plant-based')) {
-       const veganItems = allItems.filter(item => 
-         item.description?.toLowerCase().includes('vegan') || 
-         item.allergens?.some(allergen => allergen.toLowerCase() === 'vegan')
-       );
-       if (veganItems.length > 0) {
-         let response = `Great! I found ${veganItems.length} vegan options for you. Here are some highlights:\n\n`;
-         
-         veganItems.slice(0, 3).forEach(item => {
-           const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-           response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-           response += `  ${item.description || 'A delicious plant-based dish made with fresh, organic ingredients.'}\n\n`;
-         });
-         
-         response += "All our vegan dishes are carefully prepared with plant-based ingredients and no animal products.";
-         return response;
-       } else {
-         state.conversationContext = 'vegan_followup';
-         return "I don't see any specifically marked vegan items on our menu, but many of our vegetarian dishes can be made vegan-friendly. Would you like me to show you our vegetarian options?";
-       }
-     }
+    if (lowerMessage.includes('vegan') || lowerMessage.includes('plant-based')) {
+      const veganItems = allItems.filter(item => 
+        item.description?.toLowerCase().includes('vegan') || 
+        item.allergens?.some(allergen => allergen.toLowerCase() === 'vegan')
+      );
+      if (veganItems.length > 0) {
+        state.suggestions = veganItems.slice(0, 3);
+        renderSuggestions();
+        return `Found ${veganItems.length} vegan options. Need vegetarian alternatives?`;
+      } else {
+        state.conversationContext = 'vegan_followup';
+        return "No marked vegan items, but many vegetarian dishes can be made vegan. Show vegetarian options?";
+      }
+    }
     
     if (lowerMessage.includes('vegetarian') || lowerMessage.includes('veg')) {
       const vegItems = allItems.filter(item => 
@@ -1548,97 +1508,62 @@
         item.category === 'Desserts'
       );
       
-      let response = `I found ${vegItems.length} vegetarian-friendly options! Here are some highlights:\n\n`;
-      
-      vegItems.slice(0, 3).forEach(item => {
-        const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-        response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-        response += `  ${item.description || 'A delicious vegetarian dish made with fresh vegetables and wholesome ingredients.'}\n\n`;
-      });
-      
-      response += "We have a good selection of appetizers, desserts, and main dishes that are vegetarian.";
-      return response;
+      state.suggestions = vegItems.slice(0, 3);
+      renderSuggestions();
+      return `Found ${vegItems.length} vegetarian options. Many can be made vegan.`;
     }
     
-         if (lowerMessage.includes('gluten') || lowerMessage.includes('celiac')) {
-       const glutenFreeItems = allItems.filter(item => 
-         item.description?.toLowerCase().includes('gluten-free') || 
-         item.allergens?.some(allergen => allergen.toLowerCase() === 'gluten-free')
-       );
-       if (glutenFreeItems.length > 0) {
-         let response = `Perfect! I found ${glutenFreeItems.length} gluten-free options. Here are some highlights:\n\n`;
-         
-         glutenFreeItems.slice(0, 3).forEach(item => {
-           const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-           response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-           response += `  ${item.description || 'A delicious gluten-free dish prepared with safe ingredients.'}\n\n`;
-         });
-         
-         response += "We take food allergies seriously and these dishes are prepared with gluten-free ingredients in a dedicated area.";
-         return response;
-       } else {
-         state.conversationContext = 'gluten_followup';
-         return "I don't see any specifically marked gluten-free items, but I can help you identify dishes that might be naturally gluten-free. Would you like me to check the ingredients?";
-       }
-     }
+    if (lowerMessage.includes('gluten') || lowerMessage.includes('celiac')) {
+      const glutenFreeItems = allItems.filter(item => 
+        item.description?.toLowerCase().includes('gluten-free') || 
+        item.allergens?.some(allergen => allergen.toLowerCase() === 'gluten-free')
+      );
+      if (glutenFreeItems.length > 0) {
+        state.suggestions = glutenFreeItems.slice(0, 3);
+        renderSuggestions();
+        return `Found ${glutenFreeItems.length} gluten-free options. Need more alternatives?`;
+      } else {
+        state.conversationContext = 'gluten_followup';
+        return "No marked gluten-free items, but I can check ingredients. Show main courses?";
+      }
+    }
     
-         // Spicy food
-     if (lowerMessage.includes('spicy') || lowerMessage.includes('hot')) {
-       const spicyItems = allItems.filter(item => 
-         item.description?.toLowerCase().includes('spicy') || 
-         item.description?.toLowerCase().includes('chili') ||
-         item.name.toLowerCase().includes('spicy')
-       );
-       if (spicyItems.length > 0) {
-         let response = `🔥 I found ${spicyItems.length} spicy dishes! Here are some of our hottest options:\n\n`;
-         
-         spicyItems.slice(0, 3).forEach(item => {
-           const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-           response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-           response += `  ${item.description || 'A spicy dish with varying heat levels to suit your taste.'}\n\n`;
-         });
-         
-         response += "We have some great options with varying heat levels. Would you like me to show you the spicy selections?";
-         return response;
-       } else {
-         state.conversationContext = 'spicy_followup';
-         return "We have some dishes that can be made spicy upon request! Many of our main courses can be adjusted to your preferred heat level. Would you like me to show you our main courses that can be made spicy?";
-       }
-     }
+    // Spicy food
+    if (lowerMessage.includes('spicy') || lowerMessage.includes('hot')) {
+      const spicyItems = allItems.filter(item => 
+        item.description?.toLowerCase().includes('spicy') || 
+        item.description?.toLowerCase().includes('chili') ||
+        item.name.toLowerCase().includes('spicy')
+      );
+      if (spicyItems.length > 0) {
+        state.suggestions = spicyItems.slice(0, 3);
+        renderSuggestions();
+        return `Found ${spicyItems.length} spicy dishes. Need milder options?`;
+      } else {
+        state.conversationContext = 'spicy_followup';
+        return "Many main courses can be made spicy. Show main courses?";
+      }
+    }
     
     // Popular/recommended
     if (lowerMessage.includes('popular') || lowerMessage.includes('best') || lowerMessage.includes('recommend')) {
       const popularCategories = ['Mains', 'Appetizers'];
       const popularItems = allItems.filter(item => popularCategories.includes(item.category));
       
-      let response = `Based on our menu, I'd recommend trying our main courses - they're our most popular items! Here are some highlights:\n\n`;
-      
-      popularItems.slice(0, 3).forEach(item => {
-        const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-        response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-        response += `  ${item.description || 'A popular dish loved by our customers.'}\n\n`;
-      });
-      
-      response += `We have ${popularItems.length} great options across different cuisines. Would you like me to show you more?`;
-      return response;
+      state.suggestions = popularItems.slice(0, 3);
+      renderSuggestions();
+      return "Here are our most popular items. Need specific recommendations?";
     }
     
     // Desserts
     if (lowerMessage.includes('dessert') || lowerMessage.includes('sweet')) {
       const desserts = allItems.filter(item => item.category === 'Desserts');
       if (desserts.length > 0) {
-        let response = `🍰 We have ${desserts.length} delicious dessert options! Here are some sweet treats:\n\n`;
-        
-        desserts.slice(0, 3).forEach(item => {
-          const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-          response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-          response += `  ${item.description || 'A delicious dessert to satisfy your sweet tooth.'}\n\n`;
-        });
-        
-        response += "From traditional favorites to unique creations, we have something to satisfy your sweet tooth.";
-        return response;
+        state.suggestions = desserts.slice(0, 3);
+        renderSuggestions();
+        return `Found ${desserts.length} dessert options. Need main course suggestions?`;
       } else {
-        return "We have some sweet options available! While we don't have a dedicated dessert section, some of our main dishes have sweet elements. What type of dessert are you looking for?";
+        return "No dedicated dessert section. Need main course suggestions?";
       }
     }
     
@@ -1646,149 +1571,81 @@
     if (lowerMessage.includes('drink') || lowerMessage.includes('beverage')) {
       const drinks = allItems.filter(item => item.category === 'Drinks');
       if (drinks.length > 0) {
-        let response = `🥤 We have ${drinks.length} refreshing drink options! Here are some beverages:\n\n`;
-        
-        drinks.slice(0, 3).forEach(item => {
-          const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-          response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-          response += `  ${item.description || 'A refreshing beverage to complement your meal.'}\n\n`;
-        });
-        
-        response += "From soft drinks to specialty beverages, we have something for everyone.";
-        return response;
+        state.suggestions = drinks.slice(0, 3);
+        renderSuggestions();
+        return `Found ${drinks.length} drink options. Need food recommendations?`;
       } else {
-        return "We offer a variety of beverages to complement your meal! While we don't have a separate drinks section, we can provide recommendations based on your food choices. What are you planning to order?";
+        return "No separate drinks section. Need food recommendations?";
       }
     }
     
-         // Price-related
-     if (lowerMessage.includes('cheap') || lowerMessage.includes('budget') || lowerMessage.includes('affordable')) {
-       const affordableItems = allItems.filter(item => {
-         const price = item.price_cents || (item.price ? Math.round(item.price * 100) : 0);
-         return price < 15000; // Less than 150 SEK
-       });
-       
-       if (affordableItems.length > 0) {
-         let response = `💰 I found ${affordableItems.length} budget-friendly options under 150 SEK! Here are some great value dishes:\n\n`;
-         
-         affordableItems.slice(0, 6).forEach(item => {
-           const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-           response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-           
-           // Add detailed descriptions based on dish type
-           if (item.name.toLowerCase().includes('lemonade')) {
-             response += `  Freshly squeezed lemonade made with real lemons, a perfect refreshing drink. Served over ice with a slice of lemon for garnish.\n\n`;
-           } else if (item.name.toLowerCase().includes('hummus')) {
-             response += `  Creamy chickpea hummus served with warm pita bread and fresh vegetables. Made with tahini, olive oil, and authentic Middle Eastern spices.\n\n`;
-           } else if (item.name.toLowerCase().includes('bruschetta')) {
-             response += `  Traditional Italian bruschetta with toasted bread topped with fresh tomatoes, basil, garlic, and extra virgin olive oil. A classic appetizer.\n\n`;
-           } else if (item.name.toLowerCase().includes('smoothie')) {
-             response += `  Fresh fruit smoothie blended with natural ingredients. A healthy and delicious beverage perfect for any time of day.\n\n`;
-           } else if (item.name.toLowerCase().includes('latte')) {
-             response += `  Premium green tea latte made with matcha powder and steamed milk. A healthy alternative to coffee with natural antioxidants.\n\n`;
-           } else if (item.name.toLowerCase().includes('mousse')) {
-             response += `  Rich and creamy vegan chocolate mousse made with dark chocolate and coconut cream. A decadent dessert that's also dairy-free.\n\n`;
-           } else if (item.name.toLowerCase().includes('tiramisu')) {
-             response += `  Classic Italian tiramisu with layers of coffee-soaked ladyfingers and mascarpone cream. Topped with cocoa powder for the perfect finish.\n\n`;
-           } else if (item.name.toLowerCase().includes('cake')) {
-             response += `  Warm chocolate lava cake with a molten center, served with vanilla ice cream. A chocolate lover's dream dessert.\n\n`;
-           } else if (item.name.toLowerCase().includes('rolls')) {
-             response += `  Fresh spring rolls filled with crisp vegetables and herbs, served with sweet chili dipping sauce. A light and healthy appetizer.\n\n`;
-           } else {
-             response += `  ${item.description || 'A delicious and affordable dish that offers great value without compromising on taste or quality.'}\n\n`;
-           }
-         });
-         
-         response += "These budget-friendly options provide excellent value while maintaining the quality and taste you expect from our restaurant.";
-         return response;
-       } else {
-         state.conversationContext = 'budget_followup';
-         return "I don't see many budget-friendly options under 150 SEK, but I can show you our most affordable dishes. Would you like me to show you our lower-priced options?";
-       }
-     }
+    // Price-related
+    if (lowerMessage.includes('cheap') || lowerMessage.includes('budget') || lowerMessage.includes('affordable')) {
+      const affordableItems = allItems.filter(item => {
+        const price = item.price_cents || (item.price ? Math.round(item.price * 100) : 0);
+        return price < 15000; // Less than 150 SEK
+      });
+      
+      if (affordableItems.length > 0) {
+        state.suggestions = affordableItems.slice(0, 3);
+        renderSuggestions();
+        return `Found ${affordableItems.length} budget-friendly options under 150 SEK.`;
+      } else {
+        state.conversationContext = 'budget_followup';
+        return "Limited budget options. Show our most affordable dishes?";
+      }
+    }
     
     // General help
     if (lowerMessage.includes('help') || lowerMessage.includes('what') || lowerMessage.includes('how')) {
-      return "I'm here to help! I can assist you with:\n• Finding dishes based on dietary preferences (vegan, vegetarian, gluten-free)\n• Recommending popular or spicy options\n• Suggesting budget-friendly choices\n• Explaining ingredients and allergens\n• Providing detailed information about specific cuisines (Indian, Italian, Chinese, Mexican)\n\nWhat would you like to know about our menu?";
+      return "I can help with dietary preferences, cuisine types, recommendations, and budget options. What are you looking for?";
     }
     
-       // Default response
-   return "I'd be happy to help you find the perfect dish! I can assist with dietary preferences, recommendations, or answer questions about our menu. What are you looking for today?";
- }
+    // Default response
+    return "I can help with dietary preferences, recommendations, or specific cuisines. What are you looking for?";
+  }
 
- // Helper functions for follow-up responses
- function provideVegetarianOptions(allItems) {
-   const vegItems = allItems.filter(item => 
-     item.description?.toLowerCase().includes('vegetarian') || 
-     item.category === 'Appetizers' || 
-     item.category === 'Desserts' ||
-     item.name.toLowerCase().includes('paneer') ||
-     item.name.toLowerCase().includes('dal') ||
-     item.name.toLowerCase().includes('hummus') ||
-     item.name.toLowerCase().includes('bruschetta')
-   );
-   
-   let response = `Great! Here are our vegetarian-friendly options:\n\n`;
-   
-   vegItems.slice(0, 5).forEach(item => {
-     const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-     response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-     
-     if (item.name.toLowerCase().includes('paneer')) {
-       response += `  Fresh Indian cottage cheese cooked with spinach and aromatic spices. A traditional vegetarian dish rich in protein and flavor.\n\n`;
-     } else if (item.name.toLowerCase().includes('dal')) {
-       response += `  Traditional Indian lentil curry, rich in protein and fiber. Made with aromatic spices and served with rice or bread.\n\n`;
-     } else if (item.name.toLowerCase().includes('hummus')) {
-       response += `  Creamy chickpea hummus served with warm pita bread and fresh vegetables. Made with tahini, olive oil, and authentic Middle Eastern spices.\n\n`;
-     } else if (item.name.toLowerCase().includes('bruschetta')) {
-       response += `  Traditional Italian bruschetta with toasted bread topped with fresh tomatoes, basil, garlic, and extra virgin olive oil.\n\n`;
-     } else {
-       response += `  ${item.description || 'A delicious vegetarian dish made with fresh vegetables and wholesome ingredients.'}\n\n`;
-     }
-   });
-   
-   response += "These dishes are all vegetarian and many can be made vegan-friendly upon request. Would you like me to tell you more about any specific dish?";
-   return response;
- }
+   // Helper functions for follow-up responses (concise version)
+  function provideVegetarianOptions(allItems) {
+    const vegItems = allItems.filter(item => 
+      item.description?.toLowerCase().includes('vegetarian') || 
+      item.category === 'Appetizers' || 
+      item.category === 'Desserts' ||
+      item.name.toLowerCase().includes('paneer') ||
+      item.name.toLowerCase().includes('dal') ||
+      item.name.toLowerCase().includes('hummus') ||
+      item.name.toLowerCase().includes('bruschetta')
+    );
+    
+    state.suggestions = vegItems.slice(0, 3);
+    renderSuggestions();
+    return "Here are our vegetarian options. Many can be made vegan.";
+  }
 
- function provideGlutenFreeOptions(allItems) {
-   const glutenFreeItems = allItems.filter(item => 
-     item.description?.toLowerCase().includes('gluten-free') || 
-     item.allergens?.some(allergen => allergen.toLowerCase() === 'gluten-free') ||
-     item.name.toLowerCase().includes('rice') ||
-     item.name.toLowerCase().includes('smoothie') ||
-     item.name.toLowerCase().includes('lemonade') ||
-     item.name.toLowerCase().includes('latte')
-   );
-   
-   let response = `Here are some dishes that are naturally gluten-free or can be made gluten-free:\n\n`;
-   
-   glutenFreeItems.slice(0, 5).forEach(item => {
-     const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-     response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-     response += `  ${item.description || 'A dish that can be prepared gluten-free upon request.'}\n\n`;
-   });
-   
-   response += "We can also modify many of our other dishes to be gluten-free. Just let us know about your dietary requirements when ordering!";
-   return response;
- }
+  function provideGlutenFreeOptions(allItems) {
+    const glutenFreeItems = allItems.filter(item => 
+      item.description?.toLowerCase().includes('gluten-free') || 
+      item.allergens?.some(allergen => allergen.toLowerCase() === 'gluten-free') ||
+      item.name.toLowerCase().includes('rice') ||
+      item.name.toLowerCase().includes('smoothie') ||
+      item.name.toLowerCase().includes('lemonade') ||
+      item.name.toLowerCase().includes('latte')
+    );
+    
+    state.suggestions = glutenFreeItems.slice(0, 3);
+    renderSuggestions();
+    return "Here are gluten-free options. We can modify other dishes too.";
+  }
 
- function provideSpicyOptions(allItems) {
-   const mainCourses = allItems.filter(item => item.category === 'Mains');
-   
-   let response = `Here are our main courses that can be made spicy upon request:\n\n`;
-   
-   mainCourses.slice(0, 5).forEach(item => {
-     const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-     response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-     response += `  ${item.description || 'A delicious main course that can be customized to your preferred heat level.'}\n\n`;
-   });
-   
-   response += "Just let us know your preferred spice level when ordering - mild, medium, hot, or extra hot!";
-   return response;
- }
+  function provideSpicyOptions(allItems) {
+    const mainCourses = allItems.filter(item => item.category === 'Mains');
+    
+    state.suggestions = mainCourses.slice(0, 3);
+    renderSuggestions();
+    return "Here are main courses that can be made spicy. Just specify heat level.";
+  }
 
-   function provideBudgetOptions(allItems) {
+  function provideBudgetOptions(allItems) {
     const affordableItems = allItems.filter(item => {
       const price = item.price_cents || (item.price ? Math.round(item.price * 100) : 0);
       return price < 20000; // Less than 200 SEK
@@ -1798,44 +1655,13 @@
       return priceA - priceB;
     });
     
-    let response = `Here are our most affordable options:\n\n`;
-    
-    affordableItems.slice(0, 5).forEach(item => {
-      const price = (item.price_cents || (item.price ? Math.round(item.price * 100) : 0)) / 100;
-      response += `• **${item.name}** - SEK ${price.toFixed(2)}\n`;
-      response += `  ${item.description || 'A great value dish that offers excellent taste and quality.'}\n\n`;
-    });
-    
-    response += "These are our most budget-friendly options while still maintaining the quality you expect!";
-    return response;
+    state.suggestions = affordableItems.slice(0, 3);
+    renderSuggestions();
+    return "Here are our most affordable options. Great value without compromise.";
   }
 
   function provideVeganModifications(allItems) {
-    let response = `Great question! Here's how our vegetarian dishes can be made vegan-friendly:\n\n`;
-    
-    response += `**🌱 Vegan Modifications Available:**\n\n`;
-    
-    response += `• **Palak Paneer** → **Palak Tofu**\n`;
-    response += `  Replace paneer (Indian cottage cheese) with firm tofu. The spinach gravy remains the same with aromatic spices. Tofu absorbs the flavors beautifully and provides similar protein content.\n\n`;
-    
-    response += `• **Hummus Plate** → **Already Vegan!**\n`;
-    response += `  Our hummus is naturally vegan - made with chickpeas, tahini, olive oil, and spices. Served with fresh vegetables and warm pita bread.\n\n`;
-    
-    response += `• **Bruschetta** → **Vegan Bruschetta**\n`;
-    response += `  Remove any cheese and use extra virgin olive oil, fresh tomatoes, basil, and garlic. The bread can be toasted without butter.\n\n`;
-    
-    response += `• **Spring Rolls** → **Already Vegan!**\n`;
-    response += `  Our fresh spring rolls are naturally vegan with crisp vegetables, herbs, and rice paper wrappers.\n\n`;
-    
-    response += `**💡 General Vegan Substitutions:**\n`;
-    response += `• Cheese → Nutritional yeast or vegan cheese alternatives\n`;
-    response += `• Butter → Olive oil or vegan butter\n`;
-    response += `• Cream → Coconut cream or cashew cream\n`;
-    response += `• Yogurt → Coconut yogurt or soy yogurt\n\n`;
-    
-    response += `Just let us know when ordering that you'd like the vegan version, and we'll make the necessary substitutions! Would you like me to show you any specific vegan modifications?`;
-    
-    return response;
+    return "Vegan modifications: Paneer → Tofu, remove cheese from bruschetta, hummus is already vegan. Just ask when ordering.";
   }
 
   // Add message to chat
@@ -1845,6 +1671,30 @@
     messageDiv.innerHTML = `<div class="stjarna-message-content">${escapeHtml(content)}</div>`;
     elements.chatMessages.appendChild(messageDiv);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  }
+
+  // Add assistant reply with chips and context
+  function addAssistantReply(reply) {
+    const wrap = document.createElement('div');
+    wrap.className = 'stjarna-message assistant';
+    const chips = (reply.chips || []).map(c => `<button class="stjarna-quick-btn">${escapeHtml(c)}</button>`).join('');
+    wrap.innerHTML = `
+      <div class="stjarna-message-content">
+        <p>${escapeHtml(reply.text)}</p>
+        ${reply.context ? `<p class="stjarna-context">${escapeHtml(reply.context)}</p>` : ''}
+        ${chips ? `<div class="stjarna-quick-questions">${chips}</div>` : ''}
+        <p class="stjarna-disclaimer">Ingredients from our menu; preparation may vary.</p>
+      </div>`;
+    elements.chatMessages.appendChild(wrap);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    // Add event listeners to chips
+    wrap.querySelectorAll('.stjarna-quick-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        elements.chatInput.value = b.textContent;
+        sendMessage();
+      });
+    });
   }
 
   // Render menu items in the grid
@@ -1943,20 +1793,25 @@
      filterMenuToSuggestions(items);
    }
    
-   // Filter menu to show only suggested items
-   function filterMenuToSuggestions(suggestedItems) {
-     const menuItems = elements.menuGrid.querySelectorAll('.stjarna-menu-item');
-     const suggestedIds = suggestedItems.map(item => item.id);
-     
-     menuItems.forEach(item => {
-       const itemId = item.querySelector('.stjarna-add-btn').getAttribute('onclick').match(/'([^']+)'/)[1];
-       if (suggestedIds.includes(itemId)) {
-         item.style.display = 'block';
-         item.style.opacity = '1';
-       } else {
-         item.style.display = 'none';
-       }
-     });
+       // Filter menu to show only suggested items
+    function filterMenuToSuggestions(suggestedItems) {
+      if (!elements.menuGrid) return; // Guard against null element
+      
+      const menuItems = elements.menuGrid.querySelectorAll('.stjarna-menu-item');
+      const suggestedIds = suggestedItems.map(item => item.id);
+      
+      menuItems.forEach(item => {
+        const addBtn = item.querySelector('.stjarna-add-btn');
+        if (!addBtn) return;
+        
+        const itemId = addBtn.getAttribute('data-id');
+        if (suggestedIds.includes(itemId)) {
+          item.style.display = 'block';
+          item.style.opacity = '1';
+        } else {
+          item.style.display = 'none';
+        }
+      });
      
      // Update filter button to show "Suggested"
      const filterBtns = document.querySelectorAll('.stjarna-filter-btn');
