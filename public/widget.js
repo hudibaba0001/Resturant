@@ -1159,8 +1159,24 @@
      elements.cartModal.addEventListener('click', (e) => {
        if (e.target === elements.cartModal) closeCart();
      });
-     elements.dineInBtn.addEventListener('click', () => createOrder('dine_in'));
-     elements.pickupBtn.addEventListener('click', () => createOrder('pickup'));
+           elements.dineInBtn.addEventListener('click', () => createOrder('dine_in'));
+      elements.pickupBtn.addEventListener('click', () => createOrder('pickup'));
+
+    // Event delegation for add to cart buttons
+    elements.menuGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.stjarna-add-btn');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (id) addToCart(id);
+    });
+
+    // Event delegation for chat add to cart buttons
+    elements.chatMessages.addEventListener('click', (e) => {
+      const btn = e.target.closest('.stjarna-chat-add-btn');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      if (id) addToCart(id);
+    });
 
     // Quick question buttons
     const quickBtns = modal.querySelectorAll('.stjarna-quick-btn');
@@ -1169,20 +1185,6 @@
         const question = btn.textContent.replace(/"/g, '');
         elements.chatInput.value = question;
         sendMessage();
-      });
-    });
-
-    // Menu filter buttons
-    const filterBtns = modal.querySelectorAll('.stjarna-filter-btn');
-    filterBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Remove active class from all buttons
-        filterBtns.forEach(b => b.classList.remove('active'));
-        // Add active class to clicked button
-        btn.classList.add('active');
-        
-        const category = btn.getAttribute('data-category');
-        filterMenuItems(category);
       });
     });
 
