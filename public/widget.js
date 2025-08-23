@@ -2114,7 +2114,4 @@
   } else {
     init();
   }
-
-  // Expose addToCart globally for onclick handlers
-  window.addToCart = addToCart;
 })();
