@@ -1216,10 +1216,31 @@
       const data = await response.json();
       
       state.menu = data.sections;
+      buildFilters();
       renderMenuItems();
     } catch (error) {
       console.error('Failed to load menu:', error);
     }
+  }
+
+  // Build dynamic category filters
+  function buildFilters() {
+    const cats = new Set(state.menu.flatMap(s => s.items?.map(i => i.category || 'Other') || []));
+    const bar = document.querySelector('.stjarna-menu-filters');
+    bar.innerHTML = `<button class="stjarna-filter-btn active" data-category="all">All</button>` +
+      [...cats].map(c => `<button class="stjarna-filter-btn" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
+    
+    // Rebind filter events
+    const filterBtns = bar.querySelectorAll('.stjarna-filter-btn');
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        const category = btn.getAttribute('data-category');
+        filterMenuItems(category);
+      });
+    });
   }
 
   // Open modal
@@ -1844,7 +1865,7 @@
               ${item.allergens.map(tag => `<span class="stjarna-menu-tag">${escapeHtml(tag)}</span>`).join('')}
             </div>
           ` : ''}
-          <button class="stjarna-add-btn" onclick="addToCart('${item.id}')" aria-label="Add ${escapeHtml(item.name)} to cart">
+          <button class="stjarna-add-btn" data-id="${escapeHtml(item.id)}" aria-label="Add ${escapeHtml(item.name)} to cart">
             Add to cart
           </button>
         </div>
@@ -1897,9 +1918,9 @@
              ${item.allergens.map(tag => `<span class="stjarna-chat-tag">${escapeHtml(tag)}</span>`).join('')}
            </div>
          ` : ''}
-         <button class="stjarna-chat-add-btn" onclick="addToCart('${item.id}')" aria-label="Add ${escapeHtml(item.name)} to cart">
-           Add to cart
-         </button>
+                   <button class="stjarna-chat-add-btn" data-id="${escapeHtml(item.id)}" aria-label="Add ${escapeHtml(item.name)} to cart">
+            Add to cart
+          </button>
        </div>
      `).join('');
 
@@ -2006,27 +2027,30 @@
      elements.cartModal.style.display = 'none';
    }
    
-   // Update cart display
-   function updateCart() {
-     const total = state.cart.reduce((sum, item) => sum + (item.price_cents * item.quantity), 0);
-     elements.cartTotal.textContent = `SEK ${(total / 100).toFixed(2)}`;
-     elements.cartCount.textContent = state.cart.length;
-     
-     // Render cart items
-     elements.cartItems.innerHTML = state.cart.map(item => `
-       <div class="stjarna-cart-item">
-         <div class="stjarna-cart-item-info">
-           <div class="stjarna-cart-item-name">${escapeHtml(item.name)}</div>
-           <div class="stjarna-cart-item-quantity">Qty: ${item.quantity}</div>
-         </div>
-         <div class="stjarna-cart-item-price">SEK ${(item.price_cents / 100).toFixed(2)}</div>
-       </div>
-     `).join('');
-     
-     const hasItems = state.cart.length > 0;
-     elements.dineInBtn.disabled = !hasItems || state.isClosed;
-     elements.pickupBtn.disabled = !hasItems || state.isClosed;
-   }
+       // Update cart display
+    function updateCart() {
+      const total = state.cart.reduce((sum, item) => sum + (item.price_cents * item.quantity), 0);
+      elements.cartTotal.textContent = formatPrice({ price_cents: total, currency: 'SEK' });
+      elements.cartCount.textContent = state.cart.length;
+      
+      // Render cart items
+      elements.cartItems.innerHTML = state.cart.map(item => `
+        <div class="stjarna-cart-item">
+          <div class="stjarna-cart-item-info">
+            <div class="stjarna-cart-item-name">${escapeHtml(item.name)}</div>
+            <div class="stjarna-cart-item-quantity">Qty: ${item.quantity}</div>
+          </div>
+          <div class="stjarna-cart-item-price">${formatPrice(item)}</div>
+        </div>
+      `).join('');
+      
+      const hasItems = state.cart.length > 0;
+      elements.dineInBtn.disabled = !hasItems || state.isClosed;
+      elements.pickupBtn.disabled = !hasItems || state.isClosed;
+      
+      // Persist cart
+      localStorage.setItem(CART_KEY(state.restaurantId), JSON.stringify(state.cart));
+    }
 
   // Create order
   async function createOrder(type) {
