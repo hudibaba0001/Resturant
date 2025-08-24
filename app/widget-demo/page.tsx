@@ -87,13 +87,13 @@ export default async function WidgetDemoPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-1">Try asking:</p>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• "Italian dishes?"</li>
-                    <li>• "Vegan options?"</li>
-                    <li>• "What's popular?"</li>
-                    <li>• "Budget options?"</li>
-                    <li>• "Spicy food?"</li>
-                  </ul>
+                                     <ul className="text-sm text-gray-600 space-y-1">
+                     <li>• &ldquo;Italian dishes?&rdquo;</li>
+                     <li>• &ldquo;Vegan options?&rdquo;</li>
+                     <li>• &ldquo;What&apos;s popular?&rdquo;</li>
+                     <li>• &ldquo;Budget options?&rdquo;</li>
+                     <li>• &ldquo;Spicy food?&rdquo;</li>
+                   </ul>
                 </div>
               </div>
             </div>
