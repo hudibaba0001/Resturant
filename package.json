@@ -24,7 +24,8 @@
     "performance": "node scripts/performance-check.js",
     "smoke": "node scripts/smoke-orders.mjs",
     "warm:cache": "tsx scripts/warm-cache.ts",
-    "sim:e2e": "tsx scripts/simulate-e2e.ts"
+    "sim:e2e": "tsx scripts/simulate-e2e.ts",
+    "test:db": "tsx scripts/db-contract.test.ts"
   },
   "size-limit": [
     {
