@@ -1,0 +1,248 @@
+SUPABASE DATABASE STRUCTURE
+Generated: 2025-08-24T21:22:47.450Z
+Project: https://odpsdvayltdqcyhchosy.supabase.co
+
+TABLE: restaurants
+Rows: 2
+Status: OK
+Columns:
+  - id: string (sample: 0878c22f-bf42-40ab-ab61-0b30fe5273da)
+  - name: string (sample: sdcdwc)
+  - description: string (sample: dwcwced)
+  - address: string (sample: postflyget 29)
+  - city: string (sample: Uppsala)
+  - state: object (sample: NULL)
+  - postal_code: object (sample: NULL)
+  - country: string (sample: FI)
+  - phone: object (sample: NULL)
+  - email: object (sample: NULL)
+  - website: object (sample: NULL)
+  - cuisine_type: string (sample: wced)
+  - price_range: object (sample: NULL)
+  - capacity: object (sample: NULL)
+  - opening_hours: object (sample: JSON)
+  - latitude: object (sample: NULL)
+  - longitude: object (sample: NULL)
+  - search_vector: string (sample: 'dwcwced':2B 'sdcdwc':1A 'uppsala':3C)
+  - is_active: boolean (sample: true)
+  - is_verified: boolean (sample: false)
+  - owner_id: string (sample: d63f475b-1319-4597-9960-cb6f2b0dc62b)
+  - created_at: string (sample: 2025-08-22T14:40:28.995253+00:00)
+  - updated_at: string (sample: 2025-08-22T16:29:25.233489+00:00)
+  - slug: object (sample: NULL)
+  - allowed_origins: object (sample: JSON)
+Sample Data:
+[
+  {
+    "id": "0878c22f-bf42-40ab-ab61-0b30fe5273da",
+    "name": "sdcdwc",
+    "description": "dwcwced",
+    "address": "postflyget 29",
+    "city": "Uppsala",
+    "state": null,
+    "postal_code": null,
+    "country": "FI",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "cuisine_type": "wced",
+    "price_range": null,
+    "capacity": null,
+    "opening_hours": {
+      "friday": {
+        "open": "09:00",
+        "close": "20:00"
+      },
+      "monday": {
+        "open": "09:00",
+        "close": "20:08"
+      },
+      "sunday": {
+        "open": "09:00",
+        "close": "20:00"
+      },
+      "tuesday": {
+        "open": "09:00",
+        "close": "20:00"
+      },
+      "saturday": {
+        "open": "09:00",
+        "close": "20:00"
+      },
+      "thursday": {
+        "open": "09:00",
+        "close": "20:00"
+      },
+      "wednesday": {
+        "open": "09:00",
+        "close": "20:00"
+      }
+    },
+    "latitude": null,
+    "longitude": null,
+    "search_vector": "'dwcwced':2B 'sdcdwc':1A 'uppsala':3C",
+    "is_active": true,
+    "is_verified": false,
+    "owner_id": "d63f475b-1319-4597-9960-cb6f2b0dc62b",
+    "created_at": "2025-08-22T14:40:28.995253+00:00",
+    "updated_at": "2025-08-22T16:29:25.233489+00:00",
+    "slug": null,
+    "allowed_origins": []
+  },
+  {
+    "id": "64806e5b-714f-4388-a092-29feff9b64c0",
+    "name": "fffff",
+    "description": "ewdfew",
+    "address": "postflyget 29",
+    "city": "Uppsala",
+    "state": null,
+    "postal_code": null,
+    "country": "SE",
+    "phone": null,
+    "email": null,
+    "website": null,
+    "cuisine_type": "Indian ",
+    "price_range": null,
+    "capacity": null,
+    "opening_hours": {
+      "friday": {
+        "open": "11:00",
+        "close": "00:01"
+      },
+      "monday": {
+        "open": "11:00",
+        "close": "22:00"
+      },
+      "sunday": {
+        "open": "12:00",
+        "close": "21:00"
+      },
+      "tuesday": {
+        "open": "11:00",
+        "close": "22:00"
+      },
+      "saturday": {
+        "open": "00:00",
+        "close": "23:00"
+      },
+      "thursday": {
+        "open": "11:00",
+        "close": "22:00"
+      },
+      "wednesday": {
+        "open": "11:00",
+        "close": "22:00"
+      }
+    },
+    "latitude": null,
+    "longitude": null,
+    "search_vector": "'ewdfew':2B 'fffff':1A 'uppsala':3C",
+    "is_active": true,
+    "is_verified": true,
+    "owner_id": "40b0acf1-910e-4f3c-9c44-845a0298d8ab",
+    "created_at": "2025-08-22T12:44:09.865592+00:00",
+    "updated_at": "2025-08-22T22:01:20.168551+00:00",
+    "slug": null,
+    "allowed_origins": []
+  }
+]
+==================================================
+
+TABLE: cuisines
+Rows: 5
+Status: OK
+Columns:
+  - id: string (sample: d2d17500-44cc-4729-a43b-445bd35c59df)
+  - name: string (sample: Italian)
+  - description: string (sample: Traditional Italian cuisine with pasta, pizza, and)
+  - created_at: string (sample: 2025-08-24T20:59:21.921331+00:00)
+  - updated_at: string (sample: 2025-08-24T20:59:21.921331+00:00)
+Sample Data:
+[
+  {
+    "id": "d2d17500-44cc-4729-a43b-445bd35c59df",
+    "name": "Italian",
+    "description": "Traditional Italian cuisine with pasta, pizza, and Mediterranean flavors",
+    "created_at": "2025-08-24T20:59:21.921331+00:00",
+    "updated_at": "2025-08-24T20:59:21.921331+00:00"
+  },
+  {
+    "id": "a2be3730-2c48-40c8-83e0-35ceeeb54792",
+    "name": "Mexican",
+    "description": "Authentic Mexican dishes with bold spices and fresh ingredients",
+    "created_at": "2025-08-24T20:59:21.921331+00:00",
+    "updated_at": "2025-08-24T20:59:21.921331+00:00"
+  }
+]
+==================================================
+
+TABLE: restaurant_staff
+Rows: 2
+Status: OK
+Columns:
+  - id: string (sample: 749bf66a-722a-4c77-901a-b65911fe7abd)
+  - restaurant_id: string (sample: 64806e5b-714f-4388-a092-29feff9b64c0)
+  - user_id: string (sample: 40b0acf1-910e-4f3c-9c44-845a0298d8ab)
+  - role: string (sample: owner)
+  - permissions: object (sample: JSON)
+  - created_at: string (sample: 2025-08-22T12:44:09.865592+00:00)
+  - updated_at: string (sample: 2025-08-22T12:44:09.865592+00:00)
+Sample Data:
+[
+  {
+    "id": "749bf66a-722a-4c77-901a-b65911fe7abd",
+    "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+    "user_id": "40b0acf1-910e-4f3c-9c44-845a0298d8ab",
+    "role": "owner",
+    "permissions": {},
+    "created_at": "2025-08-22T12:44:09.865592+00:00",
+    "updated_at": "2025-08-22T12:44:09.865592+00:00"
+  },
+  {
+    "id": "a385762b-c947-4c03-8dbb-7a9c1d59aa52",
+    "restaurant_id": "0878c22f-bf42-40ab-ab61-0b30fe5273da",
+    "user_id": "d63f475b-1319-4597-9960-cb6f2b0dc62b",
+    "role": "owner",
+    "permissions": {},
+    "created_at": "2025-08-22T14:40:28.995253+00:00",
+    "updated_at": "2025-08-22T14:40:28.995253+00:00"
+  }
+]
+==================================================
+
+TABLE: restaurant_cuisines
+Rows: 0
+Status: OK
+
+==================================================
+
+TABLE: widget_sessions
+Rows: 0
+Status: OK
+
+==================================================
+
+TABLE: chat_messages
+Rows: 0
+Status: OK
+
+==================================================
+
+TABLE: chat_response_cache
+Rows: 0
+Status: OK
+
+==================================================
+
+TABLE: menu_snapshots
+Rows: 0
+Status: OK
+
+==================================================
+
+TABLE: widget_events
+Rows: 0
+Status: OK
+
+==================================================
+

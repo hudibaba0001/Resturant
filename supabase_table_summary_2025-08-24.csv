@@ -1,0 +1,10 @@
+table_name,row_count,status,error
+"restaurants",2,"OK",""
+"cuisines",5,"OK",""
+"restaurant_staff",2,"OK",""
+"restaurant_cuisines",0,"OK",""
+"widget_sessions",0,"OK",""
+"chat_messages",0,"OK",""
+"chat_response_cache",0,"OK",""
+"menu_snapshots",0,"OK",""
+"widget_events",0,"OK",""
