@@ -12,7 +12,7 @@ export default defineConfig({
       branches: 50,
       functions: 60,
       lines: 60,
-      exclude: ['**/node_modules/**', '**/.next/**', '**/tests/**'],
+      exclude: ['**/node_modules/**', '**/.next/**', '**/tests/e2e/**'],
     },
   },
 });
