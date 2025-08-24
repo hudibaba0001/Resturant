@@ -11,8 +11,12 @@ export function getSupabaseServer() {
     { 
       cookies: {
         get: (n) => store.get(n)?.value,
-        set: (n, v, o) => store.set({ name: n, value: v, ...o }),
-        remove: (n, o) => store.set({ name: n, value: '', ...o, maxAge: 0 }),
+        set: (n, v, o) => {
+          store.set({ name: n, value: v, ...o });
+        },
+        remove: (n, o) => {
+          store.set({ name: n, value: '', ...o, maxAge: 0 });
+        },
       } 
     }
   );

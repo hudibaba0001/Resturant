@@ -43,7 +43,7 @@ export default function DashboardMenuPage() {
       const result = await createTenant(formData);
       
       if ('error' in result) {
-        setError(result.error);
+        setError(result.error || 'Unknown error');
         return;
       }
 

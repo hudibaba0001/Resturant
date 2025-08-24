@@ -67,7 +67,15 @@ export async function GET(request: NextRequest) {
       })) || []
     })) || []
 
-    return NextResponse.json({ sections: menuData })
+    return NextResponse.json(
+      { sections: menuData },
+      { 
+        headers: {
+          'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+          'ETag': `"menu-${restaurantId}-${Date.now()}"`
+        }
+      }
+    )
 
   } catch (error) {
     console.error('Menu API error:', error)

@@ -5,6 +5,15 @@
   const WIDGET_VERSION = '1.0.0';
   let API_BASE = window.location.origin; // Will be set in init()
   
+  // Telemetry wrapper (never throws)
+  function track(name, props = {}) {
+    try { 
+      window.plausible && window.plausible(name, { props }); 
+    } catch (e) {
+      // Silently fail - don't break widget for telemetry
+    }
+  }
+  
      // Design tokens (from our UI/UX Playbook)
    const tokens = {
      colors: {
@@ -54,7 +63,7 @@
     chatHistory: [],
     suggestions: [],
     menu: null,
-    sessionToken: 'widget-' + Math.random().toString(36).substring(2, 15),
+    sessionToken: null,
     conversationContext: null // Track conversation context
   };
 
@@ -79,15 +88,19 @@
     API_BASE = script?.getAttribute('data-endpoint') ||
       (script?.src ? new URL(script.src).origin : window.location.origin);
 
+    // Persist session token for stable chat threads
+    const key = `stjarna:${state.restaurantId}:session`;
+    state.sessionToken = sessionStorage.getItem(key)
+      || `widget-${Math.random().toString(36).slice(2)}`;
+    sessionStorage.setItem(key, state.sessionToken);
+
     createWidget();
     restoreCart();
     checkRestaurantStatus();
     loadMenu();
     
     // Fire telemetry
-    if (window.plausible) {
-      window.plausible('widget_open');
-    }
+    track('widget_open');
   }
 
   // Create widget DOM
@@ -1072,11 +1085,16 @@
              padding: 0;
            }
            
-           .stjarna-modal-content {
-             max-width: 100%;
-             max-height: 100vh;
-             border-radius: 0;
-           }
+                     .stjarna-modal-content {
+            max-width: 100%;
+            max-height: 100vh;
+            height: 100vh;
+            border-radius: 0;
+          }
+          
+          .stjarna-menu-grid {
+            contain: content;
+          }
            
            .stjarna-modal-body {
              flex-direction: column;
@@ -1148,6 +1166,19 @@
           .stjarna-pickup-btn {
             width: 100%;
           }
+          
+        }
+        
+                 /* Apply closed-state globally */
+         .stjarna-closed .stjarna-add-btn {
+           opacity: 0.5;
+           pointer-events: none;
+         }
+         /* Cover chat suggestion cards as well */
+         .stjarna-closed .stjarna-chat-add-btn {
+           opacity: 0.5;
+           pointer-events: none;
+         }
         }
     `;
 
@@ -1183,9 +1214,9 @@
        if (e.target === elements.overlay) closeModal();
      });
      elements.chatSubmit.addEventListener('click', sendMessage);
-     elements.chatInput.addEventListener('keypress', (e) => {
-       if (e.key === 'Enter') sendMessage();
-     });
+           elements.chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendMessage();
+      });
      elements.cartToggle.addEventListener('click', openCart);
      elements.cartClose.addEventListener('click', closeCart);
      elements.cartModal.addEventListener('click', (e) => {
@@ -1198,16 +1229,18 @@
     elements.menuGrid.addEventListener('click', (e) => {
       const btn = e.target.closest('.stjarna-add-btn');
       if (!btn) return;
-      const id = btn.dataset.id;
-      if (id) addToCart(id);
+      const id = btn.dataset?.id;
+      if (!id) return;
+      addToCart(id);
     });
 
     // Event delegation for chat add to cart buttons
     elements.chatMessages.addEventListener('click', (e) => {
       const btn = e.target.closest('.stjarna-chat-add-btn');
       if (!btn) return;
-      const id = btn.dataset.id;
-      if (id) addToCart(id);
+      const id = btn.dataset?.id;
+      if (!id) return;
+      addToCart(id);
     });
 
     // Quick question buttons
@@ -1230,13 +1263,20 @@
 
   // Check restaurant status
   async function checkRestaurantStatus() {
-    try {
-      const response = await fetch(`${API_BASE}/api/public/status?restaurantId=${state.restaurantId}`);
+         try {
+       const response = await fetch(`${API_BASE}/api/public/status?restaurantId=${state.restaurantId}`, {
+         headers: { 'X-Widget-Version': WIDGET_VERSION }
+       });
+       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       
       state.isClosed = !data.open;
       if (state.isClosed) {
         elements.closedBanner.style.display = 'block';
+        if (elements.dineInBtn) elements.dineInBtn.disabled = true;
+        if (elements.pickupBtn) elements.pickupBtn.disabled = true;
+        // Apply closed styling to the whole modal so chat cards are covered too
+        elements.modal.classList.add('stjarna-closed');
       }
     } catch (error) {
       console.error('Failed to check restaurant status:', error);
@@ -1245,8 +1285,11 @@
 
   // Load menu
   async function loadMenu() {
-    try {
-      const response = await fetch(`${API_BASE}/api/public/menu?restaurantId=${state.restaurantId}`);
+         try {
+       const response = await fetch(`${API_BASE}/api/public/menu?restaurantId=${state.restaurantId}`, {
+         headers: { 'X-Widget-Version': WIDGET_VERSION }
+       });
+       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       
       state.menu = data.sections;
@@ -1259,8 +1302,12 @@
 
   // Build dynamic category filters
   function buildFilters() {
-    const cats = new Set(state.menu.flatMap(s => s.items?.map(i => i.category || 'Other') || []));
+    if (!Array.isArray(state.menu)) return;
+    const cats = new Set(
+      state.menu.flatMap(s => (s.items || []).map(i => i.category || 'Other'))
+    );
     const bar = document.querySelector('.stjarna-menu-filters');
+    if (!bar) return;
     bar.innerHTML = `<button class="stjarna-filter-btn active" data-category="all">All</button>` +
       [...cats].map(c => `<button class="stjarna-filter-btn" data-category="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('');
     
@@ -1282,6 +1329,7 @@
     lastFocused = document.activeElement;
     state.isOpen = true;
     elements.modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
     
     // Set ARIA attributes
     elements.modal.querySelector('.stjarna-modal-content')
@@ -1291,37 +1339,42 @@
     
     elements.chatInput.focus();
     
-    // Focus trap - attach once
-    if (!elements._trapHandler) {
-      elements._trapHandler = function(e) {
-        if (e.key === 'Tab') {
-          const focusableElements = elements.modal.querySelectorAll(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-          );
-          const firstElement = focusableElements[0];
-          const lastElement = focusableElements[focusableElements.length - 1];
-          
-          if (e.shiftKey) {
-            if (document.activeElement === firstElement) {
-              e.preventDefault();
-              lastElement.focus();
-            }
-          } else {
-            if (document.activeElement === lastElement) {
-              e.preventDefault();
-              firstElement.focus();
-            }
-          }
-        }
-      };
-    }
-    elements.modal.addEventListener('keydown', elements._trapHandler);
+         // Focus trap - attach once
+     if (!elements._trapHandler) {
+       elements._trapHandler = function(e) {
+         if (e.key === 'Tab') {
+                   const focusableElements = elements.modal.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusableElements.length) return;
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+           
+           if (e.shiftKey) {
+             if (document.activeElement === firstElement) {
+               e.preventDefault();
+               lastElement.focus();
+             }
+           } else {
+             if (document.activeElement === lastElement) {
+               e.preventDefault();
+               firstElement.focus();
+             }
+           }
+         }
+       };
+     }
+     
+     // Remove any existing listener before adding new one
+     elements.modal.removeEventListener('keydown', elements._trapHandler);
+     elements.modal.addEventListener('keydown', elements._trapHandler);
   }
 
   // Close modal
   function closeModal() {
     state.isOpen = false;
     elements.modal.style.display = 'none';
+    document.body.style.overflow = '';
     
     // Clean up event listeners
     if (elements._trapHandler) {
@@ -1343,22 +1396,29 @@
     addMessage('user', message);
     elements.chatInput.value = '';
 
+    // Track chat interaction
+    track('chat_ask', { q: message.slice(0, 80) });
+
     // Show loading
     state.isLoading = true;
     elements.chatSubmit.disabled = true;
 
-    try {
-      const response = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurantId: state.restaurantId,
-          sessionToken: state.sessionToken,
-          message: message
-        })
-      });
-
-      const data = await response.json();
+         try {
+       if (state.isLoading) return; // de-dupe fast Enter clicks
+       const response = await fetch(`${API_BASE}/api/chat`, {
+         method: 'POST',
+         headers: { 
+           'Content-Type': 'application/json',
+           'X-Widget-Version': WIDGET_VERSION
+         },
+         body: JSON.stringify({
+           restaurantId: state.restaurantId,
+           sessionToken: state.sessionToken,
+           message: message
+         })
+       });
+       if (!response.ok) throw new Error(`HTTP ${response.status}`);
+       const data = await response.json();
       
       // Use server reply first, fallback to intelligent response
       if (data.reply?.text) {
@@ -1372,13 +1432,20 @@
       if (Array.isArray(data.cards) && data.cards.length > 0) {
         state.suggestions = data.cards;
         renderSuggestions();
+        track('chat_reply', { cards: data.cards.length });
       }
-    } catch (error) {
-      console.error('Chat error:', error);
-      // Fallback: provide intelligent responses
-      const intelligentResponse = provideIntelligentResponse(message);
-      addMessage('assistant', intelligentResponse);
-    } finally {
+         } catch (error) {
+       console.error('Chat error:', error);
+       
+       // Better error UX based on response status
+       if (error.name === 'TypeError' && error.message.includes('fetch')) {
+         addMessage('assistant', "I'm having trouble connecting. Please check your internet and try again.");
+       } else {
+         // Fallback: provide intelligent responses
+         const intelligentResponse = provideIntelligentResponse(message);
+         addMessage('assistant', intelligentResponse);
+       }
+     } finally {
       state.isLoading = false;
       elements.chatSubmit.disabled = false;
     }
@@ -1699,7 +1766,8 @@
 
   // Render menu items in the grid
   function renderMenuItems() {
-    if (!state.menu || state.menu.length === 0) return;
+    if (!elements.menuGrid) return; // Guard against null element
+    if (!state.menu || !Array.isArray(state.menu)) return; // Guard against invalid menu
     
     const allItems = state.menu.flatMap(section => section.items);
     if (allItems.length === 0) return;
@@ -1750,31 +1818,34 @@
      });
    }
   
-     // Render suggestions as dedicated cards in chat
-   function renderSuggestions() {
-     const items = state.suggestions.length > 0 ? state.suggestions : 
-                   (state.menu ? state.menu.flatMap(section => section.items) : []);
-     
-     if (items.length === 0) return;
+       // Render suggestions as dedicated cards in chat
+  function renderSuggestions() {
+    if (!elements.chatMessages) return; // Guard against null element
+    if (!state.menu || !Array.isArray(state.menu)) return; // Guard against invalid menu
+    
+    const items = state.suggestions.length > 0 ? state.suggestions : 
+                  (state.menu ? state.menu.flatMap(section => section.items) : []);
+    
+    if (items.length === 0) return;
 
      // Add suggestions as chat message with cards
-     const suggestionsHtml = items.map(item => `
-       <div class="stjarna-chat-card">
-         <div class="stjarna-chat-card-header">
-           <h4 class="stjarna-chat-card-name">${escapeHtml(item.name)}</h4>
-           <span class="stjarna-chat-card-price">${formatPrice(item)}</span>
-         </div>
-         ${item.description ? `<p class="stjarna-chat-card-desc">${escapeHtml(item.description)}</p>` : ''}
-         ${item.allergens && item.allergens.length > 0 ? `
-           <div class="stjarna-chat-card-tags">
-             ${item.allergens.map(tag => `<span class="stjarna-chat-tag">${escapeHtml(tag)}</span>`).join('')}
-           </div>
-         ` : ''}
-                   <button class="stjarna-chat-add-btn" data-id="${escapeHtml(item.id)}" aria-label="Add ${escapeHtml(item.name)} to cart">
+           const suggestionsHtml = items.map(item => `
+        <div class="stjarna-chat-card" role="group" aria-labelledby="card-name-${escapeHtml(item.id)}">
+          <div class="stjarna-chat-card-header">
+            <h4 class="stjarna-chat-card-name" id="card-name-${escapeHtml(item.id)}">${escapeHtml(item.name)}</h4>
+            <span class="stjarna-chat-card-price">${formatPrice(item)}</span>
+          </div>
+          ${item.description ? `<p class="stjarna-chat-card-desc">${escapeHtml(item.description)}</p>` : ''}
+          ${item.allergens && item.allergens.length > 0 ? `
+            <div class="stjarna-chat-card-tags">
+              ${item.allergens.map(tag => `<span class="stjarna-chat-tag">${escapeHtml(tag)}</span>`).join('')}
+            </div>
+          ` : ''}
+          <button class="stjarna-chat-add-btn" data-id="${escapeHtml(item.id)}" aria-label="Add ${escapeHtml(item.name)} to cart">
             Add to cart
           </button>
-       </div>
-     `).join('');
+        </div>
+      `).join('');
 
      const messageDiv = document.createElement('div');
      messageDiv.className = 'stjarna-message assistant';
@@ -1804,8 +1875,10 @@
         const addBtn = item.querySelector('.stjarna-add-btn');
         if (!addBtn) return;
         
-        const itemId = addBtn.getAttribute('data-id');
-        if (suggestedIds.includes(itemId)) {
+        const itemId = addBtn.dataset?.id;
+        if (!itemId) return;
+        
+        if (suggestedIds.map(String).includes(String(itemId))) {
           item.style.display = 'block';
           item.style.opacity = '1';
         } else {
@@ -1847,10 +1920,14 @@
     updateCart();
   }
 
-  // Add to cart
-  function addToCart(itemId) {
-    const item = [...state.suggestions, ...(state.menu ? state.menu.flatMap(section => section.items) : [])]
-      .find(item => item.id === itemId);
+     // Add to cart
+   function addToCart(itemId) {
+     if (state.isClosed) {
+       addMessage('assistant', "We're currently closed—browse freely, but ordering resumes when we reopen.");
+       return;
+     }
+     const item = [...state.suggestions, ...(state.menu ? state.menu.flatMap(section => section.items) : [])]
+       .find(item => item.id === itemId);
     
     if (!item) return;
 
@@ -1869,9 +1946,7 @@
     updateCart();
     
     // Fire telemetry
-    if (window.plausible) {
-      window.plausible('add_to_cart', { props: { itemId } });
-    }
+    track('add_to_cart', { itemId });
   }
 
      // Open cart modal
@@ -1888,7 +1963,9 @@
     function updateCart() {
       const total = state.cart.reduce((sum, item) => sum + (item.price_cents * item.quantity), 0);
       elements.cartTotal.textContent = formatPrice({ price_cents: total, currency: 'SEK' });
-      elements.cartCount.textContent = state.cart.length;
+      elements.cartCount.textContent = String(
+        state.cart.reduce((n, it) => n + it.quantity, 0)
+      );
       
       // Render cart items
       elements.cartItems.innerHTML = state.cart.map(item => `
@@ -1914,14 +1991,12 @@
     if (state.cart.length === 0) return;
 
     // Fire telemetry
-    if (window.plausible) {
-      window.plausible('checkout_start', { props: { type } });
-    }
+    track('checkout_start', { type });
 
     try {
       const response = await fetch(`${API_BASE}/api/orders`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Widget-Version': WIDGET_VERSION },
         body: JSON.stringify({
           restaurantId: state.restaurantId,
           sessionToken: state.sessionToken,
@@ -1933,14 +2008,16 @@
         })
       });
 
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       
       if (type === 'dine_in' && data.orderCode) {
         alert(`Your order code is: ${data.orderCode}`);
         state.cart = [];
         updateCart();
-      } else if (type === 'pickup' && data.checkoutUrl) {
-        window.open(data.checkoutUrl, '_blank');
+             } else if (type === 'pickup' && data.checkoutUrl) {
+         const w = window.open(data.checkoutUrl, '_blank', 'noopener');
+         if (w) w.opener = null;
       } else {
         throw new Error(data.error || 'Order failed');
       }
@@ -1951,11 +2028,12 @@
   }
 
   // Utility functions
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
+     function escapeHtml(text) {
+     if (text == null) return '';
+     const div = document.createElement('div');
+     div.textContent = String(text);
+     return div.innerHTML;
+   }
 
   function formatPrice(item) {
     const currency = item.currency || 'SEK';

@@ -7,10 +7,32 @@ import { z } from 'zod';
 
 // CORS headers for widget
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': '*', // TODO: Tighten to allowlist for production
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Widget-Version',
+  'Vary': 'Origin',
 };
+
+// Simple in-memory rate limiting (use Redis in production)
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(identifier: string, limit: number, windowMs: number): boolean {
+  const now = Date.now();
+  const key = `${identifier}:${Math.floor(now / windowMs)}`;
+  
+  const current = rateLimitStore.get(key);
+  if (!current || now > current.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  if (current.count >= limit) {
+    return false;
+  }
+  
+  current.count++;
+  return true;
+}
 
 // Types matching the widget contract
 export type ChatReply = {
@@ -311,7 +333,19 @@ export async function POST(request: NextRequest) {
     }
 
     const { restaurantId, sessionToken, message } = validation.data;
-    const locale = detectLanguage(message, request.headers.get('accept-language'));
+    const locale = detectLanguage(message, request.headers.get('accept-language') || undefined);
+
+    // Rate limiting: 10 requests per 30 seconds per restaurant + session
+    const rateLimitKey = `${restaurantId}:${sessionToken}`;
+    if (!checkRateLimit(rateLimitKey, 10, 30000)) {
+      return NextResponse.json({
+        reply: {
+          text: "Lots of requests—try again in a few seconds.",
+          locale: 'en'
+        },
+        cards: []
+      }, { status: 429, headers: CORS_HEADERS });
+    }
 
     // Get menu items for this restaurant
     const supabase = getSupabaseServer();
@@ -342,28 +376,51 @@ export async function POST(request: NextRequest) {
     const reply = generateResponseText(intent, cards.length, locale);
     reply.locale = locale;
 
-    // Log for observability
-    console.log('Chat request:', {
-      tenant_id: restaurantId,
-      session: sessionToken.substring(0, 8),
-      intent_bucket: intent,
-      cards_count: cards.length,
-      locale
-    });
+         // Log for observability
+     const startTime = Date.now();
+     console.log('Chat request:', {
+       tenant_id: restaurantId,
+       session: sessionToken.substring(0, 8),
+       intent_bucket: intent,
+       cards_count: cards.length,
+       locale,
+       widget_version: request.headers.get('x-widget-version') || 'unknown',
+       source: 'server'
+     });
 
-         return NextResponse.json({
+         const latency = Date.now() - startTime;
+     console.log('Chat response:', {
+       tenant_id: restaurantId,
+       session: sessionToken.substring(0, 8),
+       latency_ms: latency,
+       cards_count: cards.length
+     });
+     
+     return NextResponse.json({
        reply,
        cards
      }, { headers: CORS_HEADERS });
 
-  } catch (error) {
-    console.error('Chat API error:', error);
-         return NextResponse.json({
-       reply: {
-         text: "I'm having trouble right now. Please try again.",
-         locale: 'en'
-       },
+     } catch (error) {
+     console.error('Chat API error:', error);
+     
+     // Better error responses
+     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+     const isRateLimit = errorMessage.includes('rate') || errorMessage.includes('429');
+     const isNetwork = errorMessage.includes('fetch') || errorMessage.includes('network');
+     
+     const reply = {
+       text: isRateLimit 
+         ? "Lots of requests—try again in a few seconds."
+         : isNetwork
+         ? "Couldn't fetch the menu—browse items on the left."
+         : "I'm having trouble right now. Please try again.",
+       locale: 'en'
+     };
+     
+     return NextResponse.json({
+       reply,
        cards: []
-     }, { status: 500, headers: CORS_HEADERS });
-  }
+     }, { status: isRateLimit ? 429 : 500, headers: CORS_HEADERS });
+   }
 }

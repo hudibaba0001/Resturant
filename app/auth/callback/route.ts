@@ -20,8 +20,12 @@ export async function GET(req: NextRequest) {
     {
       cookies: {
         get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
-        remove: (name, options) => res.cookies.set({ name, value: '', ...options, maxAge: 0 }),
+        set: (name, value, options) => {
+          res.cookies.set({ name, value, ...options });
+        },
+        remove: (name, options) => {
+          res.cookies.set({ name, value: '', ...options, maxAge: 0 });
+        },
       },
     }
   );
@@ -49,8 +53,12 @@ export async function POST(req: NextRequest) {
     {
       cookies: {
         get: (name) => req.cookies.get(name)?.value,
-        set: (name, value, options) => res.cookies.set({ name, value, ...options }),
-        remove: (name, options) => res.cookies.set({ name, value: '', ...options, maxAge: 0 }),
+        set: (name, value, options) => {
+          res.cookies.set({ name, value, ...options });
+        },
+        remove: (name, options) => {
+          res.cookies.set({ name, value: '', ...options, maxAge: 0 });
+        },
       },
     }
   );
