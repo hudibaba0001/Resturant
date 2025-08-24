@@ -1,43 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseAdmin } from '@/lib/supabaseAdmin'
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// Node runtime (Supabase admin)
-export const runtime = 'nodejs'
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const restaurantId = searchParams.get('restaurantId')
+    const { searchParams } = new URL(request.url);
+    const restaurantId = searchParams.get('restaurant_id');
 
     if (!restaurantId) {
       return NextResponse.json(
-        { error: 'Missing restaurantId parameter' },
+        { error: 'restaurant_id parameter is required' },
         { status: 400 }
-      )
+      );
     }
 
-    const supabaseAdmin = getSupabaseAdmin()
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if restaurant is open using SQL function
-    const { data, error } = await supabaseAdmin.rpc('is_restaurant_open', {
-      p_restaurant_id: restaurantId
-    })
+    // Call the restaurant_open_now function
+    const { data, error } = await supabase.rpc('restaurant_open_now', {
+      p_restaurant: restaurantId
+    });
 
     if (error) {
-      console.error('Status check error:', error)
+      console.error('Error checking restaurant status:', error);
       return NextResponse.json(
         { error: 'Failed to check restaurant status' },
         { status: 500 }
-      )
+      );
     }
 
-    return NextResponse.json({ open: data || false })
-
+    return NextResponse.json({ open: data });
   } catch (error) {
-    console.error('Status API error:', error)
+    console.error('Status endpoint error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }
