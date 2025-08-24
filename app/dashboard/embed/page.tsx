@@ -6,9 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function EmbedPage() {
   const supabase = getSupabaseServer();
-  
+
   // Check authentication
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     redirect('/login');
   }
@@ -24,11 +26,12 @@ export default async function EmbedPage() {
     redirect('/onboard?welcome=true');
   }
 
-  const restaurant = restaurants[0];
+  const restaurant = restaurants[0]!; // Non-null assertion since we check length above
 
   // Check restaurant status
-  const { data: statusData } = await supabase
-    .rpc('is_restaurant_open', { p_restaurant_id: restaurant.id });
+  const { data: statusData } = await supabase.rpc('is_restaurant_open', {
+    p_restaurant_id: restaurant.id,
+  });
 
   const isOpen = statusData || false;
 
@@ -43,15 +46,19 @@ export default async function EmbedPage() {
 
       {/* Restaurant Status */}
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Restaurant Status</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">
+          Restaurant Status
+        </h2>
         <div className="flex items-center space-x-4">
-          <div className={`w-3 h-3 rounded-full ${isOpen ? 'bg-green-400' : 'bg-red-400'}`}></div>
+          <div
+            className={`w-3 h-3 rounded-full ${isOpen ? 'bg-green-400' : 'bg-red-400'}`}
+          ></div>
           <span className="text-sm font-medium text-gray-900">
             {isOpen ? 'Open' : 'Closed'}
           </span>
           <span className="text-sm text-gray-500">
-            {restaurant.is_active && restaurant.is_verified 
-              ? 'Widget is active and ready to use' 
+            {restaurant.is_active && restaurant.is_verified
+              ? 'Widget is active and ready to use'
               : 'Widget is not active (restaurant needs to be active and verified)'}
           </span>
         </div>
@@ -61,10 +68,11 @@ export default async function EmbedPage() {
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Embed Code</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Copy and paste this code into your website's HTML, just before the closing &lt;/body&gt; tag:
+          Copy and paste this code into your website&apos;s HTML, just before
+          the closing &lt;/body&gt; tag:
         </p>
-        
-        <EmbedClient 
+
+        <EmbedClient
           restaurantId={restaurant.id}
           isActive={restaurant.is_active && restaurant.is_verified}
         />
@@ -76,12 +84,12 @@ export default async function EmbedPage() {
         <p className="text-sm text-gray-600 mb-4">
           See how the widget will appear on your website:
         </p>
-        
+
         <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
           <div className="text-center text-sm text-gray-500 mb-4">
             Your website content would appear here...
           </div>
-          
+
           <div className="relative h-96 border border-gray-300 rounded-lg bg-white">
             <iframe
               src={`/widget-preview?restaurantId=${restaurant.id}`}
@@ -96,11 +104,21 @@ export default async function EmbedPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h3 className="text-lg font-medium text-blue-900 mb-2">How it works</h3>
         <ul className="text-sm text-blue-800 space-y-2">
-          <li>• The widget appears as a floating button in the bottom-right corner</li>
-          <li>• Customers can chat with AI about your menu and get personalized recommendations</li>
-          <li>• They can add items to cart and place orders for pickup or dine-in</li>
+          <li>
+            • The widget appears as a floating button in the bottom-right corner
+          </li>
+          <li>
+            • Customers can chat with AI about your menu and get personalized
+            recommendations
+          </li>
+          <li>
+            • They can add items to cart and place orders for pickup or dine-in
+          </li>
           <li>• Orders are automatically sent to your dashboard</li>
-          <li>• The widget respects your opening hours and shows a "Closed" banner when appropriate</li>
+          <li>
+            • The widget respects your opening hours and shows a
+            &quot;Closed&quot; banner when appropriate
+          </li>
         </ul>
       </div>
     </div>

@@ -1,0 +1,8 @@
+module.exports = {
+  root: true,
+  extends: ["next/core-web-vitals"],
+  rules: {
+    "prefer-const": "error",
+    "no-var": "error"
+  }
+};

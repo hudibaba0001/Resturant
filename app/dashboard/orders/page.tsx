@@ -6,9 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function OrdersPage() {
   const supabase = getSupabaseServer();
-  
+
   // Check authentication
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     redirect('/login');
   }
@@ -24,7 +26,7 @@ export default async function OrdersPage() {
     redirect('/onboard?welcome=true');
   }
 
-  const restaurant = restaurants[0];
+  const restaurant = restaurants[0]!; // Non-null assertion since we check length above
 
   // Get orders with RLS
   const { data: orders } = await supabase
@@ -37,16 +39,20 @@ export default async function OrdersPage() {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const orders7d = orders?.filter(order => new Date(order.created_at) >= sevenDaysAgo) || [];
-  const paidOrders7d = orders7d.filter(order => order.status === 'paid');
-  const totalGMV7d = paidOrders7d.reduce((sum, order) => sum + (order.total_cents || 0), 0);
+  const orders7d =
+    orders?.filter((order) => new Date(order.created_at) >= sevenDaysAgo) || [];
+  const paidOrders7d = orders7d.filter((order) => order.status === 'paid');
+  const totalGMV7d = paidOrders7d.reduce(
+    (sum, order) => sum + (order.total_cents || 0),
+    0,
+  );
   const aov7d = paidOrders7d.length > 0 ? totalGMV7d / paidOrders7d.length : 0;
 
   const kpis = {
     orders7d: orders7d.length,
     paid7d: paidOrders7d.length,
     gmv7d: totalGMV7d,
-    aov7d: aov7d
+    aov7d: aov7d,
   };
 
   return (
@@ -70,8 +76,12 @@ export default async function OrdersPage() {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Orders (7d)</dt>
-                  <dd className="text-lg font-medium text-gray-900">{kpis.orders7d}</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Orders (7d)
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {kpis.orders7d}
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -88,8 +98,12 @@ export default async function OrdersPage() {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Paid (7d)</dt>
-                  <dd className="text-lg font-medium text-gray-900">{kpis.paid7d}</dd>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    Paid (7d)
+                  </dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {kpis.paid7d}
+                  </dd>
                 </dl>
               </div>
             </div>
@@ -106,7 +120,9 @@ export default async function OrdersPage() {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">GMV (7d)</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    GMV (7d)
+                  </dt>
                   <dd className="text-lg font-medium text-gray-900">
                     SEK {(kpis.gmv7d / 100).toFixed(0)}
                   </dd>
@@ -126,7 +142,9 @@ export default async function OrdersPage() {
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">AOV (7d)</dt>
+                  <dt className="text-sm font-medium text-gray-500 truncate">
+                    AOV (7d)
+                  </dt>
                   <dd className="text-lg font-medium text-gray-900">
                     SEK {(kpis.aov7d / 100).toFixed(0)}
                   </dd>
@@ -137,10 +155,7 @@ export default async function OrdersPage() {
         </div>
       </div>
 
-      <OrdersList 
-        orders={orders || []}
-        restaurantId={restaurant.id}
-      />
+      <OrdersList orders={orders || []} restaurantId={restaurant.id} />
     </div>
   );
 }

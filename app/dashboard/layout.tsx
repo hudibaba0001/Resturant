@@ -17,9 +17,11 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = getSupabaseServer();
-  
+
   // Check authentication
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     redirect('/login');
   }
@@ -41,7 +43,7 @@ export default async function DashboardLayout({
     redirect('/onboard?error=fetch_failed');
   }
 
-  const restaurant = restaurants[0];
+  const restaurant = restaurants[0]!; // Non-null assertion since we check length above
 
   const handleSignOut = async () => {
     'use server';
@@ -123,9 +125,7 @@ export default async function DashboardLayout({
       </nav>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        {children}
-      </main>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }

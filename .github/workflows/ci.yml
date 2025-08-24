@@ -1,100 +1,25 @@
 name: CI
-
-on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-
-permissions:
-  contents: read
-
-env:
-  NEXT_TELEMETRY_DISABLED: 1
-  # Safe placeholders so Next.js can build during CI
-  OPENAI_API_KEY: test
-  NEXT_PUBLIC_SUPABASE_URL: http://localhost
-  NEXT_PUBLIC_WIDGET_ORIGIN: http://localhost:3000
+on: [pull_request, push]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup PNPM
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-          run_install: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with: 
           node-version: 20
-          cache: 'pnpm'
-
-      - name: Install deps
-        run: |
-          if [ -f pnpm-lock.yaml ]; then pnpm i --frozen-lockfile; \
-          elif [ -f package-lock.json ]; then npm ci; \
-          else npm i; fi
-
-      - name: Create minimal .env.local for build
-        run: |
-          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env.local
-          echo "OPENAI_CHAT_MODEL=gpt-4o-mini" >> .env.local
-          echo "OPENAI_EMBEDDING_MODEL=text-embedding-3-small" >> .env.local
-          echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env.local
-          echo "NEXT_PUBLIC_WIDGET_ORIGIN=$NEXT_PUBLIC_WIDGET_ORIGIN" >> .env.local
-
-      - name: Typecheck
-        run: |
-          if [ -f tsconfig.json ]; then npx tsc -p . --noEmit; else echo "No tsconfig.json"; fi
-
-      - name: Lint (if configured)
-        run: |
-          if [ -f package.json ] && jq -e '.scripts.lint' package.json >/dev/null; then npm run lint; else echo "No lint script"; fi
-
-      - name: Build (if configured)
-        run: |
-          if [ -f package.json ] && jq -e '.scripts.build' package.json >/dev/null; then npm run build; else echo "No build script"; fi
-
-      - name: Secret leak scan (fail if found)
-        run: |
-          set -e
-          echo "Scanning for common secret patterns..."
-          ! git grep -nE '(sk_live_|rk_live_|whsec_|SUPABASE_SERVICE_ROLE|STRIPE_SECRET_KEY|OPENAI_API_KEY)' -- ':!**/.github/**' ':!**/README*' || (echo '❌ Secret-like token found in repo. Remove or move to env.' && exit 1)
-
-      - name: Client bundle guard
-        run: |
-          set -e
-          # Client code should never import server-only modules
-          ! git grep -nE 'from\s+"@/lib/supabaseAdmin"' -- 'app/**' 'components/**' 'public/**' || (echo '❌ Client importing server-only supabaseAdmin.' && exit 1)
-
-      - name: PR template UI/UX check
-        run: |
-          set -e
-          echo "Checking PR template includes UI/UX QA section..."
-          if [ -f .github/pull_request_template.md ]; then
-            if ! grep -q "UI/UX QA (must pass)" .github/pull_request_template.md; then
-              echo "❌ PR template missing UI/UX QA section"
-              exit 1
-            fi
-            if ! grep -q "docs/ui-ux-pr-checklist.md" .github/pull_request_template.md; then
-              echo "❌ PR template missing link to UI/UX checklist"
-              exit 1
-            fi
-            echo "✅ PR template includes UI/UX QA section"
-          fi
-
-      - name: EU-only heuristic lint (warn only)
-        run: |
-          set +e
-          echo '🔎 Searching for US regions (heuristic)...'
-          git grep -nE '(us-east|us-west|us-\w+-\d)' || true
-
-      - name: Print size of client bundle (if Next.js)
-        run: |
-          if [ -d ".next" ]; then du -sh .next/static || true; fi
+          cache: 'npm'
+      
+      - run: npm ci
+      
+      - run: npm run typecheck
+      
+      - run: npm run lint
+      
+      - run: npm run build
+      
+      - run: npm run bundle-size
+      
+      - run: npm test

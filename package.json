@@ -10,8 +10,27 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "smoke": "node scripts/smoke-orders.mjs"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "bundle-size": "node scripts/check-bundle-size.js",
+    "api-benchmark": "node scripts/api-benchmark.js",
+    "security-headers": "node scripts/check-security-headers.js",
+    "performance": "node scripts/performance-check.js",
+    "smoke": "node scripts/smoke-orders.mjs",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -40,15 +59,21 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^9.0.7",
+    "@vitest/coverage-v8": "^3.2.4",
     "autoprefixer": "^10.4.16",
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
+    "jsdom": "^26.1.0",
+    "lint-staged": "^16.1.5",
     "postcss": "^8.4.31",
+    "prettier": "^3.6.2",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
