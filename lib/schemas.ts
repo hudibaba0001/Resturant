@@ -1,6 +1,46 @@
 import { z } from 'zod';
 
-// Menu item schema
+export const ChatRequestSchema = z.object({
+  restaurantId: z.string().uuid(),
+  sessionToken: z.string().min(3).max(120),
+  message: z.string().min(1).max(450),
+  locale: z.string().optional(),
+});
+
+export const ChatReplySchema = z.object({
+  reply: z.object({
+    text: z.string().min(1).max(450),
+    context: z.string().optional(),
+    chips: z.array(z.string()).max(4).optional(),
+    locale: z.string().optional(),
+  }),
+  cards: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    price_cents: z.number().int().nonnegative().optional(),
+    currency: z.string().optional(),
+    allergens: z.array(z.string()).optional(),
+  })).max(3),
+});
+export type ChatReply = z.infer<typeof ChatReplySchema>;
+
+export const MenuResponseSchema = z.object({
+  sections: z.array(z.object({
+    name: z.string(),
+    items: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string().optional(),
+      category: z.string().optional(),
+      price_cents: z.number().int().nonnegative().optional(),
+      currency: z.string().optional(),
+      allergens: z.array(z.string()).optional(),
+    })),
+  })),
+});
+
+// Legacy schemas for backward compatibility
 export const MenuItem = z.object({
   id: z.string(),
   name: z.string(),
@@ -12,14 +52,12 @@ export const MenuItem = z.object({
   is_available: z.boolean().default(true),
 });
 
-// Menu section schema
 export const MenuSection = z.object({
   id: z.string(),
   name: z.string(),
   items: z.array(MenuItem),
 });
 
-// Menu response schema
 export const MenuResponse = z.object({
   sections: z.array(MenuSection),
   restaurant: z.object({
@@ -29,18 +67,6 @@ export const MenuResponse = z.object({
   }),
 });
 
-// Chat reply schema
-export const ChatReply = z.object({
-  reply: z.object({
-    text: z.string().min(1).max(450),
-    context: z.string().optional(),
-    chips: z.array(z.string()).max(5).optional(),
-    locale: z.string().optional(),
-  }),
-  cards: z.array(MenuItem).max(3),
-});
-
-// Order item schema
 export const OrderItem = z.object({
   id: z.string(),
   name: z.string(),
@@ -48,7 +74,6 @@ export const OrderItem = z.object({
   quantity: z.number().int().positive(),
 });
 
-// Order schema
 export const Order = z.object({
   id: z.string(),
   restaurant_id: z.string(),
@@ -60,7 +85,6 @@ export const Order = z.object({
   created_at: z.string().datetime(),
 });
 
-// Health check response
 export const HealthResponse = z.object({
   status: z.literal('ok'),
   timestamp: z.string(),
@@ -76,6 +100,6 @@ export const HealthResponse = z.object({
 export type MenuItemType = z.infer<typeof MenuItem>;
 export type MenuSectionType = z.infer<typeof MenuSection>;
 export type MenuResponseType = z.infer<typeof MenuResponse>;
-export type ChatReplyType = z.infer<typeof ChatReply>;
+export type ChatReplyType = z.infer<typeof ChatReplySchema>;
 export type OrderType = z.infer<typeof Order>;
 export type HealthResponseType = z.infer<typeof HealthResponse>;

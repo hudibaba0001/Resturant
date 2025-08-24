@@ -54,7 +54,7 @@
   };
   
   // State management
-  let state = {
+  const state = {
     restaurantId: null,
     isOpen: false,
     isClosed: false,
@@ -182,7 +182,7 @@
                 <h3>💬 Ask Our AI Assistant</h3>
               </div>
               <div class="stjarna-chat-container">
-                <div class="stjarna-chat-messages" aria-live="polite">
+                <div class="stjarna-chat-messages" role="log" aria-live="polite" aria-relevant="additions">
                   <div class="stjarna-welcome-message">
                     <div class="stjarna-avatar">🤖</div>
                     <div class="stjarna-message-content">
@@ -1178,6 +1178,10 @@
          .stjarna-closed .stjarna-chat-add-btn {
            opacity: 0.5;
            pointer-events: none;
+         }
+         
+         @media (prefers-reduced-motion: reduce) {
+           * { animation: none !important; transition: none !important; }
          }
         }
     `;

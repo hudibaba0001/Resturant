@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Upsert session
     const { data: session } = await supabaseAdmin
-      .from("chat_sessions")
+      .from("widget_sessions")
       .upsert({ restaurant_id: restaurantId, session_token: sessionToken }, { onConflict: "restaurant_id,session_token" })
       .select("id")
       .single();
