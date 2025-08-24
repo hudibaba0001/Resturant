@@ -5,7 +5,7 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const anon = process.env.SUPABASE_ANON_KEY!;
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 if (!url || !anon || !service) {
