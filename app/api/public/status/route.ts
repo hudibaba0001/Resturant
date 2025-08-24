@@ -7,7 +7,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const restaurantId = searchParams.get('restaurant_id');
+    const restaurantId = searchParams.get('restaurant_id') || searchParams.get('restaurantId');
 
     if (!restaurantId) {
       return NextResponse.json(

@@ -133,8 +133,8 @@ BEGIN
   RAISE NOTICE 'Testing with restaurant ID: %', sample_restaurant_id;
   
   -- Test 1: Simulate anon user with allowed origin
-  SELECT set_config('request.jwt.claims', '{"role":"anon","sub":"00000000-0000-0000-0000-000000000001"}', true);
-  SELECT set_config('request.headers', '{"origin":"https://demo.example"}', true);
+  PERFORM set_config('request.jwt.claims', '{"role":"anon","sub":"00000000-0000-0000-0000-000000000001"}', true);
+  PERFORM set_config('request.headers', '{"origin":"https://demo.example"}', true);
   
   -- Should succeed: insert widget session
   BEGIN
@@ -161,7 +161,7 @@ BEGIN
   END;
   
   -- Test 2: Simulate anon user with disallowed origin
-  SELECT set_config('request.headers', '{"origin":"https://evil.example"}', true);
+  PERFORM set_config('request.headers', '{"origin":"https://evil.example"}', true);
   
   BEGIN
     INSERT INTO public.widget_events(restaurant_id, session_id, type, payload)
@@ -173,7 +173,7 @@ BEGIN
   END;
   
   -- Test 3: Simulate service role (should bypass RLS for cache tables)
-  SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
   
   BEGIN
     INSERT INTO public.chat_response_cache(restaurant_id, cache_key, reply, expires_at)
@@ -185,7 +185,7 @@ BEGIN
   END;
   
   -- Test 4: Simulate anon user trying to access cache (should fail)
-  SELECT set_config('request.jwt.claims', '{"role":"anon"}', true);
+  PERFORM set_config('request.jwt.claims', '{"role":"anon"}', true);
   
   BEGIN
     INSERT INTO public.chat_response_cache(restaurant_id, cache_key, reply, expires_at)
