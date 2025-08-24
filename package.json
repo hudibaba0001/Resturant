@@ -22,8 +22,7 @@
     "api-benchmark": "node scripts/api-benchmark.js",
     "security-headers": "node scripts/check-security-headers.js",
     "performance": "node scripts/performance-check.js",
-    "smoke": "node scripts/smoke-orders.mjs",
-    "prepare": "husky"
+    "smoke": "node scripts/smoke-orders.mjs"
   },
   "size-limit": [
     {
