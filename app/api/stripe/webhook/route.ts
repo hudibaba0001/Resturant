@@ -59,6 +59,12 @@ export async function POST(req: NextRequest) {
 }
 
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+  // Initialize Supabase inside the function
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   const orderId = paymentIntent.metadata.orderId;
   
   if (!orderId) {
@@ -120,6 +126,12 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
 }
 
 async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
+  // Initialize Supabase inside the function
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   const orderId = paymentIntent.metadata.orderId;
   
   if (!orderId) {
