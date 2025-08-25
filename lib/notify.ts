@@ -122,7 +122,10 @@ export async function notifyPickup({
       phone: phone ? `${phone.slice(0, 3)}***${phone.slice(-4)}` : null,
       email: email ? (() => {
         const parts = email.split('@');
-        return parts.length === 2 ? `${parts[0].slice(0, 3)}***@${parts[1]}` : `${email.slice(0, 3)}***`;
+        if (parts.length === 2 && parts[0] && parts[1]) {
+          return `${parts[0].slice(0, 3)}***@${parts[1]}`;
+        }
+        return `${email.slice(0, 3)}***`;
       })() : null,
       results,
       errors
