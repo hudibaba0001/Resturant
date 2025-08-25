@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 const Body = z.object({
   restaurantId: z.string().min(1),
   sessionToken: z.string().min(1),
@@ -41,15 +43,21 @@ export async function POST(req: Request) {
       }
     }
 
+    const origin = new URL(req.url).origin;
+
     if (type === 'dine_in') {
       // Return a short pickup/dine-in code (what the widget expects)
       const orderCode = String(Math.floor(1000 + Math.random() * 9000));
       return NextResponse.json({ orderId, orderCode }, { status: 200 });
     }
 
-    // Simplified pickup: send back a fake checkout url for now
-    const checkoutUrl = `https://example.com/checkout?o=${encodeURIComponent(orderId)}`;
-    return NextResponse.json({ orderId, checkoutUrl }, { status: 200 });
+    if (type === 'pickup') {
+      // Use internal dev checkout
+      const checkoutUrl = `${origin}/dev/checkout?orderId=${encodeURIComponent(orderId)}`;
+      return NextResponse.json({ orderId, checkoutUrl }, { status: 200 });
+    }
+
+    return NextResponse.json({ error: 'unsupported_type' }, { status: 400 });
   } catch (err: any) {
     const status = err?.name === 'ZodError' ? 400 : 500;
     console.error('ORDERS_API_ERROR', err?.message);

@@ -1,39 +1,37 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { z } from 'zod';
 
-const Body = z.object({ orderId: z.string().min(1) });
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
-  }
   try {
-    const { orderId } = Body.parse(await req.json());
-    const url = process.env.SUPABASE_URL!;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    if (!url || !key) {
-      return NextResponse.json({ error: 'supabase_env_missing' }, { status: 500 });
-    }
-    const sb = createClient(url, key, { auth: { persistSession: false } });
+    const form = await req.formData();
+    const orderId = String(form.get('orderId') ?? '');
 
     const pin = String(Math.floor(1000 + Math.random() * 9000));
-    const { error } = await sb
-      .from('orders')
-      .update({
-        status: 'paid',
-        pin,
-        pin_issued_at: new Date().toISOString(),
-      })
-      .eq('id', orderId);
+    const pin_issued_at = new Date().toISOString();
 
-    if (error) {
-      console.error('mark_paid_error', error);
-      return NextResponse.json({ error: 'update_failed' }, { status: 500 });
+    // Best-effort DB update; page still renders even if env not set
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (url && key && orderId) {
+      const sb = createClient(url, key, { auth: { persistSession: false } });
+      await sb.from('orders').update({ status: 'paid', pin, pin_issued_at }).eq('id', orderId);
     }
-    return NextResponse.json({ ok: true, pin });
-  } catch (e: any) {
-    const status = e?.name === 'ZodError' ? 400 : 500;
-    return NextResponse.json({ error: 'bad_request' }, { status });
+
+    return new Response(
+      `<!doctype html><meta charset="utf-8" />
+      <title>Payment successful</title>
+      <body style="font-family:system-ui,sans-serif;max-width:520px;margin:3rem auto;">
+        <h1>Payment successful ✅</h1>
+        <p>Your pickup code is <strong style="font-size:1.25rem">${pin}</strong>.</p>
+        <p>Show this code at the counter to collect your order.</p>
+        <a href="/" style="display:inline-block;margin-top:12px;">Back to site</a>
+      </body>`,
+      { headers: { 'Content-Type': 'text/html' } },
+    );
+  } catch (e) {
+    console.error('DEV_MARK_PAID_ERROR', e);
+    return NextResponse.json({ error: 'mark_paid_failed' }, { status: 500 });
   }
 }

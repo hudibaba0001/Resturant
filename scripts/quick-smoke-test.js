@@ -91,6 +91,10 @@ async function main() {
   console.log(`🛒 Pickup Order: ${orderPickup.data.orderId}`);
   console.log(`🔗 Checkout URL: ${orderPickup.data.checkoutUrl}`);
   console.log('\n✅ Ready for end-to-end widget testing');
+  console.log('\n📝 Next steps:');
+  console.log('1. Deploy to Vercel');
+  console.log('2. Test pickup flow: visit the checkout URL');
+  console.log('3. Click "Pay now (simulate)" to get PIN');
 }
 
 main().catch(err => {

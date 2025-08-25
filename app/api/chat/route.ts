@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const Body = z.object({
   restaurantId: z.string().min(1),
   sessionToken: z.string().min(1),
@@ -9,23 +11,37 @@ const Body = z.object({
 
 export async function POST(req: Request) {
   try {
-    const { restaurantId, sessionToken, message } = Body.parse(await req.json());
+    const { restaurantId, message } = Body.parse(await req.json());
+    const origin = new URL(req.url).origin;
 
-    // Get menu for basic suggestions
-    const menuUrl = new URL(`/api/public/menu?restaurantId=${restaurantId}`, req.url);
-    const res = await fetch(menuUrl.toString());
-    const ok = res.ok ? await res.json() : { sections: [] };
-    const items = Array.isArray(ok?.sections) ? ok.sections.flatMap((s: any) => s?.items ?? []) : [];
+    // Try to fetch menu; swallow errors so chat still replies
+    let items: any[] = [];
+    try {
+      const r = await fetch(`${origin}/api/public/menu?restaurantId=${encodeURIComponent(restaurantId)}`, {
+        cache: 'no-store',
+      });
+      if (r.ok) {
+        const j = await r.json();
+        items = Array.isArray(j?.sections) ? j.sections.flatMap((s: any) => s?.items ?? []) : [];
+      }
+    } catch {}
 
     const q = message.toLowerCase();
-    const by = (k: string) => (i: any) =>
-      (i?.name || '').toLowerCase().includes(k) || (i?.description || '').toLowerCase().includes(k);
+    const has = (i: any, k: string) =>
+      String(i?.name || '').toLowerCase().includes(k) || String(i?.description || '').toLowerCase().includes(k);
+    const pick = (keys: string[]) => items.filter((i) => keys.some((k) => has(i, k))).slice(0, 3);
 
-    let cards = items.filter(by('italian') || by('pizza') || by('pasta'));
-    if (q.includes('vegan')) cards = items.filter(by('vegan'));
-    if (q.includes('spicy')) cards = items.filter(by('spicy'));
-    if (q.includes('gluten')) cards = items.filter(by('gluten'));
-    if (!cards.length) cards = items.slice(0, 3);
+    let cards =
+      q.includes('italian') || q.includes('pizza') || q.includes('pasta')
+        ? pick(['italian', 'pizza', 'pasta', 'risotto'])
+        : q.includes('vegan')
+        ? pick(['vegan'])
+        : q.includes('spicy')
+        ? pick(['spicy', 'chili'])
+        : q.includes('gluten')
+        ? pick(['gluten'])
+        : items.slice(0, 3);
+
     cards = cards.slice(0, 3);
 
     const reply = {
@@ -53,11 +69,21 @@ export async function POST(req: Request) {
       locale: 'en',
     };
 
-    return NextResponse.json({ reply, cards }, { status: 200 });
+    return NextResponse.json({ reply, cards }, { status: 200, headers: { 'Cache-Control': 'no-store' } });
   } catch (err: any) {
     const status = err?.name === 'ZodError' ? 400 : 500;
     console.error('CHAT_API_ERROR', err?.message);
-    return NextResponse.json({ error: 'chat_failed' }, { status });
+    return NextResponse.json(
+      {
+        reply: {
+          text: 'I had trouble fetching data, but you can browse the menu below.',
+          chips: ['Popular items', 'Budget options'],
+          locale: 'en',
+        },
+        cards: [],
+      },
+      { status },
+    );
   }
 }
 
