@@ -1,0 +1,239 @@
+-- ============================================================================
+-- 1) ENUM TYPES
+-- ============================================================================
+CREATE TYPE promotion_type_enum  AS ENUM ('percent', 'fixed_amount');
+CREATE TYPE promotion_scope_enum AS ENUM ('order', 'item');
+
+-- ============================================================================
+-- 2) CORE TABLE: promotions
+-- ============================================================================
+CREATE TABLE promotions (
+  id                BIGSERIAL PRIMARY KEY,
+  code              TEXT NOT NULL UNIQUE,                 -- e.g., "SUMMER20"
+  name              TEXT NOT NULL,
+  description       TEXT,
+
+  promo_type        promotion_type_enum NOT NULL,
+  percent_value     NUMERIC(5,2),                         -- 0.01..100.00
+  fixed_amount_sek  NUMERIC(12,2),                        -- 0.01..(large)
+  scope             promotion_scope_enum NOT NULL DEFAULT 'order',
+
+  start_at          TIMESTAMPTZ NOT NULL,
+  end_at            TIMESTAMPTZ NOT NULL,
+  usage_limit       INTEGER NOT NULL CHECK (usage_limit > 0), -- total redemptions allowed
+
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Validate date window
+  CONSTRAINT promotions_valid_window_ck
+    CHECK (end_at >= start_at),
+
+  -- Exactly one of the discount value columns must be set and valid for its type
+  CONSTRAINT promotions_value_xor_ck
+    CHECK (
+      (promo_type = 'percent' AND percent_value IS NOT NULL AND percent_value > 0 AND percent_value <= 100 AND fixed_amount_sek IS NULL)
+      OR
+      (promo_type = 'fixed_amount' AND fixed_amount_sek IS NOT NULL AND fixed_amount_sek > 0 AND percent_value IS NULL)
+    ),
+
+  -- Keep codes tidy (optional, remove if you allow lowercase)
+  CONSTRAINT promotions_code_upper_ck
+    CHECK (code = UPPER(code))
+);
+
+-- Generated range for efficient overlap queries
+ALTER TABLE promotions
+  ADD COLUMN valid_period tstzrange
+  GENERATED ALWAYS AS (tstzrange(start_at, end_at, '[]')) STORED;
+
+-- Update timestamp helper
+CREATE OR REPLACE FUNCTION trg_set_updated_at() RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_promotions_updated_at
+BEFORE UPDATE ON promotions
+FOR EACH ROW
+EXECUTE FUNCTION trg_set_updated_at();
+
+-- Indexes for time-window and lookups
+CREATE INDEX promotions_valid_period_gist ON promotions USING GIST (valid_period);
+CREATE INDEX promotions_start_end_idx     ON promotions (start_at, end_at);
+CREATE INDEX promotions_scope_idx         ON promotions (scope);
+CREATE INDEX promotions_type_idx          ON promotions (promo_type);
+
+-- ============================================================================
+-- 3) PROMOTION -> MENU ITEMS (scope='item')
+--    If a promotion is item-scoped, list the eligible menu items here.
+-- ============================================================================
+CREATE TABLE promotion_applicable_menu_items (
+  promotion_id  BIGINT NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+  menu_item_id  BIGINT NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+  PRIMARY KEY (promotion_id, menu_item_id)
+);
+
+CREATE INDEX pami_menu_item_idx ON promotion_applicable_menu_items (menu_item_id);
+
+-- ============================================================================
+-- 4) REDEMPTIONS: record each time a promotion is applied to an order
+--    One order can have multiple promotions unless you add a uniqueness rule.
+-- ============================================================================
+CREATE TABLE promotion_redemptions (
+  id                   BIGSERIAL PRIMARY KEY,
+  promotion_id         BIGINT NOT NULL REFERENCES promotions(id) ON DELETE CASCADE,
+  order_id             BIGINT NOT NULL REFERENCES orders(id) ON DELETE RESTRICT,
+  customer_id          BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+  redeemed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  amount_discounted_sek NUMERIC(12,2) NOT NULL CHECK (amount_discounted_sek > 0),
+
+  -- Prevent applying the SAME promotion multiple times to the SAME order.
+  CONSTRAINT unique_promo_per_order UNIQUE (promotion_id, order_id)
+);
+
+CREATE INDEX promo_redemptions_promo_idx   ON promotion_redemptions (promotion_id, redeemed_at);
+CREATE INDEX promo_redemptions_order_idx   ON promotion_redemptions (order_id);
+
+-- ============================================================================
+-- 5) REDEMPTION ITEMS (only used when scope='item')
+--    Which menu items were discounted in this redemption (for audit/analytics)?
+-- ============================================================================
+CREATE TABLE promotion_redemption_items (
+  redemption_id        BIGINT NOT NULL REFERENCES promotion_redemptions(id) ON DELETE CASCADE,
+  menu_item_id         BIGINT NOT NULL REFERENCES menu_items(id) ON DELETE RESTRICT,
+  quantity             INTEGER NOT NULL CHECK (quantity > 0),
+  amount_discounted_sek NUMERIC(12,2) NOT NULL CHECK (amount_discounted_sek > 0),
+  PRIMARY KEY (redemption_id, menu_item_id)
+);
+
+CREATE INDEX redemption_items_menu_idx ON promotion_redemption_items (menu_item_id);
+
+-- ============================================================================
+-- 6) ENFORCEMENT TRIGGERS
+--    A) Enforce: active date window + usage_limit before inserting a redemption
+--    B) Enforce: scope rules with item lists
+-- ============================================================================
+-- A) Before insert on promotion_redemptions: check dates + limit
+CREATE OR REPLACE FUNCTION trg_check_promotion_before_redeem()
+RETURNS TRIGGER AS $$
+DECLARE
+  p_scope        promotion_scope_enum;
+  p_start        TIMESTAMPTZ;
+  p_end          TIMESTAMPTZ;
+  p_usage_limit  INTEGER;
+  current_count  INTEGER;
+BEGIN
+  SELECT scope, start_at, end_at, usage_limit
+    INTO p_scope, p_start, p_end, p_usage_limit
+  FROM promotions
+  WHERE id = NEW.promotion_id
+  FOR UPDATE; -- lock row to serialize concurrent limit checks
+
+  -- Valid window (inclusive)
+  IF NOW() < p_start OR NOW() > p_end THEN
+    RAISE EXCEPTION 'Promotion % not active (now=% vs [%..%])', NEW.promotion_id, NOW(), p_start, p_end;
+  END IF;
+
+  -- Usage limit
+  SELECT COUNT(*) INTO current_count
+  FROM promotion_redemptions
+  WHERE promotion_id = NEW.promotion_id;
+
+  IF current_count >= p_usage_limit THEN
+    RAISE EXCEPTION 'Promotion % exhausted its usage limit (%).', NEW.promotion_id, p_usage_limit;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_promotion_before_redeem
+BEFORE INSERT ON promotion_redemptions
+FOR EACH ROW
+EXECUTE FUNCTION trg_check_promotion_before_redeem();
+
+-- B1) When scope='order', forbid adding redemption_items
+CREATE OR REPLACE FUNCTION trg_forbid_items_for_order_scope()
+RETURNS TRIGGER AS $$
+DECLARE
+  p_scope promotion_scope_enum;
+BEGIN
+  SELECT pr2.id, p.scope INTO STRICT NEW.redemption_id, p_scope
+  FROM promotion_redemptions pr2
+  JOIN promotions p ON p.id = pr2.promotion_id
+  WHERE pr2.id = NEW.redemption_id;
+
+  IF p_scope = 'order' THEN
+    RAISE EXCEPTION 'Cannot attach item-level discounts to an order-scoped promotion redemption (%).', NEW.redemption_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER forbid_items_for_order_scope
+BEFORE INSERT ON promotion_redemption_items
+FOR EACH ROW
+EXECUTE FUNCTION trg_forbid_items_for_order_scope();
+
+-- B2) When scope='item', ensure discounted items are actually eligible
+CREATE OR REPLACE FUNCTION trg_validate_item_eligibility()
+RETURNS TRIGGER AS $$
+DECLARE
+  promo_id BIGINT;
+  eligible BOOLEAN;
+BEGIN
+  SELECT pr.promotion_id INTO promo_id
+  FROM promotion_redemptions pr
+  WHERE pr.id = NEW.redemption_id;
+
+  SELECT EXISTS(
+    SELECT 1
+    FROM promotion_applicable_menu_items pami
+    WHERE pami.promotion_id = promo_id
+      AND pami.menu_item_id  = NEW.menu_item_id
+  ) INTO eligible;
+
+  IF NOT eligible THEN
+    RAISE EXCEPTION 'Menu item % not eligible for this promotion (%).', NEW.menu_item_id, promo_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER validate_item_eligibility
+BEFORE INSERT ON promotion_redemption_items
+FOR EACH ROW
+EXECUTE FUNCTION trg_validate_item_eligibility();
+
+-- B3) Ensure that item-scoped promotions actually declare at least one eligible item
+--     (fires when creating/updating promotions)
+CREATE OR REPLACE FUNCTION trg_require_item_list_for_item_scope()
+RETURNS TRIGGER AS $$
+DECLARE
+  has_items BOOLEAN;
+BEGIN
+  -- Only check if scope = 'item'
+  IF NEW.scope = 'item' THEN
+    SELECT EXISTS (SELECT 1 FROM promotion_applicable_menu_items WHERE promotion_id = NEW.id)
+      INTO has_items;
+
+    IF NOT has_items THEN
+      RAISE EXCEPTION 'Item-scoped promotion % must specify eligible menu_items in promotion_applicable_menu_items.', NEW.id;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Use a DEFERRABLE constraint trigger so you can insert promotion first, then its items, in one tx
+CREATE CONSTRAINT TRIGGER require_item_list_for_item_scope
+AFTER INSERT OR UPDATE ON promotions
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW
+EXECUTE FUNCTION trg_require_item_list_for_item_scope();
