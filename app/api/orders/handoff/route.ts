@@ -15,6 +15,12 @@ const HandoffRequestSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Initialize Supabase inside the handler
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     // 1. Authenticate staff user
     const supabaseAuth = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

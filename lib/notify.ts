@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export interface PickupNotification {
   phone?: string;
   email?: string;
@@ -22,6 +17,12 @@ export async function notifyPickup({
   restaurantName = 'Restaurant',
   orderTotal
 }: PickupNotification): Promise<{ success: boolean; errors: string[] }> {
+  // Initialize Supabase inside the function
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   const errors: string[] = [];
   const results = [];
 
