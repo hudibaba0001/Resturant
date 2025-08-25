@@ -1,114 +1,86 @@
-import { NextRequest } from 'next/server';
-import { ChatRequestSchema, ChatReplySchema } from '@/lib/schemas';
-import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
 
-// Load environment variables for API routes
-if (process.env.NODE_ENV === 'development') {
-  require('dotenv').config({ path: '.env.local' });
-}
-import { pickOrigin, withCorsHeaders, securityHeaders } from '@/lib/security';
-import { isAllowedOrigin } from '@/lib/origin-allow';
-import { canonicalize, sha256Base64 } from '@/lib/hash';
-import { getCachedChat, setCachedChat } from '@/lib/chat-cache';
-import { emitEvent } from '@/lib/events';
+const BodySchema = z.object({
+  restaurantId: z.string().min(1),
+  sessionToken: z.string().min(1),
+  message: z.string().min(1).max(1000),
+});
 
-export const runtime = 'nodejs';
-const VERSION = 'v1';
-
-export async function OPTIONS(req: NextRequest) {
-  const origin = pickOrigin(req);
-  return new Response(null, { headers: withCorsHeaders(origin) });
-}
-
-export async function POST(req: NextRequest) {
-  const origin = pickOrigin(req);
+export async function POST(req: Request) {
+  const t0 = Date.now();
   try {
-    const body = await req.json();
-    const parsed = ChatRequestSchema.safeParse(body);
-    if (!parsed.success) {
-      return json({ error: 'Bad Request' }, 400, origin);
+    const raw = await req.json();
+    const { restaurantId, sessionToken, message } = BodySchema.parse(raw);
+
+    // Always have a fallback: fetch our own Menu API
+    const menuUrl = new URL(`/api/public/menu?restaurantId=${restaurantId}`, req.url);
+    const menuRes = await fetch(menuUrl, { headers: { 'X-Internal': 'chat' } });
+    if (!menuRes.ok) {
+      console.error('Menu API failed', await safeText(menuRes));
+      return NextResponse.json({ error: 'menu_unavailable' }, { status: 502 });
     }
-    const { restaurantId, sessionToken, message, locale } = parsed.data;
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-
-    // ensure session
-    await supabase.from('widget_sessions')
-      .upsert({
-        restaurant_id: restaurantId,
-        session_token: sessionToken,
-        user_agent: req.headers.get('user-agent') || null,
-      }, { onConflict: 'restaurant_id,session_token' });
-
-    // load menu
-    const menuRes = await fetch(`${new URL(req.url).origin}/api/public/menu?restaurantId=${restaurantId}`, {
-      headers: { 'X-Widget-Version': req.headers.get('X-Widget-Version') || 'unknown' },
-      cache: 'no-store',
-    });
-    if (!menuRes.ok) return json({ error: 'Menu unavailable' }, 502, origin);
     const menu = await menuRes.json();
+    const items = Array.isArray(menu?.sections)
+      ? menu.sections.flatMap((s: any) => s?.items ?? [])
+      : [];
 
-    // Simple deterministic response
-    const allItems = (menu.sections || []).flatMap((s: any) => s.items || []);
-    const picks = allItems.slice(0, 3);
+    // Simple heuristic cards (max 3)
+    const q = message.toLowerCase();
+    const byIncl = (k: string) => (i: any) =>
+      (i?.name || '').toLowerCase().includes(k) ||
+      (i?.description || '').toLowerCase().includes(k);
+
+    let cards = items.filter(
+      byIncl('italian') || byIncl('pizza') || byIncl('pasta'),
+    );
+    if (q.includes('vegan')) cards = items.filter(byIncl('vegan'));
+    if (q.includes('spicy')) cards = items.filter(byIncl('spicy'));
+    if (q.includes('gluten')) cards = items.filter(byIncl('gluten'));
+
+    cards = (cards.length ? cards : items).slice(0, 3);
+
+    // Concise reply contract
     const reply = {
-      reply: {
-        text: 'Here are a few picks from our menu. Want vegetarian or spicy?',
-        context: 'We base answers on the current menu.',
-        chips: ['Filter vegetarian', 'Show spicy', 'Budget options'],
-        locale: locale || 'en',
-      },
-      cards: picks,
+      text: concise(
+        q.includes('italian')
+          ? 'Here are a few Italian picks we serve. Looking for vegetarian or spicy?'
+          : q.includes('vegan')
+          ? (cards.length
+              ? `Found ${cards.length} vegan options. Need vegetarian alternatives?`
+              : 'No marked vegan items; many vegetarian dishes can be made vegan.')
+          : q.includes('spicy')
+          ? (cards.length
+              ? `Found ${cards.length} spicy dishes. Need milder options?`
+              : 'Many mains can be made spicy. Want to see those?')
+          : 'Here are a few picks we serve. Want vegetarian, spicy, or budget?'
+      ),
+      context:
+        q.includes('italian')
+          ? 'Italian dishes focus on few, high-quality ingredients.'
+          : q.includes('vegan')
+          ? 'Typical swaps: tofu for paneer, olive oil for butter.'
+          : undefined,
+      chips: q.includes('italian')
+        ? ['Filter vegetarian', 'Show spicy', 'Compare two dishes']
+        : ['Show vegetarian', 'Budget options', 'Popular items'],
+      locale: 'en',
     };
 
-    // validate reply shape
-    const safe = ChatReplySchema.parse(reply);
-
-    // persist
-    await persistUserAssistant(supabase, restaurantId, sessionToken, locale, message, safe.reply, safe.cards);
-
-    return json(safe, 200, origin);
-  } catch (e) {
-    console.error('Chat API error:', e);
-    return json({ error: 'Server error' }, 500, pickOrigin(req));
+    const res = NextResponse.json({ reply, cards }, { status: 200 });
+    res.headers.set('X-Widget-Version', '1.0.0');
+    res.headers.set('Cache-Control', 'no-store');
+    return res;
+  } catch (err: any) {
+    console.error('CHAT_API_ERROR', err?.message, err?.stack);
+    const status = err?.name === 'ZodError' ? 400 : 500;
+    return NextResponse.json({ error: 'chat_internal_error' }, { status });
+  } finally {
+    console.log('chat_latency_ms', Date.now() - t0);
   }
 }
 
-async function persistUserAssistant(
-  supabase: ReturnType<typeof createClient>,
-  restaurantId: string,
-  sessionToken: string,
-  locale: string | undefined,
-  userMsg: string,
-  reply: any,
-  cards: any[],
-) {
-  // obtain session id
-  const { data: sess } = await supabase
-    .from('widget_sessions')
-    .select('id')
-    .eq('restaurant_id', restaurantId)
-    .eq('session_token', sessionToken)
-    .maybeSingle();
-
-  const sessionId = sess?.id || null;
-
-  await supabase.from('chat_messages').insert([
-    { restaurant_id: restaurantId, widget_session_id: sessionId, role: 'user', locale, content: userMsg },
-    { restaurant_id: restaurantId, widget_session_id: sessionId, role: 'assistant', locale: reply?.locale, content: reply?.text, meta: { cards } },
-  ]);
+async function safeText(r: Response) {
+  try { return await r.text(); } catch { return '<no-body>'; }
 }
-
-function json(payload: any, status = 200, origin = '') {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      ...withCorsHeaders(origin, { 'Vary': 'Origin' }),
-      ...securityHeaders(),
-    },
-  });
-}
+function concise(s: string) { return s.trim().slice(0, 450); }
