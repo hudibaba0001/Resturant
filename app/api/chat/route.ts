@@ -12,7 +12,7 @@ import { canonicalize, sha256Base64 } from '@/lib/hash';
 import { getCachedChat, setCachedChat } from '@/lib/chat-cache';
 import { emitEvent } from '@/lib/events';
 
-export const runtime = 'edge'; // fast
+export const runtime = 'nodejs';
 const VERSION = 'v1';
 
 export async function OPTIONS(req: NextRequest) {
@@ -30,10 +30,6 @@ export async function POST(req: NextRequest) {
     }
     const { restaurantId, sessionToken, message, locale } = parsed.data;
 
-    if (!(await isAllowedOrigin(restaurantId, origin))) {
-      return json({ error: 'Forbidden' }, 403, origin);
-    }
-
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -47,30 +43,15 @@ export async function POST(req: NextRequest) {
         user_agent: req.headers.get('user-agent') || null,
       }, { onConflict: 'restaurant_id,session_token' });
 
-    // load menu + hash
+    // load menu
     const menuRes = await fetch(`${new URL(req.url).origin}/api/public/menu?restaurantId=${restaurantId}`, {
       headers: { 'X-Widget-Version': req.headers.get('X-Widget-Version') || 'unknown' },
       cache: 'no-store',
     });
     if (!menuRes.ok) return json({ error: 'Menu unavailable' }, 502, origin);
     const menu = await menuRes.json();
-    const menuStr = canonicalize(menu.sections || []);
-    const menuHash = await sha256Base64(menuStr);
 
-    // cache key
-    const normalized = message.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200);
-    const cacheKey = await sha256Base64([VERSION, restaurantId, normalized, menuHash, locale || ''].join('|'));
-
-    // try cache
-    const cached = await getCachedChat(restaurantId, cacheKey);
-    if (cached) {
-      await persistUserAssistant(supabase, restaurantId, sessionToken, locale, message, cached.reply, cached.cards);
-      await emitEvent(restaurantId, 'chat', { sessionToken, cache: 'hit' });
-      return json({ ...cached }, 200, origin);
-    }
-
-    // *** Your existing deterministic or LLM logic here ***
-    // For now: minimal deterministic fallback using menu only
+    // Simple deterministic response
     const allItems = (menu.sections || []).flatMap((s: any) => s.items || []);
     const picks = allItems.slice(0, 3);
     const reply = {
@@ -88,11 +69,10 @@ export async function POST(req: NextRequest) {
 
     // persist
     await persistUserAssistant(supabase, restaurantId, sessionToken, locale, message, safe.reply, safe.cards);
-    await setCachedChat(restaurantId, cacheKey, safe.reply, safe.cards, menuHash);
-    await emitEvent(restaurantId, 'chat', { sessionToken, cache: 'miss' });
 
     return json(safe, 200, origin);
   } catch (e) {
+    console.error('Chat API error:', e);
     return json({ error: 'Server error' }, 500, pickOrigin(req));
   }
 }
