@@ -120,7 +120,10 @@ export async function notifyPickup({
       orderId,
       pin,
       phone: phone ? `${phone.slice(0, 3)}***${phone.slice(-4)}` : null,
-      email: email ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : null,
+      email: email ? (() => {
+        const parts = email.split('@');
+        return parts.length === 2 ? `${parts[0].slice(0, 3)}***@${parts[1]}` : `${email.slice(0, 3)}***`;
+      })() : null,
       results,
       errors
     }
