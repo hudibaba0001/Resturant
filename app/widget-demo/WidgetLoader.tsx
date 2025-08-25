@@ -10,7 +10,7 @@ export default function WidgetLoader({ restaurantId }: WidgetLoaderProps) {
   useEffect(() => {
     // Load the widget script
     const script = document.createElement('script');
-    script.src = 'https://resturant-git-feat-data-spine-lovedeep-singhs-projects-96b003a8.vercel.app/widget.js';
+    script.src = '/widget.js'; // Use local widget.js for development
     script.setAttribute('data-restaurant', restaurantId);
     script.async = true;
     

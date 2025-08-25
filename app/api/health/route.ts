@@ -2,14 +2,17 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
   const startTime = Date.now();
   
   try {
-    // Check Supabase connection
-    const supabase = getSupabaseServer();
+    // Check Supabase connection with service role key
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
     const { data, error } = await supabase
       .from('restaurants')
       .select('id')

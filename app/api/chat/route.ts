@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server';
 import { ChatRequestSchema, ChatReplySchema } from '@/lib/schemas';
 import { getSupabaseServer } from '@/lib/supabaseServer';
+
+// Load environment variables for API routes
+if (process.env.NODE_ENV === 'development') {
+  require('dotenv').config({ path: '.env.local' });
+}
 import { pickOrigin, withCorsHeaders, securityHeaders } from '@/lib/security';
 import { isAllowedOrigin } from '@/lib/origin-allow';
 import { canonicalize, sha256Base64 } from '@/lib/hash';
