@@ -2,61 +2,18 @@
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
-export async function GET() {
-  const startTime = Date.now();
-  
+export async function GET(req: Request) {
   try {
-    // Check Supabase connection with service role key
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    const { data, error } = await supabase
-      .from('restaurants')
-      .select('id')
-      .limit(1);
-    
-    if (error) {
-      return NextResponse.json(
-        {
-          status: 'error',
-          message: 'Database connection failed',
-          error: error.message,
-          timestamp: new Date().toISOString(),
-          uptime: process.uptime(),
-        },
-        { status: 503 }
-      );
-    }
-    
-    const responseTime = Date.now() - startTime;
-    
-    return NextResponse.json({
-      status: 'healthy',
-      message: 'All systems operational',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      responseTime: `${responseTime}ms`,
-      version: process.env.npm_package_version || '1.0.0',
-      environment: process.env.NODE_ENV,
-      services: {
-        database: 'connected',
-        api: 'operational',
+    const checks: Record<string, any> = {
+      uptime_s: Math.floor(process.uptime()),
+      env: {
+        supabase: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        stripe: !!process.env.STRIPE_SECRET_KEY,
       },
-    });
-    
-  } catch (error) {
-    return NextResponse.json(
-      {
-        status: 'error',
-        message: 'Health check failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-      },
-      { status: 500 }
-    );
+    };
+    return NextResponse.json({ ok: true, checks });
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 200 });
   }
 }

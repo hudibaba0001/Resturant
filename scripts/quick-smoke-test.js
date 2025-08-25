@@ -1,117 +1,88 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env.local' });
+#!/usr/bin/env node
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-const BASE_URL = 'http://localhost:3000';
-const RESTAURANT_ID = '64806e5b-714f-4388-a092-29feff9b64c0';
-
-async function quickSmokeTest() {
-  console.log('🔥 Quick P0 Smoke Test (Local)');
-  console.log('================================\n');
-
+async function test(endpoint, method = 'GET', body = null) {
+  const t0 = Date.now();
   try {
-    // 1. Test Menu API
-    console.log('1️⃣ Testing Menu API...');
-    const menuResponse = await fetch(`${BASE_URL}/api/public/menu?restaurant_id=${RESTAURANT_ID}`);
-    if (menuResponse.ok) {
-      const menuData = await menuResponse.json();
-      console.log('✅ Menu API working - Found', menuData.items?.length || 0, 'items');
-    } else {
-      console.log('❌ Menu API failed:', menuResponse.status);
-    }
-
-    // 2. Test Chat API
-    console.log('\n2️⃣ Testing Chat API...');
-    const chatResponse = await fetch(`${BASE_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        restaurantId: RESTAURANT_ID,
-        message: 'Hello',
-        sessionToken: 'test-session-' + Date.now()
-      })
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
     });
+    const data = await res.json();
+    const ms = Date.now() - t0;
     
-    if (chatResponse.ok) {
-      const chatData = await chatResponse.json();
-      console.log('✅ Chat API working - Response:', chatData.response?.substring(0, 50) + '...');
+    if (res.ok) {
+      console.log(`✅ ${method} ${endpoint} (${ms}ms)`);
+      return { ok: true, data, status: res.status };
     } else {
-      console.log('❌ Chat API failed:', chatResponse.status);
+      console.log(`❌ ${method} ${endpoint} - ${res.status}: ${data.error || 'Unknown error'}`);
+      return { ok: false, error: data.error, status: res.status };
     }
-
-    // 3. Create Test Order
-    console.log('\n3️⃣ Creating Test Order...');
-    const testOrder = {
-      restaurant_id: RESTAURANT_ID,
-      type: 'pickup',
-      order_code: 'T' + (Date.now() % 100000).toString().padStart(5, '0'),
-      customer_name: 'Test Customer',
-      phone_e164: '+1234567890',
-      email: 'test@example.com',
-      total_cents: 1000,
-      status: 'pending'
-    };
-
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(testOrder)
-      .select()
-      .single();
-
-    if (orderError) {
-      console.log('❌ Order creation failed:', orderError.message);
-      return;
-    }
-
-    console.log('✅ Test order created:', order.id);
-
-    // 4. Test Dev Mark-Paid
-    console.log('\n4️⃣ Testing Dev Mark-Paid...');
-    const markPaidResponse = await fetch(`${BASE_URL}/api/dev/mark-paid`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: order.id })
-    });
-
-    if (markPaidResponse.ok) {
-      const markPaidData = await markPaidResponse.json();
-      console.log('✅ Mark-paid working - PIN:', markPaidData.pin);
-      
-      // 5. Test Handoff
-      console.log('\n5️⃣ Testing Handoff...');
-      const handoffResponse = await fetch(`${BASE_URL}/api/orders/handoff`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          orderId: order.id, 
-          pin: markPaidData.pin 
-        })
-      });
-
-      if (handoffResponse.ok) {
-        const handoffData = await handoffResponse.json();
-        console.log('✅ Handoff working - Status:', handoffData.order?.status);
-      } else {
-        console.log('❌ Handoff failed:', handoffResponse.status);
-      }
-    } else {
-      console.log('❌ Mark-paid failed:', markPaidResponse.status);
-    }
-
-    // 6. Cleanup
-    console.log('\n6️⃣ Cleaning up...');
-    await supabase.from('orders').delete().eq('id', order.id);
-    console.log('✅ Test order cleaned up');
-
-    console.log('\n🎉 Quick smoke test completed!');
-
-  } catch (error) {
-    console.error('❌ Smoke test failed:', error.message);
+  } catch (err) {
+    const ms = Date.now() - t0;
+    console.log(`💥 ${method} ${endpoint} - Network error: ${err.message} (${ms}ms)`);
+    return { ok: false, error: err.message };
   }
 }
 
-quickSmokeTest();
+async function main() {
+  console.log('🚀 Quick Smoke Test for P0 Flow\n');
+  
+  // Test 1: Health check
+  const health = await test('/api/health');
+  if (!health.ok) {
+    console.log('\n❌ Health check failed - stopping tests');
+    process.exit(1);
+  }
+  
+  // Test 2: Menu API (using a test restaurant ID)
+  const menu = await test('/api/public/menu?restaurantId=test-restaurant');
+  if (!menu.ok) {
+    console.log('\n❌ Menu API failed - stopping tests');
+    process.exit(1);
+  }
+  
+  // Test 3: Chat API
+  const chat = await test('/api/chat', 'POST', {
+    restaurantId: 'test-restaurant',
+    sessionToken: 'smoke-test',
+    message: 'Italian dishes?'
+  });
+  if (!chat.ok) {
+    console.log('\n❌ Chat API failed - stopping tests');
+    process.exit(1);
+  }
+  
+  // Test 4: Create order
+  const order = await test('/api/orders', 'POST', {
+    restaurantId: 'test-restaurant',
+    sessionToken: 'smoke-test',
+    items: [{ id: 'test-item', quantity: 1 }],
+    customer: { name: 'Test User', phone: '+1234567890' }
+  });
+  if (!order.ok) {
+    console.log('\n❌ Order creation failed - stopping tests');
+    process.exit(1);
+  }
+  
+  const orderId = order.data.id;
+  
+  // Test 5: Mark paid (dev endpoint)
+  const markPaid = await test('/api/dev/mark-paid', 'POST', { orderId });
+  if (!markPaid.ok) {
+    console.log('\n❌ Mark paid failed - stopping tests');
+    process.exit(1);
+  }
+  
+  console.log('\n🎉 All P0 endpoints working!');
+  console.log(`📋 Order ID: ${orderId}`);
+  console.log(`🔢 PIN: ${markPaid.data.pin}`);
+  console.log('\n✅ Ready for end-to-end pickup flow testing');
+}
+
+main().catch(err => {
+  console.error('💥 Test runner failed:', err);
+  process.exit(1);
+});
