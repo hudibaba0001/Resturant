@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MenuResponse, ChatReply, MenuItem } from '../lib/schemas';
+import { MenuResponse, ChatReplySchema, MenuItem } from '../lib/schemas';
 
 describe('API Contracts with Zod', () => {
   it('menu response validates with correct shape', () => {
@@ -54,7 +54,7 @@ describe('API Contracts with Zod', () => {
       ],
     };
 
-    expect(() => ChatReply.parse(mockChat)).not.toThrow();
+    expect(() => ChatReplySchema.parse(mockChat)).not.toThrow();
     expect(mockChat.cards.length).toBeLessThanOrEqual(3);
     expect(mockChat.reply.text.length).toBeGreaterThan(0);
     expect(mockChat.reply.text.length).toBeLessThanOrEqual(450);
@@ -79,7 +79,7 @@ describe('API Contracts with Zod', () => {
       }),
     };
 
-    expect(() => ChatReply.parse(invalidChat)).toThrow();
+    expect(() => ChatReplySchema.parse(invalidChat)).toThrow();
   });
 
   it('rejects chat response with text too long', () => {
@@ -88,7 +88,7 @@ describe('API Contracts with Zod', () => {
       cards: [],
     };
 
-    expect(() => ChatReply.parse(invalidChat)).toThrow();
+    expect(() => ChatReplySchema.parse(invalidChat)).toThrow();
   });
 
   it('validates menu item with optional fields', () => {
