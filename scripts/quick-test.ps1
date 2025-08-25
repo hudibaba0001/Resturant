@@ -3,10 +3,10 @@
 $BASE_URL = "https://resturant-git-feat-data-spine-lovedeep-singhs-projects-96b003a8.vercel.app"
 $RESTAURANT_ID = "64806e5b-714f-4388-a092-29feff9b64c0"
 
-Write-Host "🔥 Quick P0 Pickup Tests" -ForegroundColor Green
+Write-Host "Quick P0 Pickup Tests" -ForegroundColor Green
 
 # 1. Health Check
-Write-Host "`n1️⃣ Testing Health..." -ForegroundColor Yellow
+Write-Host "`n1. Testing Health..." -ForegroundColor Yellow
 try {
     $response = Invoke-WebRequest -Uri "$BASE_URL/api/health" -UseBasicParsing
     if ($response.StatusCode -eq 200) {
@@ -19,7 +19,7 @@ try {
 }
 
 # 2. Menu API
-Write-Host "`n2️⃣ Testing Menu API..." -ForegroundColor Yellow
+Write-Host "`n2. Testing Menu API..." -ForegroundColor Yellow
 try {
     $response = Invoke-WebRequest -Uri "$BASE_URL/api/public/menu?restaurantId=$RESTAURANT_ID" -UseBasicParsing
     if ($response.StatusCode -eq 200) {
@@ -33,7 +33,7 @@ try {
 }
 
 # 3. Chat API
-Write-Host "`n3️⃣ Testing Chat API..." -ForegroundColor Yellow
+Write-Host "`n3. Testing Chat API..." -ForegroundColor Yellow
 try {
     $body = @{
         restaurantId = $RESTAURANT_ID
@@ -57,4 +57,4 @@ try {
     Write-Host "❌ Chat Error: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-Write-Host "`n🎉 Quick Tests Complete!" -ForegroundColor Green
+Write-Host "`nQuick Tests Complete!" -ForegroundColor Green

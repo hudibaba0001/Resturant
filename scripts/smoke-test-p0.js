@@ -8,9 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://resturant-git-feat-data-spine-lovedeep-singhs-projects-96b003a8.vercel.app'
-  : 'http://localhost:3000';
+const BASE_URL = 'https://resturant-git-feat-data-spine-lovedeep-singhs-projects-96b003a8.vercel.app';
 
 const RESTAURANT_ID = '64806e5b-714f-4388-a092-29feff9b64c0';
 
