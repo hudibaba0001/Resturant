@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 
@@ -19,7 +19,23 @@ const HandoffRequestSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate staff user
-    const supabaseAuth = createRouteHandlerClient({ cookies });
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookies().get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookies().set(name, value, options);
+          },
+          remove(name: string, options: any) {
+            cookies().set(name, '', { ...options, maxAge: 0 });
+          },
+        },
+      }
+    );
     const { data: { user }, error: authError } = await supabaseAuth.getUser();
     
     if (authError || !user) {

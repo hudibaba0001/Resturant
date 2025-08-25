@@ -1,10 +1,26 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import OrdersTable from './OrdersTable';
 
 export default async function OrdersPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookies().get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookies().set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          cookies().set(name, '', { ...options, maxAge: 0 });
+        },
+      },
+    }
+  );
   
   // Check authentication
   const { data: { user }, error: authError } = await supabase.auth.getUser();
