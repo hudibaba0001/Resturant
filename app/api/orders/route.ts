@@ -1,6 +1,11 @@
 // Node runtime (Stripe, Supabase admin, heavy libs)
 export const runtime = 'nodejs';
 
+// Load environment variables for API routes
+if (process.env.NODE_ENV === 'development') {
+  require('dotenv').config({ path: '.env.local' });
+}
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin'

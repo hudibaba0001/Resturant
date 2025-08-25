@@ -85,8 +85,14 @@
     }
 
     // Set API base from script attribute or script origin
-    API_BASE = script?.getAttribute('data-endpoint') ||
-      (script?.src ? new URL(script.src).origin : window.location.origin);
+    // For development, use localhost if the script is loaded from localhost
+    const scriptOrigin = script?.src ? new URL(script.src).origin : window.location.origin;
+    API_BASE = script?.getAttribute('data-endpoint') || scriptOrigin;
+    
+    // For development, always use localhost if we're on localhost
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      API_BASE = 'http://localhost:3000';
+    }
 
     // Persist session token for stable chat threads
     const key = `stjarna:${state.restaurantId}:session`;
