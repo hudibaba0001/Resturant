@@ -37,16 +37,23 @@ async function main() {
     process.exit(1);
   }
   
-  // Test 2: Menu API (using a real restaurant ID)
-  const menu = await test('/api/public/menu?restaurantId=64806e5b-714f-4388-a092-29feff9b64c0');
+  // Test 2: Status API
+  const status = await test('/api/public/status?restaurantId=demo');
+  if (!status.ok) {
+    console.log('\n❌ Status API failed - stopping tests');
+    process.exit(1);
+  }
+  
+  // Test 3: Menu API
+  const menu = await test('/api/public/menu?restaurantId=demo');
   if (!menu.ok) {
     console.log('\n❌ Menu API failed - stopping tests');
     process.exit(1);
   }
   
-  // Test 3: Chat API
+  // Test 4: Chat API
   const chat = await test('/api/chat', 'POST', {
-    restaurantId: '64806e5b-714f-4388-a092-29feff9b64c0',
+    restaurantId: 'demo',
     sessionToken: 'smoke-test',
     message: 'Italian dishes?'
   });
@@ -55,32 +62,35 @@ async function main() {
     process.exit(1);
   }
   
-  // Test 4: Create order
-  const order = await test('/api/orders', 'POST', {
-    restaurantId: '64806e5b-714f-4388-a092-29feff9b64c0', // Use a real UUID
+  // Test 5: Orders API (dine-in)
+  const orderDineIn = await test('/api/orders', 'POST', {
+    restaurantId: 'demo',
     sessionToken: 'smoke-test',
-    type: 'pickup',
-    items: [{ itemId: '1', qty: 1 }], // Real item ID from menu
-    customer: { name: 'Test User', phone: '+1234567890' }
+    type: 'dine_in',
+    items: [{ itemId: '1', qty: 1 }]
   });
-  if (!order.ok) {
-    console.log('\n❌ Order creation failed - stopping tests');
+  if (!orderDineIn.ok) {
+    console.log('\n❌ Orders API (dine-in) failed - stopping tests');
     process.exit(1);
   }
   
-  const orderId = order.data.id;
-  
-  // Test 5: Mark paid (dev endpoint)
-  const markPaid = await test('/api/dev/mark-paid', 'POST', { orderId });
-  if (!markPaid.ok) {
-    console.log('\n❌ Mark paid failed - stopping tests');
+  // Test 6: Orders API (pickup)
+  const orderPickup = await test('/api/orders', 'POST', {
+    restaurantId: 'demo',
+    sessionToken: 'smoke-test',
+    type: 'pickup',
+    items: [{ itemId: '1', qty: 1 }]
+  });
+  if (!orderPickup.ok) {
+    console.log('\n❌ Orders API (pickup) failed - stopping tests');
     process.exit(1);
   }
   
   console.log('\n🎉 All P0 endpoints working!');
-  console.log(`📋 Order ID: ${orderId}`);
-  console.log(`🔢 PIN: ${markPaid.data.pin}`);
-  console.log('\n✅ Ready for end-to-end pickup flow testing');
+  console.log(`📋 Dine-in Order: ${orderDineIn.data.orderCode}`);
+  console.log(`🛒 Pickup Order: ${orderPickup.data.orderId}`);
+  console.log(`🔗 Checkout URL: ${orderPickup.data.checkoutUrl}`);
+  console.log('\n✅ Ready for end-to-end widget testing');
 }
 
 main().catch(err => {
