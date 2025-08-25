@@ -1,7 +1,10 @@
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 
 export async function getCachedChat(restaurantId: string, cacheKey: string) {
-  const supabase = getSupabaseServer();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   const { data } = await supabase
     .from('chat_response_cache')
     .select('reply,cards,expires_at')
@@ -20,7 +23,10 @@ export async function setCachedChat(
   menuHash: string,
   ttlDays = Number(process.env.CHAT_CACHE_TTL_DAYS || 7),
 ) {
-  const supabase = getSupabaseServer();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   const expires = new Date(Date.now() + ttlDays * 864e5).toISOString();
   await supabase.from('chat_response_cache').upsert({
     restaurant_id: restaurantId,

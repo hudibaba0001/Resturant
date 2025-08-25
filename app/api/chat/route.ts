@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { ChatRequestSchema, ChatReplySchema } from '@/lib/schemas';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 
 // Load environment variables for API routes
 if (process.env.NODE_ENV === 'development') {
@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
       return json({ error: 'Forbidden' }, 403, origin);
     }
 
-    const supabase = getSupabaseServer();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
     // ensure session
     await supabase.from('widget_sessions')
@@ -95,7 +98,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function persistUserAssistant(
-  supabase: ReturnType<typeof getSupabaseServer>,
+  supabase: ReturnType<typeof createClient>,
   restaurantId: string,
   sessionToken: string,
   locale: string | undefined,

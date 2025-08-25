@@ -1,8 +1,11 @@
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
 
 export async function isAllowedOrigin(restaurantId: string, origin: string) {
   if (!origin) return true; // allow server-to-server
-  const supabase = getSupabaseServer();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   const { data } = await supabase
     .from('restaurants')
     .select('allowed_origins')
