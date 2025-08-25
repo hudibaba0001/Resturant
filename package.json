@@ -23,6 +23,7 @@
     "security-headers": "node scripts/check-security-headers.js",
     "performance": "node scripts/performance-check.js",
     "smoke": "node scripts/smoke-orders.mjs",
+    "smoke:p0": "node scripts/smoke-test-p0.js",
     "warm:cache": "tsx scripts/warm-cache.ts",
     "sim:e2e": "tsx scripts/simulate-e2e.ts",
     "test:db": "tsx scripts/db-contract.test.ts"
