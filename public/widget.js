@@ -440,12 +440,13 @@
          min-width: 0;
        }
        
-       .stjarna-chat-section {
-         flex: 1;
-         display: flex;
-         flex-direction: column;
-         min-width: 350px;
-       }
+               .stjarna-chat-section {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 350px;
+          overflow: hidden; /* keep content inside */
+        }
       
       .stjarna-menu-header,
       .stjarna-chat-header {
@@ -570,12 +571,13 @@
         border: 1px solid ${tokens.colors.border};
       }
       
-      .stjarna-chat-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
-      }
+             .stjarna-chat-container {
+         flex: 1;
+         display: flex;
+         flex-direction: column;
+         padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
+         overflow: hidden; /* critical for sticky input */
+       }
       
              .stjarna-chat-messages {
          flex: 1;
@@ -678,10 +680,14 @@
         box-shadow: 0 0 0 2px ${tokens.colors.accent};
       }
       
-      .stjarna-chat-input-container {
-        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
-        border-top: 1px solid ${tokens.colors.border};
-      }
+             .stjarna-chat-input-container {
+         padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
+         border-top: 1px solid ${tokens.colors.border};
+         position: sticky;
+         bottom: 0;
+         background: ${tokens.colors.surface};
+         z-index: 1;
+       }
       
              .stjarna-chat-input {
          display: flex;
@@ -1439,8 +1445,8 @@
       console.log('[WIDGET DEBUG] About to make fetch call...');
       let response;
       try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 6000);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
         
         response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
@@ -1449,8 +1455,9 @@
             'X-Widget-Version': WIDGET_VERSION
           },
           body: requestBody,
-          signal: ctrl.signal
-        }).finally(() => clearTimeout(t));
+          signal: controller.signal
+        });
+        clearTimeout(timer);
         
         console.log('[WIDGET DEBUG] Fetch call completed successfully');
       } catch (fetchError) {
@@ -1509,6 +1516,12 @@
     
     const allItems = state.menu.flatMap(section => section.items);
     const lowerMessage = message.toLowerCase();
+    
+    // Handle chip intents in free text
+    if (lowerMessage.includes('suggest swaps')) return provideVeganModifications(allItems);
+    if (lowerMessage.includes('budget')) return provideBudgetOptions(allItems);
+    if (lowerMessage.includes('show spicy') || lowerMessage.includes('spicy dishes')) return provideSpicyOptions(allItems);
+    if (lowerMessage.includes('show vegetarian') || lowerMessage.includes('filter vegetarian')) return provideVegetarianOptions(allItems);
     
     // Handle conversation context first
     if (state.conversationContext) {
@@ -1807,13 +1820,58 @@
     elements.chatMessages.appendChild(wrap);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
     
-    // Add event listeners to chips
+    // Chip → deterministic intent
+    const CHIP_MAP = {
+      'Show vegetarian': '__intent_vegetarian__',
+      'Filter vegetarian': '__intent_vegetarian__',
+      'Show spicy': '__intent_spicy__',
+      'Spicy dishes': '__intent_spicy__',
+      'Budget options': '__intent_budget__',
+      'Suggest swaps': '__intent_swaps__',
+    };
     wrap.querySelectorAll('.stjarna-quick-btn').forEach(b => {
       b.addEventListener('click', () => {
-        elements.chatInput.value = b.textContent;
-        sendMessage();
+        const intent = CHIP_MAP[b.textContent?.trim()] || null;
+        if (intent) handleChipIntent(intent);
+        else { elements.chatInput.value = b.textContent; sendMessage(); }
       });
     });
+  }
+
+  function handleChipIntent(intent) {
+    const allItems = state.menu ? state.menu.flatMap(s => s.items) : [];
+    if (!allItems.length) { addMessage('assistant',
+      "I can filter once the menu loads. Try asking for a cuisine meanwhile."
+    ); return; }
+    switch (intent) {
+      case '__intent_vegetarian__':
+        state.suggestions = allItems.filter(i =>
+          (i.description||'').toLowerCase().includes('vegetarian') ||
+          ['Appetizers','Desserts'].includes(i.category||'') ||
+          /(paneer|dal|hummus|bruschetta)/i.test(i.name||'')
+        ).slice(0,3);
+        renderSuggestions();
+        addMessage('assistant',"Here are our vegetarian options. Many can be made vegan.");
+        break;
+      case '__intent_spicy__':
+        state.suggestions = allItems.filter(i =>
+          /(spicy|chili|chilli|chile)/i.test((i.name||'') + ' ' + (i.description||''))
+        ).slice(0,3);
+        renderSuggestions();
+        addMessage('assistant',"Found some spicy picks. Want milder options?");
+        break;
+      case '__intent_budget__':
+        state.suggestions = allItems
+          .filter(i => (i.price_cents ?? Math.round((i.price||0)*100)) < 20000)
+          .sort((a,b)=>(a.price_cents??0)-(b.price_cents??0))
+          .slice(0,3);
+        renderSuggestions();
+        addMessage('assistant',"Here are our most affordable options under 200 SEK.");
+        break;
+      case '__intent_swaps__':
+        addMessage('assistant',"Vegan swaps: Paneer → tofu, use olive oil instead of butter, skip cheese on bruschetta/pizza.");
+        break;
+    }
   }
 
   // Render menu items in the grid
@@ -1870,15 +1928,12 @@
      });
    }
   
-       // Render suggestions as dedicated cards in chat
-  function renderSuggestions() {
-    if (!elements.chatMessages) return; // Guard against null element
-    if (!state.menu || !Array.isArray(state.menu)) return; // Guard against invalid menu
-    
-    const items = state.suggestions.length > 0 ? state.suggestions : 
-                  (state.menu ? state.menu.flatMap(section => section.items) : []);
-    
-    if (items.length === 0) return;
+               // Render suggestions as dedicated cards in chat
+   function renderSuggestions() {
+     if (!elements.chatMessages) return; // Guard against null element
+     if (!state.menu || !Array.isArray(state.menu)) return; // Guard against invalid menu
+     if (!state.suggestions || state.suggestions.length === 0) return; // <-- no random fallbacks
+     const items = state.suggestions;
 
      // Add suggestions as chat message with cards
            const suggestionsHtml = items.map(item => `
