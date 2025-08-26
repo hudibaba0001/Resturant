@@ -1422,19 +1422,36 @@
       if (state.isLoading) return; // de-dupe fast Enter clicks
       
       console.log('[WIDGET DEBUG] Making API call to:', `${API_BASE}/api/chat`);
-      
-      const response = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-Widget-Version': WIDGET_VERSION
-        },
-        body: JSON.stringify({
-          restaurantId: state.restaurantId,
-          sessionToken: state.sessionToken,
-          message: message
-        })
+      console.log('[WIDGET DEBUG] Request payload:', {
+        restaurantId: state.restaurantId,
+        sessionToken: state.sessionToken,
+        message: message
       });
+      
+      const requestBody = JSON.stringify({
+        restaurantId: state.restaurantId,
+        sessionToken: state.sessionToken,
+        message: message
+      });
+      
+      console.log('[WIDGET DEBUG] Request body stringified:', requestBody);
+      
+      console.log('[WIDGET DEBUG] About to make fetch call...');
+      let response;
+      try {
+        response = await fetch(`${API_BASE}/api/chat`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Widget-Version': WIDGET_VERSION
+          },
+          body: requestBody
+        });
+        console.log('[WIDGET DEBUG] Fetch call completed successfully');
+      } catch (fetchError) {
+        console.error('[WIDGET DEBUG] Fetch call failed:', fetchError);
+        throw fetchError;
+      }
       
       console.log('[WIDGET DEBUG] Response status:', response.status);
       console.log('[WIDGET DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
