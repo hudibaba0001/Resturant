@@ -4,6 +4,19 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
+function withCORS(req: Request, res: NextResponse) {
+  const reqOrigin = req.headers.get('origin') ?? '*';
+  res.headers.set('Access-Control-Allow-Origin', reqOrigin);
+  res.headers.set('Vary', 'Origin');
+  res.headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Widget-Version');
+  res.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  return res;
+}
+
+export async function OPTIONS(req: Request) {
+  return withCORS(req, new NextResponse(null, { status: 204 }));
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -57,7 +70,7 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    return NextResponse.json(
+    const res = NextResponse.json(
       menuData,
       { 
         headers: {
@@ -66,12 +79,14 @@ export async function GET(request: NextRequest) {
         }
       }
     )
+    return withCORS(request, res)
 
   } catch (error) {
     console.error('Menu API error:', error)
-    return NextResponse.json(
+    const res = NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
+    return withCORS(request, res)
   }
 }
