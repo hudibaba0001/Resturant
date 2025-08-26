@@ -1,7 +1,17 @@
 #!/usr/bin/env node
 
+// Use node-fetch if available, otherwise use global fetch
+let fetch;
+try {
+  fetch = require('node-fetch');
+} catch {
+  fetch = globalThis.fetch;
+}
+
 async function testChat() {
   try {
+    console.log('Testing chat API...');
+    
     const response = await fetch('http://localhost:3000/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -28,6 +38,7 @@ async function testChat() {
     }
   } catch (err) {
     console.error('💥 Test failed:', err.message);
+    console.error('Stack:', err.stack);
   }
 }
 
