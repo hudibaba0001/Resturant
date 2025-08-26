@@ -1402,6 +1402,11 @@
     const message = elements.chatInput.value.trim();
     if (!message) return;
 
+    console.log('[WIDGET DEBUG] sendMessage called with:', message);
+    console.log('[WIDGET DEBUG] API_BASE:', API_BASE);
+    console.log('[WIDGET DEBUG] restaurantId:', state.restaurantId);
+    console.log('[WIDGET DEBUG] sessionToken:', state.sessionToken);
+
     // Add user message
     addMessage('user', message);
     elements.chatInput.value = '';
@@ -1413,49 +1418,61 @@
     state.isLoading = true;
     elements.chatSubmit.disabled = true;
 
-         try {
-       if (state.isLoading) return; // de-dupe fast Enter clicks
-       const response = await fetch(`${API_BASE}/api/chat`, {
-         method: 'POST',
-         headers: { 
-           'Content-Type': 'application/json',
-           'X-Widget-Version': WIDGET_VERSION
-         },
-         body: JSON.stringify({
-           restaurantId: state.restaurantId,
-           sessionToken: state.sessionToken,
-           message: message
-         })
-       });
-       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-       const data = await response.json();
+    try {
+      if (state.isLoading) return; // de-dupe fast Enter clicks
+      
+      console.log('[WIDGET DEBUG] Making API call to:', `${API_BASE}/api/chat`);
+      
+      const response = await fetch(`${API_BASE}/api/chat`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Widget-Version': WIDGET_VERSION
+        },
+        body: JSON.stringify({
+          restaurantId: state.restaurantId,
+          sessionToken: state.sessionToken,
+          message: message
+        })
+      });
+      
+      console.log('[WIDGET DEBUG] Response status:', response.status);
+      console.log('[WIDGET DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      
+      console.log('[WIDGET DEBUG] Response data:', data);
       
       // Use server reply first, fallback to intelligent response
       if (data.reply?.text) {
+        console.log('[WIDGET DEBUG] Adding assistant reply:', data.reply.text);
         addAssistantReply(data.reply);
       } else {
+        console.log('[WIDGET DEBUG] No reply.text, using fallback');
         const intelligentResponse = provideIntelligentResponse(message);
         addMessage('assistant', intelligentResponse);
       }
       
       // If API suggests specific items, show them as cards
       if (Array.isArray(data.cards) && data.cards.length > 0) {
+        console.log('[WIDGET DEBUG] Rendering cards:', data.cards.length);
         state.suggestions = data.cards;
         renderSuggestions();
         track('chat_reply', { cards: data.cards.length });
       }
-         } catch (error) {
-       console.error('Chat error:', error);
-       
-       // Better error UX based on response status
-       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-         addMessage('assistant', "I'm having trouble connecting. Please check your internet and try again.");
-       } else {
-         // Fallback: provide intelligent responses
-         const intelligentResponse = provideIntelligentResponse(message);
-         addMessage('assistant', intelligentResponse);
-       }
-     } finally {
+    } catch (error) {
+      console.error('[WIDGET DEBUG] Chat error:', error);
+      
+      // Better error UX based on response status
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        addMessage('assistant', "I'm having trouble connecting. Please check your internet and try again.");
+      } else {
+        // Fallback: provide intelligent responses
+        const intelligentResponse = provideIntelligentResponse(message);
+        addMessage('assistant', intelligentResponse);
+      }
+    } finally {
       state.isLoading = false;
       elements.chatSubmit.disabled = false;
     }
