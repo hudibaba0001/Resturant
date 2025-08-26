@@ -1225,7 +1225,7 @@
      });
      elements.chatSubmit.addEventListener('click', sendMessage);
            elements.chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendMessage();
+        if (e.key === 'Enter' && !state.isLoading) sendMessage();
       });
      elements.cartToggle.addEventListener('click', openCart);
      elements.cartClose.addEventListener('click', closeCart);
