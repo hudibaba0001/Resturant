@@ -64,12 +64,55 @@
     suggestions: [],
     menu: null,
     sessionToken: null,
-    conversationContext: null // Track conversation context
+    conversationContext: null, // Track conversation context
+    lastIntent: null,
+    _lastAssistantText: '',
+    _lastChipsKey: ''
   };
 
   // Cart persistence helpers
   const CART_KEY = (id) => `stjarna:${id}:cart`;
   let lastFocused = null;
+
+  // Smart chat helpers
+  const GENERIC_HELP =
+    "I can help with cuisines, dietary needs, or budget. What are you looking for?";
+
+  const GLOSSARY = {
+    tofu:
+      "Tofu is a soy-based protein with a mild flavor that absorbs sauces; it's vegan.",
+    paneer:
+      "Paneer is a fresh Indian cheese; mild, doesn't melt; vegetarian (contains dairy).",
+    gluten:
+      "Gluten is a protein in wheat/barley/rye. If you have celiac, choose gluten-free items.",
+    vegan:
+      "Vegan = no animal products (no meat, fish, dairy, eggs, honey).",
+    vegetarian:
+      "Vegetarian = no meat/fish; dairy and eggs may be included.",
+  };
+
+  function detectIntent(q) {
+    if (/\bvegan|plant[- ]?based\b/i.test(q)) return "vegan";
+    if (/\bvegetarian|veg-only|veg\b/i.test(q)) return "vegetarian";
+    if (/\bgluten\b/i.test(q)) return "gluten";
+    if (/\bspicy|hot\b/i.test(q)) return "spicy";
+    if (/\bbudget|cheap|affordable\b/i.test(q)) return "budget";
+    if (/\bpizza\b/i.test(q)) return "pizza";
+    if (/\bindian\b/i.test(q)) return "indian";
+    if (/\bitalian|pasta|risotto|bruschetta\b/i.test(q)) return "italian";
+    if (/\bmexican|taco|burrito|quesadilla\b/i.test(q)) return "mexican";
+    if (/\bpopular|recommend|best\b/i.test(q)) return "popular";
+    if (/\bwhat(?:'| i)?s\s+([a-z]+)/i.test(q)) return "glossary";
+    return "unknown";
+  }
+
+  function pickCards(items, n = 3) {
+    return (items || []).slice(0, n);
+  }
+
+  function sameText(a = "", b = "") {
+    return a.trim().toLowerCase() === b.trim().toLowerCase();
+  }
 
   // DOM elements
   let elements = {};
@@ -1509,292 +1552,156 @@
 
   // Provide intelligent AI responses (concise version)
   function provideIntelligentResponse(message) {
-    const hasMenu = Array.isArray(state.menu) && state.menu.length > 0;
-    if (!hasMenu) {
-      return "Got it! I can suggest cuisines, dietary options, or budget picks. Try: \"Italian dishes?\", \"Vegan options?\", or \"What's popular?\"";
-    }
-    
-    const allItems = state.menu.flatMap(section => section.items);
-    const lowerMessage = message.toLowerCase();
-    
-    // Handle chip intents in free text
-    if (lowerMessage.includes('suggest swaps')) return provideVeganModifications(allItems);
-    if (lowerMessage.includes('budget')) return provideBudgetOptions(allItems);
-    if (lowerMessage.includes('show spicy') || lowerMessage.includes('spicy dishes')) return provideSpicyOptions(allItems);
-    if (lowerMessage.includes('show vegetarian') || lowerMessage.includes('filter vegetarian')) return provideVegetarianOptions(allItems);
-    
-    // Handle conversation context first
-    if (state.conversationContext) {
-      if (lowerMessage.includes('yes') || lowerMessage.includes('sure') || lowerMessage.includes('ok') || lowerMessage.includes('please')) {
-        if (state.conversationContext === 'vegan_followup') {
-          state.conversationContext = 'vegetarian_shown';
-          return provideVegetarianOptions(allItems);
-        } else if (state.conversationContext === 'gluten_followup') {
-          state.conversationContext = null;
-          return provideGlutenFreeOptions(allItems);
-        } else if (state.conversationContext === 'spicy_followup') {
-          state.conversationContext = null;
-          return provideSpicyOptions(allItems);
-        } else if (state.conversationContext === 'budget_followup') {
-          state.conversationContext = null;
-          return provideBudgetOptions(allItems);
-        }
-      } else if (state.conversationContext === 'vegetarian_shown' && 
-                (lowerMessage.includes('vegan') || lowerMessage.includes('how') || lowerMessage.includes('make'))) {
-        state.conversationContext = null;
-        return provideVeganModifications(allItems);
-      } else if (lowerMessage.includes('vegan') || lowerMessage.includes('vegetarian') || 
-                lowerMessage.includes('gluten') || lowerMessage.includes('spicy') || 
-                lowerMessage.includes('budget') || lowerMessage.includes('cheap')) {
-        state.conversationContext = null;
+    if (!state.menu) return "I'm sorry, I don't have access to the menu right now. Please try again later.";
+
+    const q = message.toLowerCase();
+    const allItems = state.menu.flatMap(s => s.items || []);
+    const intent = detectIntent(q);
+    state.lastIntent = intent;
+
+    // Glossary ("what is tofu?", etc.)
+    if (intent === "glossary") {
+      const m = q.match(/\bwhat(?:'| i)?s\s+([a-z]+)/i);
+      const term = m && m[1] ? m[1].toLowerCase() : "";
+      const ans = GLOSSARY[term];
+      if (ans) {
+        state.suggestions = []; // no cards for glossary
+        addAssistantReply({
+          text: ans,
+          chips: term === "tofu" ? ["See vegan swaps", "Show vegetarian"] : ["Show vegetarian"],
+          context: "Simple definitions for common ingredients.",
+          locale: "en",
+        });
+        return ans; // for the legacy path
       }
     }
-    
-    // Cuisine-specific responses
-    if (lowerMessage.includes('indian') || lowerMessage.includes('india')) {
-      const indianItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('indian') ||
-        item.name.toLowerCase().includes('curry') ||
-        item.name.toLowerCase().includes('tikka') ||
-        item.name.toLowerCase().includes('biryani') ||
-        item.name.toLowerCase().includes('naan') ||
-        item.name.toLowerCase().includes('dal') ||
-        item.name.toLowerCase().includes('paneer')
+
+    // Intent-specific suggestions
+    const by = (pred) => pickCards(allItems.filter(pred), 3);
+
+    if (intent === "pizza") {
+      const cards = by(i => /pizza/i.test(i.name));
+      if (cards.length) {
+        state.suggestions = cards;
+        renderSuggestions();
+        return "Here are the pizzas we serve.";
+      }
+    }
+
+    if (intent === "italian") {
+      const cards = by(i =>
+        /italian|pizza|pasta|risotto|bruschetta/i.test(i.description || "") ||
+        /pizza|pasta|risotto|bruschetta/i.test(i.name)
       );
-      
-      if (indianItems.length > 0) {
-        state.suggestions = indianItems.slice(0, 3);
+      if (cards.length) {
+        state.suggestions = cards;
         renderSuggestions();
-        return "Here are a few Indian picks we serve. Looking for vegetarian or spicy?";
+        return "Here are a few Italian picks. Prefer vegetarian or spicy?";
       }
     }
-    
-    if (lowerMessage.includes('italian') || lowerMessage.includes('pizza') || lowerMessage.includes('pasta')) {
-      const italianItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('italian') ||
-        item.name.toLowerCase().includes('pizza') ||
-        item.name.toLowerCase().includes('pasta') ||
-        item.name.toLowerCase().includes('risotto') ||
-        item.name.toLowerCase().includes('bruschetta')
+
+    if (intent === "indian" || intent === "mexican") {
+      const map = {
+        indian: /indian|curry|tikka|biryani|naan|dal|paneer/i,
+        mexican: /mexican|taco|burrito|quesadilla|guacamole|salsa/i,
+      };
+      const cards = by(i => map[intent].test(i.name) || map[intent].test(i.description || ""));
+      if (cards.length) {
+        state.suggestions = cards;
+        renderSuggestions();
+        return `Here are a few ${intent} options. Want spicy or mild?`;
+      }
+    }
+
+    if (intent === "vegan") {
+      const cards = by(i =>
+        /vegan/i.test(i.description || "") ||
+        (Array.isArray(i.allergens) && i.allergens.some(a => /vegan/i.test(a)))
       );
-      
-      if (italianItems.length > 0) {
-        state.suggestions = italianItems.slice(0, 3);
+      if (cards.length) {
+        state.suggestions = cards;
         renderSuggestions();
-        return "Here are a few Italian picks we serve. Looking for vegetarian or spicy?";
+        return `Found ${cards.length} vegan options. Want budget picks?`;
       }
-    }
-    
-    if (lowerMessage.includes('chinese') || lowerMessage.includes('asian')) {
-      const chineseItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('chinese') ||
-        item.name.toLowerCase().includes('noodle') ||
-        item.name.toLowerCase().includes('rice') ||
-        item.name.toLowerCase().includes('stir fry') ||
-        item.name.toLowerCase().includes('dumpling')
-      );
-      
-      if (chineseItems.length > 0) {
-        state.suggestions = chineseItems.slice(0, 3);
-        renderSuggestions();
-        return "Here are a few Asian picks we serve. Looking for vegetarian or spicy?";
-      }
-    }
-    
-    if (lowerMessage.includes('mexican') || lowerMessage.includes('taco') || lowerMessage.includes('burrito')) {
-      const mexicanItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('mexican') ||
-        item.name.toLowerCase().includes('taco') ||
-        item.name.toLowerCase().includes('burrito') ||
-        item.name.toLowerCase().includes('quesadilla') ||
-        item.name.toLowerCase().includes('guacamole')
-      );
-      
-      if (mexicanItems.length > 0) {
-        state.suggestions = mexicanItems.slice(0, 3);
-        renderSuggestions();
-        return "Here are a few Mexican picks we serve. Looking for vegetarian or spicy?";
-      }
-    }
-    
-    // Dietary preferences
-    if (lowerMessage.includes('vegan') || lowerMessage.includes('plant-based')) {
-      const veganItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('vegan') || 
-        item.allergens?.some(allergen => allergen.toLowerCase() === 'vegan')
-      );
-      if (veganItems.length > 0) {
-        state.suggestions = veganItems.slice(0, 3);
-        renderSuggestions();
-        return `Found ${veganItems.length} vegan options. Need vegetarian alternatives?`;
-      } else {
-        state.conversationContext = 'vegan_followup';
-        return "No marked vegan items, but many vegetarian dishes can be made vegan. Show vegetarian options?";
-      }
-    }
-    
-    if (lowerMessage.includes('vegetarian') || lowerMessage.includes('veg')) {
-      const vegItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('vegetarian') || 
-        item.category === 'Appetizers' || 
-        item.category === 'Desserts'
-      );
-      
-      state.suggestions = vegItems.slice(0, 3);
-      renderSuggestions();
-      return `Found ${vegItems.length} vegetarian options. Many can be made vegan.`;
-    }
-    
-    if (lowerMessage.includes('gluten') || lowerMessage.includes('celiac')) {
-      const glutenFreeItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('gluten-free') || 
-        item.allergens?.some(allergen => allergen.toLowerCase() === 'gluten-free')
-      );
-      if (glutenFreeItems.length > 0) {
-        state.suggestions = glutenFreeItems.slice(0, 3);
-        renderSuggestions();
-        return `Found ${glutenFreeItems.length} gluten-free options. Need more alternatives?`;
-      } else {
-        state.conversationContext = 'gluten_followup';
-        return "No marked gluten-free items, but I can check ingredients. Show main courses?";
-      }
-    }
-    
-    // Spicy food
-    if (lowerMessage.includes('spicy') || lowerMessage.includes('hot')) {
-      const spicyItems = allItems.filter(item => 
-        item.description?.toLowerCase().includes('spicy') || 
-        item.description?.toLowerCase().includes('chili') ||
-        item.name.toLowerCase().includes('spicy')
-      );
-      if (spicyItems.length > 0) {
-        state.suggestions = spicyItems.slice(0, 3);
-        renderSuggestions();
-        return `Found ${spicyItems.length} spicy dishes. Need milder options?`;
-      } else {
-        state.conversationContext = 'spicy_followup';
-        return "Many main courses can be made spicy. Show main courses?";
-      }
-    }
-    
-    // Popular/recommended
-    if (lowerMessage.includes('popular') || lowerMessage.includes('best') || lowerMessage.includes('recommend')) {
-      const popularCategories = ['Mains', 'Appetizers'];
-      const popularItems = allItems.filter(item => popularCategories.includes(item.category));
-      
-      state.suggestions = popularItems.slice(0, 3);
-      renderSuggestions();
-      return "Here are our most popular items. Need specific recommendations?";
-    }
-    
-    // Desserts
-    if (lowerMessage.includes('dessert') || lowerMessage.includes('sweet')) {
-      const desserts = allItems.filter(item => item.category === 'Desserts');
-      if (desserts.length > 0) {
-        state.suggestions = desserts.slice(0, 3);
-        renderSuggestions();
-        return `Found ${desserts.length} dessert options. Need main course suggestions?`;
-      } else {
-        return "No dedicated dessert section. Need main course suggestions?";
-      }
-    }
-    
-    // Drinks
-    if (lowerMessage.includes('drink') || lowerMessage.includes('beverage')) {
-      const drinks = allItems.filter(item => item.category === 'Drinks');
-      if (drinks.length > 0) {
-        state.suggestions = drinks.slice(0, 3);
-        renderSuggestions();
-        return `Found ${drinks.length} drink options. Need food recommendations?`;
-      } else {
-        return "No separate drinks section. Need food recommendations?";
-      }
-    }
-    
-    // Price-related
-    if (lowerMessage.includes('cheap') || lowerMessage.includes('budget') || lowerMessage.includes('affordable')) {
-      const affordableItems = allItems.filter(item => {
-        const price = item.price_cents || (item.price ? Math.round(item.price * 100) : 0);
-        return price < 15000; // Less than 150 SEK
+      addAssistantReply({
+        text: "I don't see items marked vegan, but several vegetarian dishes can be made vegan.",
+        chips: ["Show vegetarian", "Suggest swaps"],
+        context: "Typical swaps: tofu for paneer, olive oil for butter.",
+        locale: "en",
       });
-      
-      if (affordableItems.length > 0) {
-        state.suggestions = affordableItems.slice(0, 3);
+      return "I don't see items marked vegan…";
+    }
+
+    if (intent === "vegetarian") {
+      const cards = by(i =>
+        /vegetarian|paneer|dal|hummus|bruschetta/i.test(i.name) ||
+        /vegetarian/i.test(i.description || "") ||
+        ["Appetizers", "Desserts"].includes(i.category)
+      );
+      state.suggestions = cards;
+      renderSuggestions();
+      return `Here are vegetarian options. Many can be made vegan.`;
+    }
+
+    if (intent === "gluten") {
+      const cards = by(i =>
+        /gluten[- ]?free/i.test(i.description || "") ||
+        (Array.isArray(i.allergens) && i.allergens.some(a => /gluten[- ]?free/i.test(a)))
+      );
+      if (cards.length) {
+        state.suggestions = cards;
         renderSuggestions();
-        return `Found ${affordableItems.length} budget-friendly options under 150 SEK.`;
-      } else {
-        state.conversationContext = 'budget_followup';
-        return "Limited budget options. Show our most affordable dishes?";
+        return `Found ${cards.length} gluten-free options. Want more?`;
+      }
+      addAssistantReply({
+        text: "No items are marked gluten-free, but some can be adapted.",
+        chips: ["Show mains", "Show drinks"],
+        context: "We can remove bread/pasta in some dishes if suitable.",
+        locale: "en",
+      });
+      return "No gluten-free labels found.";
+    }
+
+    if (intent === "spicy") {
+      const cards = by(i =>
+        /spicy|chili|chilli|pepper/i.test(i.description || "") ||
+        /spicy/i.test(i.name)
+      );
+      if (cards.length) {
+        state.suggestions = cards;
+        renderSuggestions();
+        return `Found ${cards.length} spicy dishes. Want milder picks?`;
       }
     }
-    
-    // General help
-    if (lowerMessage.includes('help') || lowerMessage.includes('what') || lowerMessage.includes('how')) {
-      return "I can help with dietary preferences, cuisine types, recommendations, and budget options. What are you looking for?";
+
+    if (intent === "budget") {
+      const cards = by(i => {
+        const c = i.price_cents ?? Math.round((i.price || 0) * 100);
+        return c < 15000;
+      });
+      if (cards.length) {
+        state.suggestions = cards;
+        renderSuggestions();
+        return `Budget-friendly picks under 150 SEK.`;
+      }
     }
-    
-    // Default response
-    return "I can help with dietary preferences, recommendations, or specific cuisines. What are you looking for?";
+
+    // Popular / default
+    if (intent === "popular") {
+      const cards = by(i => ["Mains", "Appetizers"].includes(i.category));
+      state.suggestions = cards;
+      renderSuggestions();
+      return "Here are our popular choices.";
+    }
+
+    // True fallback (only show once; otherwise we'll be chatty but not spammy)
+    if (sameText(state._lastAssistantText, GENERIC_HELP)) {
+      return "Tell me a cuisine (Italian, Indian), or say vegan/vegetarian/spicy/budget.";
+    }
+    return GENERIC_HELP;
   }
 
-   // Helper functions for follow-up responses (concise version)
-  function provideVegetarianOptions(allItems) {
-    const vegItems = allItems.filter(item => 
-      item.description?.toLowerCase().includes('vegetarian') || 
-      item.category === 'Appetizers' || 
-      item.category === 'Desserts' ||
-      item.name.toLowerCase().includes('paneer') ||
-      item.name.toLowerCase().includes('dal') ||
-      item.name.toLowerCase().includes('hummus') ||
-      item.name.toLowerCase().includes('bruschetta')
-    );
-    
-    state.suggestions = vegItems.slice(0, 3);
-    renderSuggestions();
-    return "Here are our vegetarian options. Many can be made vegan.";
-  }
-
-  function provideGlutenFreeOptions(allItems) {
-    const glutenFreeItems = allItems.filter(item => 
-      item.description?.toLowerCase().includes('gluten-free') || 
-      item.allergens?.some(allergen => allergen.toLowerCase() === 'gluten-free') ||
-      item.name.toLowerCase().includes('rice') ||
-      item.name.toLowerCase().includes('smoothie') ||
-      item.name.toLowerCase().includes('lemonade') ||
-      item.name.toLowerCase().includes('latte')
-    );
-    
-    state.suggestions = glutenFreeItems.slice(0, 3);
-    renderSuggestions();
-    return "Here are gluten-free options. We can modify other dishes too.";
-  }
-
-  function provideSpicyOptions(allItems) {
-    const mainCourses = allItems.filter(item => item.category === 'Mains');
-    
-    state.suggestions = mainCourses.slice(0, 3);
-    renderSuggestions();
-    return "Here are main courses that can be made spicy. Just specify heat level.";
-  }
-
-  function provideBudgetOptions(allItems) {
-    const affordableItems = allItems.filter(item => {
-      const price = item.price_cents || (item.price ? Math.round(item.price * 100) : 0);
-      return price < 20000; // Less than 200 SEK
-    }).sort((a, b) => {
-      const priceA = a.price_cents || (a.price ? Math.round(a.price * 100) : 0);
-      const priceB = b.price_cents || (b.price ? Math.round(b.price * 100) : 0);
-      return priceA - priceB;
-    });
-    
-    state.suggestions = affordableItems.slice(0, 3);
-    renderSuggestions();
-    return "Here are our most affordable options. Great value without compromise.";
-  }
-
-  function provideVeganModifications(allItems) {
-    return "Vegan modifications: Paneer → Tofu, remove cheese from bruschetta, hummus is already vegan. Just ask when ordering.";
-  }
+   
 
   // Add message to chat
   function addMessage(type, content) {
@@ -1807,72 +1714,42 @@
 
   // Add assistant reply with chips and context
   function addAssistantReply(reply) {
+    // De-dup identical consecutive assistant text
+    if (sameText(reply.text, state._lastAssistantText)) {
+      reply = { ...reply, chips: [] };
+    }
+    state._lastAssistantText = reply.text || "";
+
+    // De-dup chip sets (don't show identical set back-to-back)
+    let chips = Array.isArray(reply.chips) ? reply.chips : [];
+    const chipsKey = chips.join("|").toLowerCase();
+    if (chipsKey === state._lastChipsKey) chips = [];
+    state._lastChipsKey = chipsKey;
+
     const wrap = document.createElement('div');
     wrap.className = 'stjarna-message assistant';
-    const chips = (reply.chips || []).map(c => `<button class="stjarna-quick-btn">${escapeHtml(c)}</button>`).join('');
+    const chipsHtml = chips.map(c => `<button class="stjarna-quick-btn">${escapeHtml(c)}</button>`).join('');
     wrap.innerHTML = `
       <div class="stjarna-message-content">
-        <p>${escapeHtml(reply.text)}</p>
+        <p>${escapeHtml(reply.text || '')}</p>
         ${reply.context ? `<p class="stjarna-context">${escapeHtml(reply.context)}</p>` : ''}
-        ${chips ? `<div class="stjarna-quick-questions">${chips}</div>` : ''}
+        ${chips.length ? `<div class="stjarna-quick-questions">${chipsHtml}</div>` : ''}
         <p class="stjarna-disclaimer">Ingredients from our menu; preparation may vary.</p>
-      </div>`;
+      </div>
+    `;
     elements.chatMessages.appendChild(wrap);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-    
-    // Chip → deterministic intent
-    const CHIP_MAP = {
-      'Show vegetarian': '__intent_vegetarian__',
-      'Filter vegetarian': '__intent_vegetarian__',
-      'Show spicy': '__intent_spicy__',
-      'Spicy dishes': '__intent_spicy__',
-      'Budget options': '__intent_budget__',
-      'Suggest swaps': '__intent_swaps__',
-    };
+
+    // chip interactions
     wrap.querySelectorAll('.stjarna-quick-btn').forEach(b => {
       b.addEventListener('click', () => {
-        const intent = CHIP_MAP[b.textContent?.trim()] || null;
-        if (intent) handleChipIntent(intent);
-        else { elements.chatInput.value = b.textContent; sendMessage(); }
+        elements.chatInput.value = b.textContent;
+        sendMessage();
       });
     });
   }
 
-  function handleChipIntent(intent) {
-    const allItems = state.menu ? state.menu.flatMap(s => s.items) : [];
-    if (!allItems.length) { addMessage('assistant',
-      "I can filter once the menu loads. Try asking for a cuisine meanwhile."
-    ); return; }
-    switch (intent) {
-      case '__intent_vegetarian__':
-        state.suggestions = allItems.filter(i =>
-          (i.description||'').toLowerCase().includes('vegetarian') ||
-          ['Appetizers','Desserts'].includes(i.category||'') ||
-          /(paneer|dal|hummus|bruschetta)/i.test(i.name||'')
-        ).slice(0,3);
-        renderSuggestions();
-        addMessage('assistant',"Here are our vegetarian options. Many can be made vegan.");
-        break;
-      case '__intent_spicy__':
-        state.suggestions = allItems.filter(i =>
-          /(spicy|chili|chilli|chile)/i.test((i.name||'') + ' ' + (i.description||''))
-        ).slice(0,3);
-        renderSuggestions();
-        addMessage('assistant',"Found some spicy picks. Want milder options?");
-        break;
-      case '__intent_budget__':
-        state.suggestions = allItems
-          .filter(i => (i.price_cents ?? Math.round((i.price||0)*100)) < 20000)
-          .sort((a,b)=>(a.price_cents??0)-(b.price_cents??0))
-          .slice(0,3);
-        renderSuggestions();
-        addMessage('assistant',"Here are our most affordable options under 200 SEK.");
-        break;
-      case '__intent_swaps__':
-        addMessage('assistant',"Vegan swaps: Paneer → tofu, use olive oil instead of butter, skip cheese on bruschetta/pizza.");
-        break;
-    }
-  }
+  
 
   // Render menu items in the grid
   function renderMenuItems() {
