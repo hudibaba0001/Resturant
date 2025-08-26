@@ -1414,12 +1414,12 @@
     // Track chat interaction
     track('chat_ask', { q: message.slice(0, 80) });
 
-    // Show loading
-    state.isLoading = true;
-    elements.chatSubmit.disabled = true;
-
     try {
-      if (state.isLoading) return; // de-dupe fast Enter clicks
+      // de-dupe fast Enter clicks
+      if (state.isLoading) return;
+      // Show loading (after the guard)
+      state.isLoading = true;
+      elements.chatSubmit.disabled = true;
       
       console.log('[WIDGET DEBUG] Making API call to:', `${API_BASE}/api/chat`);
       console.log('[WIDGET DEBUG] Request payload:', {
