@@ -1439,14 +1439,19 @@
       console.log('[WIDGET DEBUG] About to make fetch call...');
       let response;
       try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 6000);
+        
         response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'X-Widget-Version': WIDGET_VERSION
           },
-          body: requestBody
-        });
+          body: requestBody,
+          signal: ctrl.signal
+        }).finally(() => clearTimeout(t));
+        
         console.log('[WIDGET DEBUG] Fetch call completed successfully');
       } catch (fetchError) {
         console.error('[WIDGET DEBUG] Fetch call failed:', fetchError);
@@ -1497,7 +1502,10 @@
 
   // Provide intelligent AI responses (concise version)
   function provideIntelligentResponse(message) {
-    if (!state.menu) return "I'm sorry, I don't have access to the menu right now. Please try again later.";
+    const hasMenu = Array.isArray(state.menu) && state.menu.length > 0;
+    if (!hasMenu) {
+      return "Got it! I can suggest cuisines, dietary options, or budget picks. Try: \"Italian dishes?\", \"Vegan options?\", or \"What's popular?\"";
+    }
     
     const allItems = state.menu.flatMap(section => section.items);
     const lowerMessage = message.toLowerCase();
