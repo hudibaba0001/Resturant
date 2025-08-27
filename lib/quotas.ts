@@ -65,16 +65,27 @@ export async function incrementUsage(
   tokens: number = 0
 ) {
   try {
+    // First get current usage
+    const { data: current } = await supabase
+      .from('usage_counters')
+      .select('messages_used, tokens_used')
+      .eq('restaurant_id', restaurantId)
+      .eq('period', period)
+      .single();
+
+    const currentMessages = current?.messages_used || 0;
+    const currentTokens = current?.tokens_used || 0;
+
+    // Upsert with incremented values
     const { error } = await supabase
       .from('usage_counters')
       .upsert({
         restaurant_id: restaurantId,
         period,
-        messages_used: messages,
-        tokens_used: tokens
+        messages_used: currentMessages + messages,
+        tokens_used: currentTokens + tokens
       }, {
-        onConflict: 'restaurant_id,period',
-        ignoreDuplicates: false
+        onConflict: 'restaurant_id,period'
       });
 
     if (error) {

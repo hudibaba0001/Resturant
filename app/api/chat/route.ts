@@ -53,6 +53,12 @@ async function retrieveRelevantItems(restaurantId: string, query: string): Promi
       model: EMBED_MODEL,
       input: query,
     });
+    
+    if (!embeddingResponse.data?.[0]?.embedding) {
+      console.error('Failed to create embedding');
+      return [];
+    }
+    
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
     // Vector similarity search
