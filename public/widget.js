@@ -614,13 +614,14 @@
         border: 1px solid ${tokens.colors.border};
       }
       
-             .stjarna-chat-container {
-         flex: 1;
-         display: flex;
-         flex-direction: column;
-         padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
-         overflow: hidden; /* critical for sticky input */
-       }
+                           .stjarna-chat-container {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden; /* critical for sticky input */
+        }
       
              .stjarna-chat-messages {
          flex: 1;
@@ -1740,7 +1741,7 @@
     elements.chatMessages.appendChild(wrap);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
-    // chip interactions
+    // chip interactions - use server chips directly
     wrap.querySelectorAll('.stjarna-quick-btn').forEach(b => {
       b.addEventListener('click', () => {
         elements.chatInput.value = b.textContent;
