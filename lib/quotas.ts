@@ -35,7 +35,10 @@ export async function getPlanLimits(restaurantId: string): Promise<PlanLimits> {
     };
   } catch (error) {
     console.error('Failed to get plan limits:', error);
-    return PLAN_LIMITS.lite;
+    return {
+      messages: PLAN_LIMITS.lite,
+      tokens: PLAN_LIMITS.lite * 50
+    };
   }
 }
 
