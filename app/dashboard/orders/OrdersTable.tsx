@@ -62,11 +62,31 @@ async function patchOrderStatus(orderId: string, status: OrderStatus, reason?: s
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg =
-      res.status === 409
-        ? `Conflict: order moved to "${json?.current}". Refresh to sync.`
-        : json?.error || 'Failed to update status';
-    throw new Error(msg);
+    // Handle structured error codes for better UX
+    const errorCode = json?.code || 'UNKNOWN_ERROR';
+    let userMessage = json?.error || 'Failed to update status';
+    
+    switch (errorCode) {
+      case 'CONFLICT_STATUS_CHANGED':
+        userMessage = `Order status changed to "${json?.current}". Please refresh to see the latest state.`;
+        break;
+      case 'INVALID_TRANSITION':
+        userMessage = `Cannot change status from "${json?.from}" to "${status}". Allowed transitions: ${json?.allowed?.join(', ')}`;
+        break;
+      case 'FORBIDDEN':
+        userMessage = 'You do not have permission to update this order.';
+        break;
+      case 'INVALID_ORDER_ID':
+        userMessage = 'Invalid order ID.';
+        break;
+      case 'INVALID_STATUS':
+        userMessage = 'Invalid status value.';
+        break;
+      default:
+        userMessage = json?.error || 'Failed to update status';
+    }
+    
+    throw new Error(userMessage);
   }
   return json.order as Order;
 }
