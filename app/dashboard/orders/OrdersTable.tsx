@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { trackOrderStatusChange, trackOrderConflict, trackOrderError } from '@/utils/analytics';
+import { formatMoney } from '@/lib/format';
 
 type OrderItem = {
   id: string;
@@ -208,8 +209,8 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     }
   };
 
-  const formatPrice = (cents: number) => {
-    return `SEK ${(cents / 100).toFixed(2)}`;
+  const formatPrice = (cents: number, currency = 'SEK') => {
+    return formatMoney(cents, currency);
   };
 
   const formatDate = (dateString: string) => {
@@ -331,9 +332,9 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(order.status)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatPrice(order.total_cents)}
-                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {formatPrice(order.total_cents, order.currency)}
+                </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(order.created_at)}
                   </td>
@@ -368,23 +369,35 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
                         {(lines[order.id] || []).length === 0 ? (
                           <div className="text-sm text-gray-500">No items found</div>
                         ) : (
-                          <ul className="space-y-2">
-                            {(lines[order.id] || []).map((li) => {
-                              const name = li.menu_item?.name || 'Item';
-                              const currency = li.menu_item?.currency || order.currency || 'SEK';
-                              const lineTotal = (li.price_cents * li.qty) / 100;
-                              return (
-                                <li key={li.id} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{name}</span>
-                                    <span className="opacity-70">× {li.qty}</span>
-                                    {li.notes && <span className="opacity-60 italic">({li.notes})</span>}
-                                  </div>
-                                  <div className="tabular-nums">{lineTotal.toFixed(2)} {currency}</div>
-                                </li>
-                              );
-                            })}
-                          </ul>
+                          <>
+                            <ul className="space-y-2">
+                              {(lines[order.id] || []).map((li) => {
+                                const name = li.menu_item?.name ?? 'Item (removed)';
+                                const currency = li.menu_item?.currency ?? order.currency ?? 'SEK';
+                                const lineTotal = (li.price_cents ?? 0) * (li.qty ?? 0);
+                                return (
+                                  <li key={li.id} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">{name}</span>
+                                      <span className="opacity-70">× {li.qty}</span>
+                                      {li.notes && <span className="opacity-60 italic">({li.notes})</span>}
+                                    </div>
+                                    <div className="tabular-nums">{formatMoney(lineTotal, currency)}</div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                            
+                            {/* Integrity check warning */}
+                            {(() => {
+                              const sum = (lines[order.id] || []).reduce((acc, li) => acc + (li.price_cents ?? 0) * (li.qty ?? 0), 0);
+                              return open[order.id] && order.total_cents != null && sum !== order.total_cents ? (
+                                <div className="mt-2 text-[11px] text-amber-700">
+                                  Note: totals differ (historical price changes or manual adjustments).
+                                </div>
+                              ) : null;
+                            })()}
+                          </>
                         )}
                       </div>
                     </td>
