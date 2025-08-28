@@ -247,17 +247,17 @@
                   </div>
                 </div>
                 
-                <div class="stjarna-chat-input-container">
-                  <div class="stjarna-chat-input">
-                    <input type="text" placeholder="Ask about our menu..." aria-label="Ask about menu items">
-                    <button type="submit" aria-label="Send message">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22,2 15,22 11,13 2,9"></polygon>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                                 <div class="stjarna-chat-input-container">
+                   <div class="stjarna-chat-input">
+                     <textarea placeholder="Ask about our menu..." aria-label="Ask about menu items" rows="1"></textarea>
+                     <button type="submit" aria-label="Send message">
+                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                         <line x1="22" y1="2" x2="11" y2="13"></line>
+                         <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                       </svg>
+                     </button>
+                   </div>
+                 </div>
               </div>
             </div>
           </div>
@@ -615,14 +615,15 @@
         border: 1px solid ${tokens.colors.border};
       }
       
-                           .stjarna-chat-container {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          min-height: 0;
-          overflow: hidden; /* critical for sticky input */
-        }
+                                 .stjarna-chat-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden; /* critical for sticky input */
+        position: relative; /* Ensure proper positioning context */
+      }
       
              .stjarna-chat-messages {
          flex: 1;
@@ -725,14 +726,16 @@
         box-shadow: 0 0 0 2px ${tokens.colors.accent};
       }
       
-             .stjarna-chat-input-container {
-         padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
-         border-top: 1px solid ${tokens.colors.border};
-         position: sticky;
-         bottom: 0;
-         background: ${tokens.colors.surface};
-         z-index: 1;
-       }
+                   .stjarna-chat-input-container {
+        padding: ${tokens.spacing[16]} ${tokens.spacing[20]};
+        border-top: 1px solid ${tokens.colors.border};
+        position: sticky;
+        bottom: 0;
+        background: ${tokens.colors.surface};
+        z-index: 10;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.1); /* Add shadow for better visibility */
+        margin-top: auto; /* Push to bottom */
+      }
       
              .stjarna-chat-input {
          display: flex;
@@ -740,28 +743,33 @@
          align-items: center;
        }
        
-       .stjarna-chat-input input {
-         flex: 1;
-         padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
-         border: 1px solid ${tokens.colors.border};
-         border-radius: ${tokens.borderRadius.input};
-         font-size: 14px;
-         background: ${tokens.colors.surface};
-         color: ${tokens.colors.text};
-         transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
-         min-height: 40px;
-         min-width: 0; /* Allow input to shrink */
-       }
-       
-       .stjarna-chat-input input::placeholder {
-         color: ${tokens.colors['text-muted']};
-       }
-       
-       .stjarna-chat-input input:focus {
-         outline: none;
-         border-color: ${tokens.colors.accent};
-         box-shadow: 0 0 0 2px ${tokens.colors.accent}40;
-       }
+               .stjarna-chat-input textarea {
+          flex: 1;
+          padding: ${tokens.spacing[10]} ${tokens.spacing[12]};
+          border: 1px solid ${tokens.colors.border};
+          border-radius: ${tokens.borderRadius.input};
+          font-size: 14px;
+          background: ${tokens.colors.surface};
+          color: ${tokens.colors.text};
+          transition: all ${tokens.duration.fast} ${tokens.easing.smooth};
+          min-height: 40px;
+          max-height: 150px;
+          min-width: 0; /* Allow textarea to shrink */
+          resize: none; /* Disable manual resizing */
+          overflow-y: auto; /* Show scrollbar when max height reached */
+          line-height: 1.4;
+          font-family: inherit;
+        }
+        
+        .stjarna-chat-input textarea::placeholder {
+          color: ${tokens.colors['text-muted']};
+        }
+        
+        .stjarna-chat-input textarea:focus {
+          outline: none;
+          border-color: ${tokens.colors.accent};
+          box-shadow: 0 0 0 2px ${tokens.colors.accent}40;
+        }
        
        .stjarna-chat-input button {
          background: ${tokens.colors.accent};
@@ -1202,10 +1210,10 @@
              gap: ${tokens.spacing[6]};
            }
            
-           .stjarna-chat-input input {
-             font-size: 13px;
-             padding: ${tokens.spacing[8]} ${tokens.spacing[10]};
-           }
+                       .stjarna-chat-input textarea {
+              font-size: 13px;
+              padding: ${tokens.spacing[8]} ${tokens.spacing[10]};
+            }
            
            .stjarna-chat-input button {
              min-width: 36px;
@@ -1257,7 +1265,7 @@
        closedBanner: modal.querySelector('.stjarna-closed-banner'),
        menuGrid: modal.querySelector('#stjarna-menu-grid'),
        chatMessages: modal.querySelector('.stjarna-chat-messages'),
-       chatInput: modal.querySelector('.stjarna-chat-input input'),
+               chatInput: modal.querySelector('.stjarna-chat-input textarea'),
        chatSubmit: modal.querySelector('.stjarna-chat-input button'),
        cartToggle: modal.querySelector('.stjarna-cart-toggle'),
        cartModal: modal.querySelector('#stjarna-cart-modal'),
@@ -1276,8 +1284,15 @@
      });
      elements.chatSubmit.addEventListener('click', sendMessage);
            elements.chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !state.isLoading) sendMessage();
+        if (e.key === 'Enter' && !e.shiftKey && !state.isLoading) {
+          e.preventDefault();
+          sendMessage();
+        }
       });
+      
+      // Auto-resize textarea functionality
+      elements.chatInput.addEventListener('input', autoResizeTextarea);
+      elements.chatInput.addEventListener('paste', autoResizeTextarea);
      elements.cartToggle.addEventListener('click', openCart);
      elements.cartClose.addEventListener('click', closeCart);
      elements.cartModal.addEventListener('click', (e) => {
@@ -1453,9 +1468,11 @@
     const message = elements.chatInput.value.trim();
     if (!message || state.isLoading) return;
     
-    // Clear input immediately for better UX
-    elements.chatInput.value = '';
-    addMessage('user', message);
+         // Clear input immediately for better UX
+     elements.chatInput.value = '';
+     // Reset textarea height after clearing
+     autoResizeTextarea();
+     addMessage('user', message);
     
     state.isLoading = true;
     elements.chatSubmit.disabled = true;
@@ -2062,13 +2079,28 @@
     }
   }
 
-  // Utility functions
-     function escapeHtml(text) {
-     if (text == null) return '';
-     const div = document.createElement('div');
-     div.textContent = String(text);
-     return div.innerHTML;
+     // Auto-resize textarea function
+   function autoResizeTextarea() {
+     const textarea = elements.chatInput;
+     if (!textarea) return;
+     
+     // Reset height to auto to get the correct scrollHeight
+     textarea.style.height = 'auto';
+     
+     // Calculate new height based on content
+     const newHeight = Math.min(textarea.scrollHeight, 150);
+     
+     // Set the new height
+     textarea.style.height = newHeight + 'px';
    }
+
+   // Utility functions
+      function escapeHtml(text) {
+      if (text == null) return '';
+      const div = document.createElement('div');
+      div.textContent = String(text);
+      return div.innerHTML;
+    }
 
   function formatPrice(item) {
     const currency = item.currency || 'SEK';
