@@ -508,7 +508,7 @@ export async function POST(req: Request) {
     // Add debug logging
     console.log(`[CHAT] Restaurant: ${restaurantId}, Message: "${message}"`);
     
-    // Get menu items FIRST (before any LLM attempts)
+    // ALWAYS fetch menu items first!
     const menuItems = await getMenuItems(restaurantId);
     console.log(`[CHAT] Loaded ${menuItems.length} menu items`);
     
@@ -525,11 +525,14 @@ export async function POST(req: Request) {
       }), origin);
     }
     
-    // Check quota first
+    // Check quota but keep menu items for fallback
     const quota = await checkQuota(restaurantId);
+    
     if (!quota.allowed) {
+      // Still provide useful responses with actual menu items
       const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
-      fallback.reply.chips = ['Upgrade plan'];
+      fallback.reply.text = `⚠️ Monthly chat limit reached (${quota.usage.messages}/${quota.limits.messages}). ${fallback.reply.text}`;
+      fallback.reply.chips = ['Upgrade plan', 'Show menu', 'Contact support'];
       
       return withCORS(
         NextResponse.json({ reply: fallback.reply, cards: fallback.cards }, { status: 200 }),

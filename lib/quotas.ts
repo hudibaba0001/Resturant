@@ -14,8 +14,8 @@ function getSupabaseClient() {
 
 // Plan limits (messages per month)
 const PLAN_LIMITS = {
-  lite: 100,
-  standard: 1000,
+  lite: 500,      // Increased from 100 for better testing
+  standard: 2000, // Increased from 1000
   pro: 10000,
   unlimited: -1 // -1 means no limit
 };
@@ -26,6 +26,15 @@ export interface PlanLimits {
 }
 
 export async function getPlanLimits(restaurantId: string): Promise<PlanLimits> {
+  // Development: Give all restaurants generous limits
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[QUOTA] Development mode - using generous limits');
+    return {
+      messages: 10000, // 10k messages for development
+      tokens: 500000   // 500k tokens for development
+    };
+  }
+
   try {
     const supabase = getSupabaseClient();
     const { data: restaurant } = await supabase
@@ -116,6 +125,16 @@ export async function checkQuota(restaurantId: string): Promise<{
   usage: { messages: number; tokens: number };
   limits: PlanLimits;
 }> {
+  // Development bypass
+  if (process.env.NODE_ENV === 'development' || process.env.BYPASS_QUOTAS === 'true') {
+    console.log('[QUOTA] Bypassed for development');
+    return {
+      allowed: true,
+      usage: { messages: 0, tokens: 0 },
+      limits: { messages: -1, tokens: -1 }
+    };
+  }
+
   try {
     const period = new Date().toISOString().slice(0, 7); // YYYY-MM
     const [usage, limits] = await Promise.all([
