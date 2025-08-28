@@ -48,6 +48,7 @@ const BodySchema = z.object({
   restaurantId: z.string().min(1),
   sessionToken: z.string().min(1),
   message: z.string().min(1).max(500),
+  lastIntent: z.string().optional(),
 });
 
 // CORS helper
@@ -248,67 +249,198 @@ Please provide a helpful, accurate response.`;
     };
   }
 
-  return {
-    reply: {
-      text: replyText.slice(0, 450), // Ensure max length
-      chips: generateChips(retrievedItems),
-      locale: 'en'
-    },
-    cards: retrievedItems.slice(0, 3),
-    token_in: usage?.prompt_tokens || 0,
-    token_out: usage?.completion_tokens || 0,
-    model: CHAT_MODEL
-  };
+     return {
+     reply: {
+       text: replyText.slice(0, 450), // Ensure max length
+       chips: generateChips(retrievedItems),
+       locale: 'en',
+       intent: 'llm'
+     },
+     cards: retrievedItems.slice(0, 3),
+     token_in: usage?.prompt_tokens || 0,
+     token_out: usage?.completion_tokens || 0,
+     model: CHAT_MODEL
+   };
 }
 
-// Fallback rule engine (existing logic)
-function fallbackRuleEngine(message: string, menuItems: any[]): {
-  reply: { text: string; context?: string; chips: string[]; locale: string };
+// Intent-specific chip sets (rotate to avoid repetition)
+const CHIP_SETS = {
+  budget: [
+    ['Cheapest three', 'Under 20 kr', 'Add a drink'],
+    ['Best value', 'Budget picks', 'Pair with drink'],
+    ['Affordable options', 'Under 25 kr', 'Complete meal']
+  ],
+  italian: [
+    ['Vegetarian pizzas', 'Extra toppings', 'Spicy oil'],
+    ['Pizza variations', 'Add cheese', 'Garlic bread'],
+    ['Italian classics', 'Custom toppings', 'Side dishes']
+  ],
+  spicy: [
+    ['Add chili oil', 'Extra garlic', 'Hot sauce'],
+    ['Spice it up', 'Garlic options', 'Heat levels'],
+    ['Make it hot', 'Chili options', 'Spicy sides']
+  ],
+  vegan: [
+    ['Vegetarian options', 'Dairy-free', 'Suggest swaps'],
+    ['Plant-based', 'Vegan swaps', 'Allergen info'],
+    ['No dairy', 'Vegan mods', 'Alternative options']
+  ],
+  general: [
+    ['Show vegetarian', 'Budget options', 'Popular picks'],
+    ['Dietary needs', 'Price range', 'Chef recommendations'],
+    ['Special requests', 'Allergen info', 'Best sellers']
+  ]
+};
+
+// Fallback rule engine (improved with intent detection and varied responses)
+function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: string): {
+  reply: { text: string; context?: string; chips: string[]; locale: string; intent: string };
   cards: any[];
 } {
   const q = message.toLowerCase();
   const allItems = menuItems || [];
   
-  // Simple intent detection
-  if (q.includes('vegan') || q.includes('plant-based')) {
-    const veganItems = allItems.filter(item => 
-      item.description?.toLowerCase().includes('vegan') ||
-      item.allergens?.some((a: string) => a.toLowerCase() === 'vegan')
-    );
+  // Budget intent
+  if (q.includes('budget') || q.includes('cheap') || q.includes('affordable') || q.includes('price')) {
+    const budgetItems = allItems
+      .sort((a, b) => (a.price_cents || 0) - (b.price_cents || 0))
+      .slice(0, 3);
+    
+    const chipSet = CHIP_SETS.budget[Math.floor(Math.random() * CHIP_SETS.budget.length)];
+    const text = budgetItems.length > 0 
+      ? `Here are our best-value picks (${budgetItems.length} under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr). Want a drink to pair?`
+      : "I can help you find our most affordable options. What's your budget range?";
+    
     return {
       reply: {
-        text: veganItems.length > 0 
-          ? `Found ${veganItems.length} vegan options. Need vegetarian alternatives?`
-          : "I don't see items marked vegan, but many vegetarian dishes can be made vegan.",
-        chips: ['Show vegetarian', 'Suggest swaps', 'Budget options'],
-        locale: 'en'
+        text,
+        chips: chipSet,
+        locale: 'en',
+        intent: 'budget'
       },
-      cards: veganItems.slice(0, 3)
+      cards: budgetItems
     };
   }
   
+  // Italian intent
   if (q.includes('italian') || q.includes('pizza') || q.includes('pasta')) {
     const italianItems = allItems.filter(item => 
       item.description?.toLowerCase().includes('italian') ||
       item.name.toLowerCase().includes('pizza') ||
-      item.name.toLowerCase().includes('pasta')
+      item.name.toLowerCase().includes('pasta') ||
+      item.name.toLowerCase().includes('bruschetta')
     );
+    
+    const chipSet = CHIP_SETS.italian[Math.floor(Math.random() * CHIP_SETS.italian.length)];
+    const text = italianItems.length > 0 
+      ? `Here are our Italian picks! ${italianItems.length > 1 ? 'Both are popular choices.' : 'This is a customer favorite.'} Want vegetarian or spicy options?`
+      : "We focus on Italian classics. Want to see our current menu?";
+    
     return {
       reply: {
-        text: "Here are a few Italian picks we serve. Looking for vegetarian or spicy?",
-        chips: ['Filter vegetarian', 'Show spicy', 'Compare two dishes'],
-        locale: 'en'
+        text,
+        chips: chipSet,
+        locale: 'en',
+        intent: 'italian'
       },
       cards: italianItems.slice(0, 3)
     };
   }
   
-  // Default response
+  // Spicy intent
+  if (q.includes('spicy') || q.includes('hot') || q.includes('chili')) {
+    const spicyItems = allItems.filter(item => 
+      item.description?.toLowerCase().includes('spicy') ||
+      item.name.toLowerCase().includes('spicy') ||
+      item.description?.toLowerCase().includes('chili')
+    );
+    
+    const chipSet = CHIP_SETS.spicy[Math.floor(Math.random() * CHIP_SETS.spicy.length)];
+    const text = spicyItems.length > 0 
+      ? `Found ${spicyItems.length} spicy option${spicyItems.length > 1 ? 's' : ''}! Want to see milder alternatives?`
+      : "Nothing marked spicy, but we can add chili oil or extra garlic to any dish. Want to see our options?";
+    
+    return {
+      reply: {
+        text,
+        chips: chipSet,
+        locale: 'en',
+        intent: 'spicy'
+      },
+      cards: spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2)
+    };
+  }
+  
+  // Vegan intent
+  if (q.includes('vegan') || q.includes('plant-based')) {
+    const veganItems = allItems.filter(item => 
+      item.description?.toLowerCase().includes('vegan') ||
+      item.allergens?.some((a: string) => a.toLowerCase() === 'vegan')
+    );
+    
+    const chipSet = CHIP_SETS.vegan[Math.floor(Math.random() * CHIP_SETS.vegan.length)];
+    const text = veganItems.length > 0 
+      ? `Found ${veganItems.length} vegan option${veganItems.length > 1 ? 's' : ''}! Need vegetarian alternatives?`
+      : "I don't see items marked vegan, but many vegetarian dishes can be made vegan. Want to see those options?";
+    
+    return {
+      reply: {
+        text,
+        chips: chipSet,
+        locale: 'en',
+        intent: 'vegan'
+      },
+      cards: veganItems.slice(0, 3)
+    };
+  }
+  
+  // Cuisine deflection (Indian, Mexican, etc.)
+  const cuisineKeywords = ['indian', 'mexican', 'chinese', 'thai', 'japanese', 'korean', 'greek', 'french'];
+  const matchedCuisine = cuisineKeywords.find(cuisine => q.includes(cuisine));
+  
+  if (matchedCuisine) {
+    const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)];
+    const text = `We don't serve ${matchedCuisine} dishes, but our Bruschetta and Margherita are popular. Want vegetarian or budget picks?`;
+    
+    return {
+      reply: {
+        text,
+        chips: chipSet,
+        locale: 'en',
+        intent: 'cuisine_deflection'
+      },
+      cards: allItems.slice(0, 2)
+    };
+  }
+  
+  // Greeting or general help
+  if (q.includes('hello') || q.includes('hi') || q.includes('help') || q.length < 10) {
+    const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)];
+    const text = "Got it! I can suggest a few things right away. What type of cuisine or dietary preference are you looking for?";
+    
+    return {
+      reply: {
+        text,
+        chips: chipSet,
+        locale: 'en',
+        intent: 'greeting'
+      },
+      cards: allItems.slice(0, 2)
+    };
+  }
+  
+  // Default response (varies based on last intent to avoid repetition)
+  const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)];
+  const text = lastIntent === 'general' 
+    ? "I can help with cuisines, dietary needs, or budget. What are you looking for?"
+    : "I can suggest cuisines, dietary options, or budget picks. What interests you?";
+  
   return {
     reply: {
-      text: "I can help with cuisines, dietary needs, or budget. What are you looking for?",
-      chips: ['Show vegetarian', 'Spicy dishes', 'Budget options'],
-      locale: 'en'
+      text,
+      chips: chipSet,
+      locale: 'en',
+      intent: 'general'
     },
     cards: allItems.slice(0, 3)
   };
@@ -321,19 +453,19 @@ export async function POST(req: Request) {
   try {
     // Parse and validate request
     const raw = await req.json();
-    const { restaurantId, sessionToken, message } = BodySchema.parse(raw);
+    const { restaurantId, sessionToken, message, lastIntent } = BodySchema.parse(raw);
     
-    // Check quota first
-    const quota = await checkQuota(restaurantId);
-    if (!quota.allowed) {
-      const fallback = fallbackRuleEngine(message, []);
-      fallback.reply.chips = ['Upgrade plan'];
-      
-      return withCORS(
-        NextResponse.json({ reply: fallback.reply, cards: fallback.cards }, { status: 200 }),
-        origin
-      );
-    }
+         // Check quota first
+     const quota = await checkQuota(restaurantId);
+     if (!quota.allowed) {
+       const fallback = fallbackRuleEngine(message, [], lastIntent);
+       fallback.reply.chips = ['Upgrade plan'];
+       
+       return withCORS(
+         NextResponse.json({ reply: fallback.reply, cards: fallback.cards }, { status: 200 }),
+         origin
+       );
+     }
     
          // Try LLM if enabled, OpenAI key available, and restaurant is pilot
      if (CHAT_LLM_ENABLED && OPENAI_API_KEY && isPilotRestaurant(restaurantId)) {
@@ -374,30 +506,30 @@ export async function POST(req: Request) {
       }
     }
     
-    // Fallback to rule engine
-    const menuItems = await getMenuItems(restaurantId);
-    const fallback = fallbackRuleEngine(message, menuItems);
-    
-    // Log telemetry for fallback
-    logChatEvent({
-      restaurantId,
-      sessionToken,
-      retrievalIds: [],
-      token_in: 0,
-      token_out: 0,
-      model: 'rules',
-      latency_ms: Date.now() - startTime,
-      validator_pass: true,
-      source: 'rules',
-      message
-    });
-    
-    const res = NextResponse.json({
-      reply: fallback.reply,
-      cards: fallback.cards
-    }, { status: 200 });
-    
-    return withCORS(res, origin);
+         // Fallback to rule engine
+     const menuItems = await getMenuItems(restaurantId);
+     const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
+     
+     // Log telemetry for fallback
+     logChatEvent({
+       restaurantId,
+       sessionToken,
+       retrievalIds: [],
+       token_in: 0,
+       token_out: 0,
+       model: 'rules',
+       latency_ms: Date.now() - startTime,
+       validator_pass: true,
+       source: 'rules',
+       message
+     });
+     
+     const res = NextResponse.json({
+       reply: fallback.reply,
+       cards: fallback.cards
+     }, { status: 200 });
+     
+     return withCORS(res, origin);
     
   } catch (error) {
     logError('chat_api_error', error, { 
@@ -405,14 +537,15 @@ export async function POST(req: Request) {
       message: 'parse_error' 
     });
     
-    const errorResponse = {
-      reply: {
-        text: "I'm having trouble right now. Please try again in a moment.",
-        chips: ['Show vegetarian', 'Spicy dishes', 'Budget options'],
-        locale: 'en'
-      },
-      cards: []
-    };
+         const errorResponse = {
+       reply: {
+         text: "I'm having trouble right now. Please try again in a moment.",
+         chips: ['Show vegetarian', 'Spicy dishes', 'Budget options'],
+         locale: 'en',
+         intent: 'error'
+       },
+       cards: []
+     };
     
     const res = NextResponse.json(errorResponse, { status: 200 });
     return withCORS(res, origin);

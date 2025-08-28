@@ -1481,7 +1481,8 @@
       const requestBody = JSON.stringify({
         restaurantId: state.restaurantId,
         sessionToken: state.sessionToken,
-        message: message
+        message: message,
+        lastIntent: state.lastIntent
       });
       
       console.log('[WIDGET DEBUG] Request body stringified:', requestBody);
@@ -1520,6 +1521,10 @@
       // Use server reply first, fallback to intelligent response
       if (data.reply?.text) {
         console.log('[WIDGET DEBUG] Adding assistant reply:', data.reply.text);
+        // Update lastIntent from server response
+        if (data.reply.intent) {
+          state.lastIntent = data.reply.intent;
+        }
         addAssistantReply(data.reply);
       } else {
         console.log('[WIDGET DEBUG] No reply.text, using fallback');
