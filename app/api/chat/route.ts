@@ -301,150 +301,150 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
   const q = message.toLowerCase();
   const allItems = menuItems || [];
   
-  // Budget intent
-  if (q.includes('budget') || q.includes('cheap') || q.includes('affordable') || q.includes('price')) {
-    const budgetItems = allItems
-      .sort((a, b) => (a.price_cents || 0) - (b.price_cents || 0))
-      .slice(0, 3);
-    
-    const chipSet = CHIP_SETS.budget[Math.floor(Math.random() * CHIP_SETS.budget.length)];
-    const text = budgetItems.length > 0 
-      ? `Here are our best-value picks (${budgetItems.length} under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr). Want a drink to pair?`
-      : "I can help you find our most affordable options. What's your budget range?";
-    
-    return {
-      reply: {
-        text,
-        chips: chipSet,
-        locale: 'en',
-        intent: 'budget'
-      },
-      cards: budgetItems
-    };
-  }
+     // Budget intent
+   if (q.includes('budget') || q.includes('cheap') || q.includes('affordable') || q.includes('price')) {
+     const budgetItems = allItems
+       .sort((a, b) => (a.price_cents || 0) - (b.price_cents || 0))
+       .slice(0, 3);
+     
+     const chipSet = CHIP_SETS.budget[Math.floor(Math.random() * CHIP_SETS.budget.length)] || CHIP_SETS.budget[0];
+     const text = budgetItems.length > 0 
+       ? `Here are our best-value picks (${budgetItems.length} under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr). Want a drink to pair?`
+       : "I can help you find our most affordable options. What's your budget range?";
+     
+     return {
+       reply: {
+         text,
+         chips: chipSet,
+         locale: 'en',
+         intent: 'budget'
+       },
+       cards: budgetItems
+     };
+   }
   
-  // Italian intent
-  if (q.includes('italian') || q.includes('pizza') || q.includes('pasta')) {
-    const italianItems = allItems.filter(item => 
-      item.description?.toLowerCase().includes('italian') ||
-      item.name.toLowerCase().includes('pizza') ||
-      item.name.toLowerCase().includes('pasta') ||
-      item.name.toLowerCase().includes('bruschetta')
-    );
-    
-    const chipSet = CHIP_SETS.italian[Math.floor(Math.random() * CHIP_SETS.italian.length)];
-    const text = italianItems.length > 0 
-      ? `Here are our Italian picks! ${italianItems.length > 1 ? 'Both are popular choices.' : 'This is a customer favorite.'} Want vegetarian or spicy options?`
-      : "We focus on Italian classics. Want to see our current menu?";
-    
-    return {
-      reply: {
-        text,
-        chips: chipSet,
-        locale: 'en',
-        intent: 'italian'
-      },
-      cards: italianItems.slice(0, 3)
-    };
-  }
+     // Italian intent
+   if (q.includes('italian') || q.includes('pizza') || q.includes('pasta')) {
+     const italianItems = allItems.filter(item => 
+       item.description?.toLowerCase().includes('italian') ||
+       item.name.toLowerCase().includes('pizza') ||
+       item.name.toLowerCase().includes('pasta') ||
+       item.name.toLowerCase().includes('bruschetta')
+     );
+     
+     const chipSet = CHIP_SETS.italian[Math.floor(Math.random() * CHIP_SETS.italian.length)] || CHIP_SETS.italian[0];
+     const text = italianItems.length > 0 
+       ? `Here are our Italian picks! ${italianItems.length > 1 ? 'Both are popular choices.' : 'This is a customer favorite.'} Want vegetarian or spicy options?`
+       : "We focus on Italian classics. Want to see our current menu?";
+     
+     return {
+       reply: {
+         text,
+         chips: chipSet,
+         locale: 'en',
+         intent: 'italian'
+       },
+       cards: italianItems.slice(0, 3)
+     };
+   }
   
-  // Spicy intent
-  if (q.includes('spicy') || q.includes('hot') || q.includes('chili')) {
-    const spicyItems = allItems.filter(item => 
-      item.description?.toLowerCase().includes('spicy') ||
-      item.name.toLowerCase().includes('spicy') ||
-      item.description?.toLowerCase().includes('chili')
-    );
-    
-    const chipSet = CHIP_SETS.spicy[Math.floor(Math.random() * CHIP_SETS.spicy.length)];
-    const text = spicyItems.length > 0 
-      ? `Found ${spicyItems.length} spicy option${spicyItems.length > 1 ? 's' : ''}! Want to see milder alternatives?`
-      : "Nothing marked spicy, but we can add chili oil or extra garlic to any dish. Want to see our options?";
-    
-    return {
-      reply: {
-        text,
-        chips: chipSet,
-        locale: 'en',
-        intent: 'spicy'
-      },
-      cards: spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2)
-    };
-  }
+     // Spicy intent
+   if (q.includes('spicy') || q.includes('hot') || q.includes('chili')) {
+     const spicyItems = allItems.filter(item => 
+       item.description?.toLowerCase().includes('spicy') ||
+       item.name.toLowerCase().includes('spicy') ||
+       item.description?.toLowerCase().includes('chili')
+     );
+     
+     const chipSet = CHIP_SETS.spicy[Math.floor(Math.random() * CHIP_SETS.spicy.length)] || CHIP_SETS.spicy[0];
+     const text = spicyItems.length > 0 
+       ? `Found ${spicyItems.length} spicy option${spicyItems.length > 1 ? 's' : ''}! Want to see milder alternatives?`
+       : "Nothing marked spicy, but we can add chili oil or extra garlic to any dish. Want to see our options?";
+     
+     return {
+       reply: {
+         text,
+         chips: chipSet,
+         locale: 'en',
+         intent: 'spicy'
+       },
+       cards: spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2)
+     };
+   }
   
-  // Vegan intent
-  if (q.includes('vegan') || q.includes('plant-based')) {
-    const veganItems = allItems.filter(item => 
-      item.description?.toLowerCase().includes('vegan') ||
-      item.allergens?.some((a: string) => a.toLowerCase() === 'vegan')
-    );
-    
-    const chipSet = CHIP_SETS.vegan[Math.floor(Math.random() * CHIP_SETS.vegan.length)];
-    const text = veganItems.length > 0 
-      ? `Found ${veganItems.length} vegan option${veganItems.length > 1 ? 's' : ''}! Need vegetarian alternatives?`
-      : "I don't see items marked vegan, but many vegetarian dishes can be made vegan. Want to see those options?";
-    
-    return {
-      reply: {
-        text,
-        chips: chipSet,
-        locale: 'en',
-        intent: 'vegan'
-      },
-      cards: veganItems.slice(0, 3)
-    };
-  }
+     // Vegan intent
+   if (q.includes('vegan') || q.includes('plant-based')) {
+     const veganItems = allItems.filter(item => 
+       item.description?.toLowerCase().includes('vegan') ||
+       item.allergens?.some((a: string) => a.toLowerCase() === 'vegan')
+     );
+     
+     const chipSet = CHIP_SETS.vegan[Math.floor(Math.random() * CHIP_SETS.vegan.length)] || CHIP_SETS.vegan[0];
+     const text = veganItems.length > 0 
+       ? `Found ${veganItems.length} vegan option${veganItems.length > 1 ? 's' : ''}! Need vegetarian alternatives?`
+       : "I don't see items marked vegan, but many vegetarian dishes can be made vegan. Want to see those options?";
+     
+     return {
+       reply: {
+         text,
+         chips: chipSet,
+         locale: 'en',
+         intent: 'vegan'
+       },
+       cards: veganItems.slice(0, 3)
+     };
+   }
   
-  // Cuisine deflection (Indian, Mexican, etc.)
-  const cuisineKeywords = ['indian', 'mexican', 'chinese', 'thai', 'japanese', 'korean', 'greek', 'french'];
-  const matchedCuisine = cuisineKeywords.find(cuisine => q.includes(cuisine));
+     // Cuisine deflection (Indian, Mexican, etc.)
+   const cuisineKeywords = ['indian', 'mexican', 'chinese', 'thai', 'japanese', 'korean', 'greek', 'french'];
+   const matchedCuisine = cuisineKeywords.find(cuisine => q.includes(cuisine));
+   
+   if (matchedCuisine) {
+     const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)] || CHIP_SETS.general[0];
+     const text = `We don't serve ${matchedCuisine} dishes, but our Bruschetta and Margherita are popular. Want vegetarian or budget picks?`;
+     
+     return {
+       reply: {
+         text,
+         chips: chipSet,
+         locale: 'en',
+         intent: 'cuisine_deflection'
+       },
+       cards: allItems.slice(0, 2)
+     };
+   }
   
-  if (matchedCuisine) {
-    const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)];
-    const text = `We don't serve ${matchedCuisine} dishes, but our Bruschetta and Margherita are popular. Want vegetarian or budget picks?`;
-    
-    return {
-      reply: {
-        text,
-        chips: chipSet,
-        locale: 'en',
-        intent: 'cuisine_deflection'
-      },
-      cards: allItems.slice(0, 2)
-    };
-  }
+     // Greeting or general help
+   if (q.includes('hello') || q.includes('hi') || q.includes('help') || q.length < 10) {
+     const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)] || CHIP_SETS.general[0];
+     const text = "Got it! I can suggest a few things right away. What type of cuisine or dietary preference are you looking for?";
+     
+     return {
+       reply: {
+         text,
+         chips: chipSet,
+         locale: 'en',
+         intent: 'greeting'
+       },
+       cards: allItems.slice(0, 2)
+     };
+   }
   
-  // Greeting or general help
-  if (q.includes('hello') || q.includes('hi') || q.includes('help') || q.length < 10) {
-    const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)];
-    const text = "Got it! I can suggest a few things right away. What type of cuisine or dietary preference are you looking for?";
-    
-    return {
-      reply: {
-        text,
-        chips: chipSet,
-        locale: 'en',
-        intent: 'greeting'
-      },
-      cards: allItems.slice(0, 2)
-    };
-  }
-  
-  // Default response (varies based on last intent to avoid repetition)
-  const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)];
-  const text = lastIntent === 'general' 
-    ? "I can help with cuisines, dietary needs, or budget. What are you looking for?"
-    : "I can suggest cuisines, dietary options, or budget picks. What interests you?";
-  
-  return {
-    reply: {
-      text,
-      chips: chipSet,
-      locale: 'en',
-      intent: 'general'
-    },
-    cards: allItems.slice(0, 3)
-  };
+     // Default response (varies based on last intent to avoid repetition)
+   const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)] || CHIP_SETS.general[0];
+   const text = lastIntent === 'general' 
+     ? "I can help with cuisines, dietary needs, or budget. What are you looking for?"
+     : "I can suggest cuisines, dietary options, or budget picks. What interests you?";
+   
+   return {
+     reply: {
+       text,
+       chips: chipSet,
+       locale: 'en',
+       intent: 'general'
+     },
+     cards: allItems.slice(0, 3)
+   };
 }
 
 export async function POST(req: Request) {
