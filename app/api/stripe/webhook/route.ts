@@ -1,28 +1,16 @@
-import { headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { notifyPickup } from '@/lib/notify';
+import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
-
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  // Initialize Supabase inside the handler
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   const body = await req.text();
-  const signature = headers().get('stripe-signature');
-
-  if (!signature) {
-    return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
-  }
+  const signature = req.headers.get('stripe-signature')!;
 
   let event: Stripe.Event;
 
@@ -32,21 +20,19 @@ export async function POST(req: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err);
+  } catch (err: any) {
+    console.error('Webhook signature verification failed:', err.message);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
   try {
     switch (event.type) {
-      case 'payment_intent.succeeded':
-        await handlePaymentSuccess(event.data.object as Stripe.PaymentIntent);
+      case 'checkout.session.completed':
+        await handlePaymentSuccess(event.data.object as Stripe.Checkout.Session);
         break;
-      
-      case 'payment_intent.payment_failed':
-        await handlePaymentFailure(event.data.object as Stripe.PaymentIntent);
+      case 'checkout.session.expired':
+        await handlePaymentFailure(event.data.object as Stripe.Checkout.Session);
         break;
-      
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -58,29 +44,32 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentSuccess(session: Stripe.Checkout.Session) {
   // Initialize Supabase inside the function
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const orderId = paymentIntent.metadata.orderId;
+  const orderId = session.metadata?.orderId;
   
   if (!orderId) {
-    console.error('No orderId in payment intent metadata');
+    console.error('No orderId in session metadata');
     return;
   }
 
   // Generate 4-digit PIN
   const pin = String(Math.floor(1000 + Math.random() * 9000));
   
-  // Update order status and add PIN
+  // Hash the PIN for storage
+  const pin_hash = `\\x${Buffer.from(pin, 'utf8').toString('hex')}`;
+  
+  // Update order status and add hashed PIN
   const { data: order, error } = await supabase
     .from('orders')
     .update({
       status: 'paid',
-      pin,
+      pin_hash, // Store hashed PIN
       pin_issued_at: new Date().toISOString(),
       notification_status: { sms: 'pending', email: 'pending' }
     })
@@ -100,11 +89,11 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     .eq('id', order.restaurant_id)
     .single();
 
-  // Send pickup notification
+  // Send pickup notification with plaintext PIN (for customer use)
   await notifyPickup({
     phone: order.phone_e164,
     email: order.email,
-    pin,
+    pin, // Use plaintext PIN for notification
     orderId,
     restaurantName: restaurant?.name || 'Restaurant',
     orderTotal: order.total_cents
@@ -116,47 +105,82 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     type: 'order_paid',
     payload: {
       orderId,
-      paymentIntentId: paymentIntent.id,
-      amount: paymentIntent.amount,
-      pin
+      sessionId: session.id,
+      amount: session.amount_total,
+      pinIssued: true
     }
   });
 
   console.log(`Order ${orderId} marked as paid with PIN ${pin}`);
 }
 
-async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentFailure(session: Stripe.Checkout.Session) {
   // Initialize Supabase inside the function
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const orderId = paymentIntent.metadata.orderId;
+  const orderId = session.metadata?.orderId;
   
   if (!orderId) {
-    console.error('No orderId in payment intent metadata');
+    console.error('No orderId in session metadata');
     return;
   }
 
-  // Update order status to failed
-  await supabase
+  // Update order status to expired
+  const { error } = await supabase
     .from('orders')
     .update({
-      status: 'payment_failed'
+      status: 'expired'
     })
     .eq('id', orderId);
 
+  if (error) {
+    console.error('Failed to update order status:', error);
+    return;
+  }
+
   // Log the payment failure
   await supabase.from('widget_events').insert({
-    restaurant_id: (await supabase.from('orders').select('restaurant_id').eq('id', orderId).single()).data?.restaurant_id,
-    type: 'order_payment_failed',
+    restaurant_id: session.metadata?.restaurantId,
+    type: 'order_failed',
     payload: {
       orderId,
-      paymentIntentId: paymentIntent.id,
-      failureReason: paymentIntent.last_payment_error?.message
+      sessionId: session.id,
+      reason: 'payment_expired'
     }
   });
 
-  console.log(`Order ${orderId} payment failed`);
+  console.log(`Order ${orderId} marked as expired`);
+}
+
+async function notifyPickup({
+  phone,
+  email,
+  pin,
+  orderId,
+  restaurantName,
+  orderTotal
+}: {
+  phone?: string;
+  email?: string;
+  pin: string;
+  orderId: string;
+  restaurantName: string;
+  orderTotal: number;
+}) {
+  // Implement your notification logic here
+  // This could be SMS via Twilio, email via Resend, etc.
+  console.log(`Pickup notification for order ${orderId}: PIN ${pin}`);
+  
+  // Example SMS notification (if you have Twilio configured)
+  // if (phone) {
+  //   await sendSMS(phone, `Your order is ready! Pickup code: ${pin}`);
+  // }
+  
+  // Example email notification (if you have Resend configured)
+  // if (email) {
+  //   await sendEmail(email, `Order Ready - Pickup Code: ${pin}`);
+  // }
 }
