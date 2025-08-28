@@ -26,6 +26,10 @@ const PILOT_RESTAURANTS = [
 
 // Safety check: is this restaurant allowed to use LLM?
 function isPilotRestaurant(restaurantId: string): boolean {
+  // For development, enable for all restaurants
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
   return PILOT_RESTAURANTS.includes(restaurantId);
 }
 
@@ -301,6 +305,22 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
   const q = message.toLowerCase();
   const allItems = menuItems || [];
   
+  // Add debug logging
+  console.log(`[RULE ENGINE] Processing: "${message}"`);
+  console.log(`[RULE ENGINE] Available items: ${allItems.length}`);
+  
+  // Ensure cards have all required fields
+  const formatCards = (items: any[]) => {
+    return items.map(item => ({
+      id: item.id || Math.random().toString(),
+      name: item.name || 'Unknown Item',
+      description: item.description || '',
+      price_cents: item.price_cents || 0,
+      category: item.category || 'Other',
+      allergens: item.allergens || []
+    }));
+  };
+  
      // Budget intent
    if (q.includes('budget') || q.includes('cheap') || q.includes('affordable') || q.includes('price')) {
      const budgetItems = allItems
@@ -557,10 +577,36 @@ export async function POST(req: Request) {
 async function getMenuItems(restaurantId: string) {
   try {
     const supabase = getSupabaseClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('menu_items')
-      .select('id, name, description, allergens, category, price_cents')
-      .eq('restaurant_id', restaurantId);
+      .select('*') // Get ALL fields, not just selected ones
+      .eq('restaurant_id', restaurantId)
+      .limit(50); // Add limit for safety
+    
+    if (error) {
+      console.error('Menu fetch error:', error);
+      // Return mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        return [
+          {
+            id: '1',
+            name: 'Margherita Pizza',
+            description: 'Classic tomato and mozzarella',
+            price_cents: 12900,
+            category: 'Mains',
+            allergens: ['vegetarian']
+          },
+          {
+            id: '2', 
+            name: 'Bruschetta',
+            description: 'Toasted bread with tomatoes',
+            price_cents: 7900,
+            category: 'Appetizers',
+            allergens: ['vegan']
+          }
+        ];
+      }
+    }
     
     return data || [];
   } catch (error) {
