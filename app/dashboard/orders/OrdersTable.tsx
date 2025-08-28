@@ -17,8 +17,11 @@ async function fetchOrder(orderId: string): Promise<{ items: OrderItem[]; curren
   const res = await fetch(`/api/orders/${orderId}`, { cache: 'no-store' });
   if (!res.ok) {
     const j = await res.json().catch(() => ({}));
-    if (res.status === 404) throw new Error('Not found or no access');
-    throw new Error(j?.code || 'Failed to load order');
+    const msg = j?.code === 'UNAUTHENTICATED'
+      ? 'Please sign in again.'
+      : j?.code || 'Failed to load order';
+    // In dev, include debug hint
+    throw new Error(process.env.NODE_ENV !== 'production' && j?.debug ? `${msg}: ${j.debug}` : msg);
   }
   const j = await res.json();
   return { items: j.order.items as OrderItem[], currency: j.order.currency as string };

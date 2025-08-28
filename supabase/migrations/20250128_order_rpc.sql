@@ -1,4 +1,6 @@
--- Function returns one row per line-item (LEFT JOIN so orders w/ zero lines still return one row with nulls)
+-- Ensure function exists at exactly this signature in the PUBLIC schema
+drop function if exists public.get_order_with_items(uuid);
+
 create or replace function public.get_order_with_items(p_order_id uuid)
 returns table (
   order_id uuid,
@@ -21,16 +23,17 @@ set search_path = public
 as $$
 declare r_restaurant uuid;
 begin
-  -- 1) Resolve restaurant for the order
+  -- Find the order restaurant
   select o.restaurant_id into r_restaurant
   from public.orders o
   where o.id = p_order_id;
 
   if r_restaurant is null then
-    raise exception 'not found' using errcode = 'NO_DATA_FOUND';
+    -- use a standard SQLSTATE code
+    raise exception 'not found' using errcode = 'P0002'; -- no_data_found
   end if;
 
-  -- 2) Authorize: staff editor+ of same restaurant
+  -- Staff (editor+) of that restaurant only
   if not exists (
     select 1
     from public.restaurant_staff s
@@ -38,10 +41,9 @@ begin
       and s.user_id = auth.uid()
       and s.role in ('owner','manager','editor')
   ) then
-    raise exception 'forbidden' using errcode = 'INSUFFICIENT_PRIVILEGE';
+    raise exception 'forbidden' using errcode = '42501'; -- insufficient_privilege
   end if;
 
-  -- 3) Return order + items (LEFT JOIN so we still return an empty line set cleanly)
   return query
     select
       o.id as order_id,
@@ -64,6 +66,6 @@ begin
 end;
 $$;
 
--- lock down and allow normal roles to execute
-revoke all on function public.get_order_with_items(uuid) from public;
-grant execute on function public.get_order_with_items(uuid) to anon, authenticated;
+-- Grants: API routes use authenticated sessions, so anon is not required.
+revoke all on function public.get_order_with_items(uuid) from public, anon;
+grant execute on function public.get_order_with_items(uuid) to authenticated;
