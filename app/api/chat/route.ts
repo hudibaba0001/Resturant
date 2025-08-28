@@ -312,15 +312,15 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
        ? `Here are our best-value picks (${budgetItems.length} under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr). Want a drink to pair?`
        : "I can help you find our most affordable options. What's your budget range?";
      
-     return {
-       reply: {
-         text,
-         chips: chipSet,
-         locale: 'en',
-         intent: 'budget'
-       },
-       cards: budgetItems
-     };
+           return {
+        reply: {
+          text,
+          chips: chipSet ?? [],
+          locale: 'en',
+          intent: 'budget'
+        },
+        cards: budgetItems
+      };
    }
   
      // Italian intent
@@ -337,15 +337,15 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
        ? `Here are our Italian picks! ${italianItems.length > 1 ? 'Both are popular choices.' : 'This is a customer favorite.'} Want vegetarian or spicy options?`
        : "We focus on Italian classics. Want to see our current menu?";
      
-     return {
-       reply: {
-         text,
-         chips: chipSet,
-         locale: 'en',
-         intent: 'italian'
-       },
-       cards: italianItems.slice(0, 3)
-     };
+           return {
+        reply: {
+          text,
+          chips: chipSet ?? [],
+          locale: 'en',
+          intent: 'italian'
+        },
+        cards: italianItems.slice(0, 3)
+      };
    }
   
      // Spicy intent
@@ -361,15 +361,15 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
        ? `Found ${spicyItems.length} spicy option${spicyItems.length > 1 ? 's' : ''}! Want to see milder alternatives?`
        : "Nothing marked spicy, but we can add chili oil or extra garlic to any dish. Want to see our options?";
      
-     return {
-       reply: {
-         text,
-         chips: chipSet,
-         locale: 'en',
-         intent: 'spicy'
-       },
-       cards: spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2)
-     };
+           return {
+        reply: {
+          text,
+          chips: chipSet ?? [],
+          locale: 'en',
+          intent: 'spicy'
+        },
+        cards: spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2)
+      };
    }
   
      // Vegan intent
