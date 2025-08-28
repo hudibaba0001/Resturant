@@ -18,6 +18,17 @@ const RAG_TOP_K = parseInt(process.env.RAG_TOP_K || '6');
 const RAG_SIM_THRESHOLD = parseFloat(process.env.RAG_SIM_THRESHOLD || '0.72');
 const LLM_TOKEN_BUDGET = parseInt(process.env.LLM_TOKEN_BUDGET || '1200');
 
+// Pilot restaurant IDs (only these get LLM access)
+const PILOT_RESTAURANTS = [
+  '64806e5b-714f-4388-a092-29feff9b64c0', // Your pilot restaurant
+  // Add more pilot restaurant IDs here
+];
+
+// Safety check: is this restaurant allowed to use LLM?
+function isPilotRestaurant(restaurantId: string): boolean {
+  return PILOT_RESTAURANTS.includes(restaurantId);
+}
+
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -315,8 +326,8 @@ export async function POST(req: Request) {
       );
     }
     
-    // Try LLM if enabled and OpenAI key available
-    if (CHAT_LLM_ENABLED && OPENAI_API_KEY) {
+         // Try LLM if enabled, OpenAI key available, and restaurant is pilot
+     if (CHAT_LLM_ENABLED && OPENAI_API_KEY && isPilotRestaurant(restaurantId)) {
       try {
         // Retrieve relevant items
         const retrievedItems = await retrieveRelevantItems(restaurantId, message);

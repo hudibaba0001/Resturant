@@ -1,131 +1,166 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env tsx
+
+/**
+ * Backfill menu item embeddings for LLM chat
+ * Usage: tsx scripts/backfill_embeddings.ts <restaurantId>
+ */
 
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import dotenv from 'dotenv';
 
-// Configuration
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+dotenv.config({ path: '.env.local' });
 
-if (!OPENAI_API_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('Missing required environment variables');
-  process.exit(1);
-}
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
+const EMBED_MODEL = process.env.EMBED_MODEL || 'text-embedding-3-small';
 
-const restaurantId = process.argv[2];
-if (!restaurantId) {
-  console.error('Usage: ts-node scripts/backfill_embeddings.ts <restaurantId>');
-  process.exit(1);
-}
-
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-async function getMenuItems(restaurantId: string) {
+interface MenuItem {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  allergens: string[] | null;
+  price_cents: number | null;
+}
+
+async function getMenuItems(restaurantId: string): Promise<MenuItem[]> {
   const { data, error } = await supabase
     .from('menu_items')
-    .select('id, name, description, allergens, category, price_cents')
+    .select('id, name, description, category, allergens, price_cents')
     .eq('restaurant_id', restaurantId);
 
   if (error) {
-    console.error('Failed to fetch menu items:', error);
-    throw error;
+    throw new Error(`Failed to fetch menu items: ${error.message}`);
   }
 
   return data || [];
 }
 
-function buildItemText(item: any): string {
-  const parts = [
-    item.name,
-    item.description || '',
-    item.category || '',
-    item.allergens ? `tags: ${item.allergens.join(', ')}` : ''
-  ].filter(Boolean);
-  
-  return parts.join(' — ');
-}
-
 async function createEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
+    model: EMBED_MODEL,
     input: text,
   });
-  
-  return response.data[0].embedding;
+
+  const embedding = response.data[0]?.embedding;
+  if (!embedding) {
+    throw new Error('Failed to create embedding');
+  }
+
+  return embedding;
 }
 
-async function upsertEmbedding(restaurantId: string, itemId: string, embedding: number[]) {
+async function upsertEmbedding(
+  restaurantId: string,
+  itemId: string,
+  embedding: number[]
+): Promise<void> {
   const { error } = await supabase
     .from('menu_item_embeddings')
     .upsert({
       restaurant_id: restaurantId,
       item_id: itemId,
-      embedding: embedding,
-      updated_at: new Date().toISOString()
+      embedding,
+    }, {
+      onConflict: 'restaurant_id,item_id'
     });
 
   if (error) {
-    console.error(`Failed to upsert embedding for item ${itemId}:`, error);
-    throw error;
+    throw new Error(`Failed to upsert embedding: ${error.message}`);
   }
 }
 
-async function processItem(item: any, index: number, total: number) {
-  try {
-    console.log(`Processing item ${index + 1}/${total}: ${item.name}`);
-    
-    const text = buildItemText(item);
-    const embedding = await createEmbedding(text);
-    await upsertEmbedding(restaurantId, item.id, embedding);
-    
-    // Rate limiting
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    console.log(`✓ Processed: ${item.name}`);
-  } catch (error) {
-    console.error(`✗ Failed to process ${item.name}:`, error);
-    throw error;
+async function backfillEmbeddings(restaurantId: string): Promise<void> {
+  console.log(`🚀 Starting embedding backfill for restaurant: ${restaurantId}`);
+
+  // Get menu items
+  const menuItems = await getMenuItems(restaurantId);
+  console.log(`📋 Found ${menuItems.length} menu items`);
+
+  if (menuItems.length === 0) {
+    console.log('⚠️  No menu items found for this restaurant');
+    return;
   }
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (const [index, item] of menuItems.entries()) {
+    try {
+      // Create text representation for embedding
+      const textParts = [
+        item.name,
+        item.description,
+        item.category,
+        ...(item.allergens || []),
+        item.price_cents ? `${item.price_cents / 100} SEK` : ''
+      ].filter(Boolean);
+
+      const text = textParts.join(' ');
+      
+      if (!text.trim()) {
+        console.log(`⚠️  Skipping item ${item.id} - no text content`);
+        continue;
+      }
+
+      console.log(`🔄 Processing ${index + 1}/${menuItems.length}: "${item.name}"`);
+
+      // Create embedding
+      const embedding = await createEmbedding(text);
+
+      // Upsert to database
+      await upsertEmbedding(restaurantId, item.id, embedding);
+
+      successCount++;
+      console.log(`✅ Successfully embedded: "${item.name}"`);
+
+      // Rate limiting - small delay between requests
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+    } catch (error) {
+      errorCount++;
+      console.error(`❌ Failed to embed "${item.name}":`, error);
+    }
+  }
+
+  console.log(`\n🎉 Backfill completed!`);
+  console.log(`✅ Success: ${successCount} items`);
+  console.log(`❌ Errors: ${errorCount} items`);
+  console.log(`📊 Total processed: ${successCount + errorCount}/${menuItems.length}`);
 }
 
-async function backfillEmbeddings() {
-  console.log(`Starting embeddings backfill for restaurant: ${restaurantId}`);
-  
+async function main() {
+  const restaurantId = process.argv[2];
+
+  if (!restaurantId) {
+    console.error('❌ Please provide a restaurant ID');
+    console.error('Usage: tsx scripts/backfill_embeddings.ts <restaurantId>');
+    process.exit(1);
+  }
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('❌ Missing Supabase environment variables');
+    process.exit(1);
+  }
+
+  if (!OPENAI_API_KEY) {
+    console.error('❌ Missing OpenAI API key');
+    process.exit(1);
+  }
+
   try {
-    const items = await getMenuItems(restaurantId);
-    console.log(`Found ${items.length} menu items to process`);
-    
-    if (items.length === 0) {
-      console.log('No items found, exiting');
-      return;
-    }
-    
-    // Process with concurrency control
-    const concurrency = 4;
-    const batches = [];
-    
-    for (let i = 0; i < items.length; i += concurrency) {
-      batches.push(items.slice(i, i + concurrency));
-    }
-    
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex];
-      console.log(`Processing batch ${batchIndex + 1}/${batches.length}`);
-      
-      const promises = batch.map((item, index) => 
-        processItem(item, batchIndex * concurrency + index, items.length)
-      );
-      
-      await Promise.all(promises);
-    }
-    
-    console.log('✅ Embeddings backfill completed successfully');
+    await backfillEmbeddings(restaurantId);
   } catch (error) {
-    console.error('❌ Embeddings backfill failed:', error);
+    console.error('❌ Backfill failed:', error);
     process.exit(1);
   }
 }
 
-backfillEmbeddings();
+if (require.main === module) {
+  main();
+}
