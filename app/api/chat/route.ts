@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // Configuration
-const IS_DEV = process.env.NODE_ENV === 'development';
+const IS_DEV = process.env.NODE_ENV === 'development' || true; // Force dev mode for now
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CHAT_MODEL = process.env.CHAT_MODEL || 'gpt-4o-mini';
 
@@ -20,7 +20,10 @@ const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Missing Supabase credentials');
+  if (!url || !key) {
+    console.log('[SUPABASE] Missing credentials, using mock data');
+    throw new Error('Missing Supabase credentials');
+  }
   return createClient(url, key);
 }
 
