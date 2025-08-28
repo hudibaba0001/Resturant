@@ -1,7 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
+import { trackOrderStatusChange, trackOrderConflict, trackOrderError } from '@/utils/analytics';
+
+type OrderItem = {
+  id: string;
+  qty: number;
+  price_cents: number;
+  notes: string | null;
+  menu_item: { id: string; name: string; currency: string } | null;
+};
+
+async function fetchOrder(orderId: string): Promise<{ items: OrderItem[]; currency: string }> {
+  const res = await fetch(`/api/orders/${orderId}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to load order');
+  const j = await res.json();
+  return { items: j.order.items as OrderItem[], currency: j.order.currency as string };
+}
 
 type OrderStatus =
   | 'pending'
@@ -19,6 +35,7 @@ interface Order {
   type: string;
   total_cents: number;
   restaurant_id: string;
+  currency?: string;
   updated_at?: string | undefined;
 }
 
@@ -96,6 +113,9 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
   const [statusFilter, setStatusFilter] = useState('all');
   const [localOrders, setLocalOrders] = useState<Order[]>(orders);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [lines, setLines] = useState<Record<string, OrderItem[]>>({});
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -113,6 +133,26 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     return matchesSearch && matchesStatus;
   });
 
+  const toggle = async (o: Order) => {
+    const id = o.id;
+    if (open[id]) { 
+      setOpen(s => ({ ...s, [id]: false })); 
+      return; 
+    }
+    if (!lines[id]) {
+      setLoading(s => ({ ...s, [id]: true }));
+      try {
+        const { items } = await fetchOrder(id);
+        setLines(s => ({ ...s, [id]: items }));
+      } catch (e) {
+        alert('Could not load items for this order.');
+      } finally {
+        setLoading(s => ({ ...s, [id]: false }));
+      }
+    }
+    setOpen(s => ({ ...s, [id]: true }));
+  };
+
   const onAction = async (orderId: string, to: OrderStatus) => {
     // Optimistic update
     setBusy((b) => ({ ...b, [orderId]: true }));
@@ -121,6 +161,7 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     if (idx === -1) return;
 
     const optimistic = [...localOrders];
+    const prevStatus = optimistic[idx]?.status || 'unknown';
     optimistic[idx] = { ...optimistic[idx], status: to } as Order;
     setLocalOrders(optimistic);
 
@@ -129,6 +170,10 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
       const reason = await askReasonIfNeeded(to);
       
       const updated = await patchOrderStatus(orderId, to, reason);
+      
+      // Track successful status change
+      trackOrderStatusChange(prevStatus, updated.status, true);
+      
       setLocalOrders((cur) =>
         cur.map((o) => (o.id === orderId ? { 
           ...o, 
@@ -139,7 +184,25 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     } catch (e) {
       // Rollback on error
       setLocalOrders(prev);
-      alert((e as Error).message);
+      
+      const error = e as Error;
+      const errorMessage = error.message;
+      
+      // Track error with specific error code
+      if (errorMessage.includes('CONFLICT_STATUS_CHANGED')) {
+        trackOrderConflict(orderId, prevStatus, to);
+      } else if (errorMessage.includes('INVALID_TRANSITION')) {
+        trackOrderError('INVALID_TRANSITION', 'order-status');
+      } else if (errorMessage.includes('FORBIDDEN')) {
+        trackOrderError('FORBIDDEN', 'order-status');
+      } else {
+        trackOrderError('UNKNOWN_ERROR', 'order-status');
+      }
+      
+      // Track failed status change
+      trackOrderStatusChange(prevStatus, to, false, errorMessage);
+      
+      alert(errorMessage);
     } finally {
       setBusy((b) => ({ ...b, [orderId]: false }));
     }
@@ -247,44 +310,87 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Created
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Items
+                </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredOrders.map((order) => (
-              <tr key={order.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {order.id.slice(0, 8)}...
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getTypeBadge(order.type)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusBadge(order.status)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatPrice(order.total_cents)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {formatDate(order.created_at)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    {NEXT_ACTIONS[order.status].map((action) => (
-                      <button
-                        key={action.to}
-                        onClick={() => onAction(order.id, action.to)}
-                        disabled={busy[order.id]}
-                        className="rounded-xl border px-3 py-1 text-sm hover:shadow disabled:opacity-50 bg-white hover:bg-gray-50 transition-colors"
-                      >
-                        {busy[order.id] ? '…' : action.label}
-                      </button>
-                    ))}
-                  </div>
-                </td>
-              </tr>
+              <React.Fragment key={order.id}>
+                <tr className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {order.id.slice(0, 8)}...
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getTypeBadge(order.type)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(order.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatPrice(order.total_cents)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(order.created_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      {NEXT_ACTIONS[order.status].map((action) => (
+                        <button
+                          key={action.to}
+                          onClick={() => onAction(order.id, action.to)}
+                          disabled={busy[order.id]}
+                          className="rounded-xl border px-3 py-1 text-sm hover:shadow disabled:opacity-50 bg-white hover:bg-gray-50 transition-colors"
+                        >
+                          {busy[order.id] ? '…' : action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => toggle(order)}
+                      className="rounded-xl border px-3 py-1 text-sm hover:shadow disabled:opacity-50 bg-white hover:bg-gray-50 transition-colors"
+                      disabled={loading[order.id]}
+                    >
+                      {open[order.id] ? 'Hide items' : (loading[order.id] ? 'Loading…' : 'View items')}
+                    </button>
+                  </td>
+                </tr>
+                {open[order.id] && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 bg-gray-50">
+                      <div className="border-t pt-3">
+                        {(lines[order.id] || []).length === 0 ? (
+                          <div className="text-sm text-gray-500">No items found</div>
+                        ) : (
+                          <ul className="space-y-2">
+                            {(lines[order.id] || []).map((li) => {
+                              const name = li.menu_item?.name || 'Item';
+                              const currency = li.menu_item?.currency || order.currency || 'SEK';
+                              const lineTotal = (li.price_cents * li.qty) / 100;
+                              return (
+                                <li key={li.id} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{name}</span>
+                                    <span className="opacity-70">× {li.qty}</span>
+                                    {li.notes && <span className="opacity-60 italic">({li.notes})</span>}
+                                  </div>
+                                  <div className="tabular-nums">{lineTotal.toFixed(2)} {currency}</div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>

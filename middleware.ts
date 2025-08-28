@@ -1,34 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { setRequestId } from '@/lib/log';
 
-export const config = { matcher: ['/dashboard/:path*'] }; // not /login, not /auth/callback
-
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (n) => req.cookies.get(n)?.value,
-        set: (n, v, o) => {
-          res.cookies.set({ name: n, value: v, ...o });
-        },
-        remove: (n, o) => {
-          res.cookies.set({ name: n, value: '', ...o, maxAge: 0 });
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user && req.nextUrl.pathname.startsWith('/dashboard')) {
-    const url = req.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('redirectTo', req.nextUrl.pathname + req.nextUrl.search);
-    return NextResponse.redirect(url);
-  }
-
-  return res; // return the SAME res you mutated
+export function middleware(request: NextRequest) {
+  const requestId = crypto.randomUUID();
+  
+  // Set request ID for logging
+  setRequestId(requestId);
+  
+  // Add request ID to response headers for tracing
+  const response = NextResponse.next();
+  response.headers.set('x-request-id', requestId);
+  
+  return response;
 }
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
+};

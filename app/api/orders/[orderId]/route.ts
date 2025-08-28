@@ -1,48 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseServer } from '@/app/api/_lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(
-  request: NextRequest,
+  _req: NextRequest,
   { params }: { params: { orderId: string } }
 ) {
-  try {
-    // Initialize Supabase inside the handler
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+  const supabase = getSupabaseServer();
+  const orderId = params.orderId;
 
-    const orderId = params.orderId;
-    
-    if (!orderId) {
-      return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
-    }
+  // Select order + nested lines + minimal menu item fields
+  const { data, error } = await supabase
+    .from('orders')
+    .select(`
+      id, code, status, total_cents, currency, created_at, updated_at,
+      order_items (
+        id, qty, price_cents, notes,
+        menu_items:menu_items ( id, name, currency )
+      )
+    `)
+    .eq('id', orderId)
+    .single();
 
-    // Get order details (no longer includes plaintext PIN)
-    const { data: order, error } = await supabase
-      .from('orders')
-      .select('id, status, total_cents, created_at, pin_issued_at')
-      .eq('id', orderId)
-      .single();
-
-    if (error || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    // Return order details (PIN is now hashed and not accessible)
-    return NextResponse.json({
-      id: order.id,
-      status: order.status,
-      total_cents: order.total_cents,
-      created_at: order.created_at,
-      pin_issued_at: order.pin_issued_at,
-      has_pin: order.pin_issued_at !== null
-    });
-
-  } catch (error) {
-    console.error('Order details error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  if (error || !data) {
+    // 404 if no access by RLS or not found
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
+
+  // Shape a lean response the UI can consume easily
+  const items = (data.order_items || []).map((oi: any) => ({
+    id: oi.id,
+    qty: oi.qty,
+    price_cents: oi.price_cents,
+    notes: oi.notes || null,
+    menu_item: oi.menu_items ? {
+      id: oi.menu_items.id,
+      name: oi.menu_items.name,
+      currency: oi.menu_items.currency || data.currency || 'SEK',
+    } : null,
+  }));
+
+  return NextResponse.json({
+    order: {
+      id: data.id,
+      code: data.code,
+      status: data.status,
+      total_cents: data.total_cents,
+      currency: data.currency,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      items,
+    },
+  });
 }
