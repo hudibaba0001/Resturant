@@ -1,202 +1,259 @@
 # LLM Chat System Setup Guide
 
-## Overview
-This system adds OpenAI-powered chat with RAG (Retrieval-Augmented Generation) to the restaurant widget, with fallback to rule-based responses and quota management.
+This guide walks you through setting up the LLM-powered chat system with RAG (Retrieval-Augmented Generation) for restaurant menus.
 
-## Environment Variables
+## 🚀 Quick Start
 
-Add these to your **Vercel + `.env.local`**:
+### 1. Environment Variables
 
-```bash
-# OpenAI Configuration
-OPENAI_API_KEY=sk-your-openai-key-here
-CHAT_LLM_ENABLED=1
-CHAT_MODEL=gpt-4o-mini
-EMBED_MODEL=text-embedding-3-small
-
-# RAG Configuration
-RAG_TOP_K=6
-RAG_SIM_THRESHOLD=0.72
-LLM_TOKEN_BUDGET=1200
-```
-
-## Database Setup
-
-### 1. Run Migrations
-
-Apply these migrations in your Supabase SQL editor:
-
-1. **pgvector extension**: `supabase/migrations/20250827_pgvector.sql`
-2. **usage tracking**: `supabase/migrations/20250827_usage.sql`
-3. **vector search function**: `supabase/migrations/20250827_vector_search.sql`
-
-### 2. Backfill Embeddings
-
-For each restaurant, run:
+Add these to your `.env.local` and Vercel environment:
 
 ```bash
-# Install ts-node if not already installed
-npm install -g ts-node
+# Required for LLM functionality
+OPENAI_API_KEY=sk-...                    # Your OpenAI API key
+CHAT_LLM_ENABLED=1                       # Enable LLM chat (0 = rules only)
+CHAT_MODEL=gpt-4o-mini                   # LLM model for chat
+EMBED_MODEL=text-embedding-3-small       # Embedding model for RAG
+RAG_TOP_K=6                              # Number of items to retrieve
+RAG_SIM_THRESHOLD=0.72                   # Similarity threshold
+LLM_TOKEN_BUDGET=1200                    # Max tokens per response
 
-# Run backfill script
-ts-node scripts/backfill_embeddings.ts <restaurant-id>
+# Supabase (required)
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...            # Server routes must use service key
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+
+# Optional: Pilot restaurant ID
+PILOT_RESTAURANT_ID=64806e5b-714f-4388-a092-29feff9b64c0
 ```
 
-Example:
+### 2. Database Setup
+
+Run these migrations in Supabase SQL Editor:
+
+```sql
+-- Enable pgvector extension
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create embeddings table
+CREATE TABLE IF NOT EXISTS menu_item_embeddings (
+  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
+  item_id TEXT REFERENCES menu_items(id) ON DELETE CASCADE,
+  embedding vector(1536),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (restaurant_id, item_id)
+);
+
+-- Create index for similarity search
+CREATE INDEX IF NOT EXISTS menu_item_embeddings_idx 
+ON menu_item_embeddings 
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
+
+-- Create usage tracking table
+CREATE TABLE IF NOT EXISTS usage_counters (
+  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
+  period TEXT NOT NULL, -- YYYY-MM format
+  messages_used INTEGER DEFAULT 0,
+  tokens_used INTEGER DEFAULT 0,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (restaurant_id, period)
+);
+
+-- Create trigger to update updated_at
+CREATE OR REPLACE FUNCTION touch_usage_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER touch_usage_updated_at
+  BEFORE UPDATE ON usage_counters
+  FOR EACH ROW
+  EXECUTE FUNCTION touch_usage_updated_at();
+```
+
+### 3. Backfill Embeddings
+
+For each restaurant that needs LLM chat:
+
 ```bash
-ts-node scripts/backfill_embeddings.ts 64806e5b-714f-4388-a092-29feff9b64c0
+# Install tsx if not already installed
+npm install -g tsx
+
+# Backfill embeddings for a restaurant
+tsx scripts/backfill_embeddings.ts <restaurant-id>
 ```
 
-## Testing
+### 4. Verify Setup
 
-### 1. Local Testing
+Run the verification script:
 
 ```bash
-# Start dev server
-npm run dev
-
-# Test chat system
-node scripts/test-llm-chat.js <restaurant-id>
+node scripts/pilot-verification.js
 ```
 
-### 2. Production Testing
+This will check:
+- ✅ Environment variables
+- ✅ Database setup (pgvector, tables, indexes)
+- ✅ Embeddings for pilot restaurant
+- ✅ Vector search functionality
+- ✅ Chat API endpoints
 
-```bash
-# Test against production
-BASE_URL=https://your-domain.vercel.app node scripts/test-llm-chat.js <restaurant-id>
+## 🔧 Configuration
+
+### Model Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `CHAT_MODEL` | `gpt-4o-mini` | LLM for generating responses |
+| `EMBED_MODEL` | `text-embedding-3-small` | Model for creating embeddings |
+| `RAG_TOP_K` | `6` | Number of menu items to retrieve |
+| `RAG_SIM_THRESHOLD` | `0.72` | Minimum similarity score |
+| `LLM_TOKEN_BUDGET` | `1200` | Max tokens per response |
+
+### Plan Limits
+
+The system enforces usage limits based on restaurant plans:
+
+| Plan | Messages/Month | Tokens/Month |
+|------|----------------|--------------|
+| Lite | 100 | 5,000 |
+| Standard | 1,000 | 50,000 |
+| Pro | 10,000 | 500,000 |
+| Unlimited | ∞ | ∞ |
+
+## 🛡️ Safety Features
+
+### Pilot Restaurants
+
+Only restaurants in the `PILOT_RESTAURANTS` array can use LLM chat:
+
+```typescript
+const PILOT_RESTAURANTS = [
+  '64806e5b-714f-4388-a092-29feff9b64c0', // Your pilot restaurant
+  // Add more pilot restaurant IDs here
+];
 ```
 
-## Feature Flags
+### Response Validation
 
-- **Enable LLM**: Set `CHAT_LLM_ENABLED=1`
-- **Disable LLM**: Set `CHAT_LLM_ENABLED=0` (instant fallback to rules)
-- **No OpenAI key**: System automatically falls back to rule engine
+The system validates LLM responses to prevent:
+- ❌ Invented menu items
+- ❌ Incorrect prices
+- ❌ Hallucinated information
 
-## Quota Management
+### Graceful Fallbacks
 
-The system includes usage tracking with plan-based limits:
+If LLM fails, the system automatically falls back to rule-based responses.
 
-- **Lite**: 100 messages/month
-- **Standard**: 1,000 messages/month  
-- **Pro**: 10,000 messages/month
-- **Unlimited**: No limits
+## 📊 Monitoring
 
-When quota is exceeded, users see "Upgrade plan" chip.
+### Telemetry Events
 
-## Monitoring
+The system logs detailed telemetry for each chat interaction:
 
-### Telemetry Logs
-
-The system logs structured events:
-
-```json
+```typescript
 {
-  "type": "chat_event",
-  "timestamp": "2025-01-27T10:30:00.000Z",
-  "restaurantId": "uuid",
-  "sessionToken": "widget-abc123",
-  "retrievalIds": ["item1", "item2"],
-  "token_in": 150,
-  "token_out": 50,
-  "model": "gpt-4o-mini",
-  "latency_ms": 1200,
-  "validator_pass": true,
-  "source": "llm"
+  restaurantId: string;
+  sessionToken: string;
+  retrievalIds: string[];      // Menu items retrieved
+  token_in: number;           // Input tokens used
+  token_out: number;          // Output tokens used
+  model: string;              // Model used (llm/rules)
+  latency_ms: number;         // Response time
+  validator_pass: boolean;    // Response validation result
+  source: 'llm' | 'rules';    // Response source
+  message: string;            // User message
 }
 ```
 
-### Error Logs
+### Usage Tracking
 
-```json
-{
-  "type": "error",
-  "timestamp": "2025-01-27T10:30:00.000Z",
-  "context": "llm_chat_failed",
-  "error": "OpenAI API error",
-  "restaurantId": "uuid"
-}
-```
+Usage is tracked per restaurant per month in the `usage_counters` table.
 
-## Architecture
-
-### Flow Diagram
-
-```
-User Message → Quota Check → LLM Enabled? → Yes → Embedding Search → LLM Chat → Validation → Response
-                                    ↓ No
-                              Rule Engine → Response
-```
-
-### Components
-
-1. **Quota System** (`lib/quotas.ts`)
-   - Plan-based limits
-   - Usage tracking
-   - Graceful fallback
-
-2. **Telemetry** (`lib/telemetry.ts`)
-   - Structured logging
-   - Performance metrics
-   - Error tracking
-
-3. **Chat Route** (`app/api/chat/route.ts`)
-   - LLM + RAG integration
-   - Response validation
-   - Fallback handling
-
-4. **Vector Search** (Database function)
-   - pgvector similarity search
-   - Restaurant-scoped retrieval
-
-## Troubleshooting
+## 🚨 Troubleshooting
 
 ### Common Issues
 
 1. **"No embeddings found"**
-   - Run backfill script for the restaurant
-   - Check `menu_item_embeddings` table
+   - Run backfill script: `tsx scripts/backfill_embeddings.ts <restaurant-id>`
 
-2. **"LLM chat failed"**
+2. **"Vector search failed"**
+   - Check pgvector extension: `SELECT extname FROM pg_extension WHERE extname='vector';`
+   - Verify embeddings table exists and has data
+
+3. **"LLM chat not working"**
+   - Check `CHAT_LLM_ENABLED=1`
    - Verify `OPENAI_API_KEY` is set
-   - Check OpenAI API quota
-   - System falls back to rules automatically
+   - Ensure restaurant is in `PILOT_RESTAURANTS` array
 
-3. **"Quota exceeded"**
-   - Upgrade restaurant plan
-   - Check usage in `usage_counters` table
-
-4. **"Vector search failed"**
-   - Verify pgvector extension is installed
-   - Check `match_menu_items` function exists
+4. **"High latency"**
+   - Reduce `RAG_TOP_K` or increase `RAG_SIM_THRESHOLD`
+   - Check vector index performance
 
 ### Debug Mode
 
-Add to `.env.local`:
+Enable debug logging by setting:
+
 ```bash
 DEBUG=1
 ```
 
-This enables verbose logging in the chat route.
+This will log detailed information about:
+- Embedding creation
+- Vector search results
+- LLM prompts and responses
+- Validation results
 
-## Performance
+## 🔄 Rollback Plan
 
-### Expected Latency
+To instantly disable LLM chat:
 
-- **LLM + RAG**: 1-3 seconds
-- **Rule Engine**: <100ms
-- **Fallback**: <200ms
+1. **Environment Variable**: Set `CHAT_LLM_ENABLED=0`
+2. **Deploy**: The system will immediately fall back to rule-based responses
+3. **No Data Loss**: All embeddings and usage data remain intact
 
-### Cost Optimization
+## 📈 Performance Optimization
 
-- **Embedding model**: `text-embedding-3-small` (cheapest)
-- **Chat model**: `gpt-4o-mini` (good balance)
-- **Token budget**: 1200 tokens max
-- **Retrieval limit**: 6 items max
+### Vector Search
 
-## Security
+- **Index**: Uses `ivfflat` with 100 lists for fast similarity search
+- **Threshold**: Adjust `RAG_SIM_THRESHOLD` for precision vs recall
+- **Top-K**: Reduce `RAG_TOP_K` for faster responses
 
-- All embeddings are restaurant-scoped
-- No PII in logs
-- Rate limiting on embeddings
-- Input validation with Zod
-- Response validation prevents hallucination
+### LLM Optimization
+
+- **Model**: `gpt-4o-mini` provides good quality at lower cost
+- **Tokens**: `LLM_TOKEN_BUDGET=1200` balances quality and cost
+- **Caching**: Responses are cached to reduce API calls
+
+### Cost Control
+
+- **Quotas**: Enforced per restaurant plan
+- **Monitoring**: Track usage in `usage_counters` table
+- **Alerts**: Set up alerts for high usage
+
+## 🎯 Pilot Success Metrics
+
+Track these metrics for the first 7 days:
+
+- **Chat Helpfulness**: ≥ 4/5 (owner survey)
+- **Menu Accuracy**: 100% (no wrong items/prices)
+- **Cost per Chat**: ≤ $0.03 USD
+- **Response Time**: ≤ 2 seconds
+- **Fallback Rate**: ≤ 5% (LLM failures)
+
+## 📞 Support
+
+If you encounter issues:
+
+1. Run the verification script: `node scripts/pilot-verification.js`
+2. Check the logs for detailed error messages
+3. Verify environment variables are set correctly
+4. Ensure database migrations are applied
+
+The system is designed to be resilient and will gracefully handle most errors while maintaining a good user experience.
