@@ -34,7 +34,10 @@ export async function PATCH(
   try {
     const orderId = params.orderId;
     if (!orderId || !isUuid(orderId)) {
-      return NextResponse.json({ error: 'Invalid orderId' }, { status: 400 });
+      return NextResponse.json({ 
+        code: 'INVALID_ORDER_ID',
+        error: 'Invalid orderId' 
+      }, { status: 400 });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -49,7 +52,10 @@ export async function PATCH(
       'expired',
     ]);
     if (!allowedStatuses.has(nextStatus)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      return NextResponse.json({ 
+        code: 'INVALID_STATUS',
+        error: 'Invalid status' 
+      }, { status: 400 });
     }
 
     // Auth via cookies (no service role) -> RLS enforced in DB
@@ -86,7 +92,10 @@ export async function PATCH(
 
     if (selErr) {
       // If the user lacks RLS perms, hide details
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ 
+        code: 'FORBIDDEN',
+        error: 'Not found' 
+      }, { status: 404 });
     }
 
     const fromStatus = current.status as OrderStatus;
@@ -94,6 +103,7 @@ export async function PATCH(
     if (!allowedNext.includes(nextStatus)) {
       return NextResponse.json(
         {
+          code: 'INVALID_TRANSITION',
           error: 'Invalid transition',
           from: fromStatus,
           allowed: allowedNext,
@@ -117,11 +127,18 @@ export async function PATCH(
       const { data: check } = await supabase.from('orders').select('status').eq('id', orderId).single();
       if (check && check.status !== fromStatus) {
         return NextResponse.json(
-          { error: 'Conflict: status changed concurrently', current: check.status },
+          { 
+            code: 'CONFLICT_STATUS_CHANGED',
+            error: 'Conflict: status changed concurrently', 
+            current: check.status 
+          },
           { status: 409 }
         );
       }
-      return NextResponse.json({ error: 'Update failed' }, { status: 403 });
+      return NextResponse.json({ 
+        code: 'FORBIDDEN',
+        error: 'Update failed' 
+      }, { status: 403 });
     }
 
     // 3) Fire-and-forget audit insert (RLS: editor+)
@@ -136,6 +153,9 @@ export async function PATCH(
 
     return NextResponse.json({ order: updated }, { status: 200 });
   } catch (e) {
-    return NextResponse.json({ error: 'Unexpected error' }, { status: 500 });
+    return NextResponse.json({ 
+      code: 'INTERNAL_ERROR',
+      error: 'Unexpected error' 
+    }, { status: 500 });
   }
 }
