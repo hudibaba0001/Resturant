@@ -115,13 +115,24 @@ export async function checkQuota(restaurantId: string): Promise<{
     const messagesAllowed = limits.messages === -1 || usage.messages < limits.messages;
     const tokensAllowed = limits.tokens === -1 || usage.tokens < limits.tokens;
 
-    return {
+    const result: {
+      allowed: boolean;
+      reason?: string;
+      usage: { messages: number; tokens: number };
+      limits: PlanLimits;
+    } = {
       allowed: messagesAllowed && tokensAllowed,
-      reason: !messagesAllowed ? 'Message quota exceeded' : 
-              !tokensAllowed ? 'Token quota exceeded' : undefined,
       usage,
       limits
     };
+
+    if (!messagesAllowed) {
+      result.reason = 'Message quota exceeded';
+    } else if (!tokensAllowed) {
+      result.reason = 'Token quota exceeded';
+    }
+
+    return result;
   } catch (error) {
     console.error('Failed to check quota:', error);
     // Fail open - allow usage if quota check fails
