@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -18,10 +20,10 @@ export async function GET(
       return NextResponse.json({ error: 'Order ID required' }, { status: 400 });
     }
 
-    // Get order details
+    // Get order details (no longer includes plaintext PIN)
     const { data: order, error } = await supabase
       .from('orders')
-      .select('id, status, pin, total_cents, created_at')
+      .select('id, status, total_cents, created_at, pin_issued_at')
       .eq('id', orderId)
       .single();
 
@@ -29,22 +31,14 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    // Only return PIN if order is paid
-    if (order.status !== 'paid') {
-      return NextResponse.json({
-        id: order.id,
-        status: order.status,
-        total_cents: order.total_cents,
-        created_at: order.created_at
-      });
-    }
-
+    // Return order details (PIN is now hashed and not accessible)
     return NextResponse.json({
       id: order.id,
       status: order.status,
-      pin: order.pin,
       total_cents: order.total_cents,
-      created_at: order.created_at
+      created_at: order.created_at,
+      pin_issued_at: order.pin_issued_at,
+      has_pin: order.pin_issued_at !== null
     });
 
   } catch (error) {

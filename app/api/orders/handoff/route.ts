@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 
-
+export const dynamic = 'force-dynamic';
 
 const HandoffRequestSchema = z.object({
   orderId: z.string().uuid(),
@@ -98,8 +98,11 @@ export async function POST(req: NextRequest) {
     let isValidHandoff = false;
 
     if (pin) {
-      // Primary: PIN validation
-      isValidHandoff = order.pin === pin;
+      // Primary: Use the new secure PIN verification function
+      const { data: pinValid } = await supabase
+        .rpc('verify_order_pin', { p_order: orderId, p_pin: pin });
+      
+      isValidHandoff = pinValid === true;
     } else if (phoneLast4 && amount) {
       // Fallback: phone last 4 + amount validation
       const orderPhoneLast4 = order.phone_e164?.slice(-4);
@@ -132,8 +135,10 @@ export async function POST(req: NextRequest) {
       .eq('id', orderId);
 
     if (updateError) {
-      console.error('Failed to update order status:', updateError);
-      return NextResponse.json({ error: 'Failed to mark order as picked up' }, { status: 500 });
+      console.error('Failed to mark order as picked up:', updateError);
+      return NextResponse.json({ 
+        error: 'Failed to update order status' 
+      }, { status: 500 });
     }
 
     // 8. Log the handoff event
@@ -143,25 +148,23 @@ export async function POST(req: NextRequest) {
       payload: {
         orderId,
         handoffMethod: pin ? 'pin' : 'phone_amount',
-        staffUserId: user.id,
-        staffEmail: user.email
+        staffUserId: user.id
       }
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       order: {
         id: order.id,
         status: 'picked_up',
-        items: order.items,
-        total_cents: order.total_cents,
-        customer_name: order.customer_name,
         picked_up_at: new Date().toISOString()
       }
     });
 
   } catch (error) {
-    console.error('Handoff endpoint error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Handoff error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error' 
+    }, { status: 500 });
   }
 }

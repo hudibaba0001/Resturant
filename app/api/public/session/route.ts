@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!; // Use service role for widget operations
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,19 +18,22 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Hash the session token for storage
+    const session_token_hash = `\\x${Buffer.from(session_token, 'utf8').toString('hex')}`;
+
     // Upsert session (insert or update last_seen_at)
     const { data, error } = await supabase
       .from('widget_sessions')
       .upsert({
         restaurant_id,
-        session_token,
+        session_token_hash, // Store hashed token
         origin: origin || null,
         referer: referer || null,
         user_agent: user_agent || null,
         locale: locale || null,
         last_seen_at: new Date().toISOString()
       }, {
-        onConflict: 'session_token',
+        onConflict: 'session_token_hash', // Use hashed token for conflict resolution
         ignoreDuplicates: false
       })
       .select()
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       session_id: data.id,
-      session_token: data.session_token 
+      session_token: session_token // Return original token to client
     });
 
   } catch (error) {
