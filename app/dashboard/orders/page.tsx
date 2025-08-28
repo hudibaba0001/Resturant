@@ -39,15 +39,18 @@ export default async function OrdersPage() {
     redirect('/dashboard');
   }
 
-  // Get orders for this restaurant
+  // Get orders for this restaurant - only select columns that exist
   const { data: orders, error: ordersError } = await supabase
     .from('orders')
     .select(`
-      *,
-      menu_items(id, name, price_cents)
+      id,
+      restaurant_id,
+      status,
+      type,
+      total_cents,
+      created_at
     `)
     .eq('restaurant_id', restaurant.id)
-    .in('status', ['paid', 'ready', 'picked_up'])
     .order('created_at', { ascending: false });
 
   if (ordersError) {
@@ -59,7 +62,7 @@ export default async function OrdersPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
         <p className="text-gray-600 mt-2">
-          Manage pickup orders for {restaurant.name}
+          Manage orders for {restaurant.name}
         </p>
       </div>
 
