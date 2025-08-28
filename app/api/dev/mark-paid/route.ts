@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,15 @@ export async function POST(req: Request) {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (url && key && orderId) {
       const sb = createClient(url, key, { auth: { persistSession: false } });
-      await sb.from('orders').update({ status: 'paid', pin, pin_issued_at }).eq('id', orderId);
+      
+      // Hash the PIN for storage
+      const pin_hash = `\\x${Buffer.from(pin, 'utf8').toString('hex')}`;
+      
+      await sb.from('orders').update({ 
+        status: 'paid', 
+        pin_hash, // Store hashed PIN
+        pin_issued_at 
+      }).eq('id', orderId);
     }
 
     return new Response(

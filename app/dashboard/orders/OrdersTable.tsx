@@ -3,13 +3,23 @@
 import { useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 
+type OrderStatus =
+  | 'pending'
+  | 'paid'
+  | 'preparing'
+  | 'ready'
+  | 'completed'
+  | 'cancelled'
+  | 'expired';
+
 interface Order {
   id: string;
   created_at: string;
-  status: string;
+  status: OrderStatus;
   type: string;
   total_cents: number;
   restaurant_id: string;
+  updated_at?: string | undefined;
 }
 
 interface OrdersTableProps {
@@ -17,15 +27,50 @@ interface OrdersTableProps {
   restaurantId: string;
 }
 
+const NEXT_ACTIONS: Record<OrderStatus, Array<{ label: string; to: OrderStatus }>> = {
+  pending: [
+    { label: 'Mark Paid', to: 'paid' },
+    { label: 'Cancel', to: 'cancelled' },
+  ],
+  paid: [
+    { label: 'Start Preparing', to: 'preparing' },
+    { label: 'Cancel', to: 'cancelled' },
+  ],
+  preparing: [
+    { label: 'Mark Ready', to: 'ready' },
+    { label: 'Cancel', to: 'cancelled' },
+  ],
+  ready: [{ label: 'Complete', to: 'completed' }],
+  completed: [],
+  cancelled: [],
+  expired: [],
+};
+
+async function patchOrderStatus(orderId: string, status: OrderStatus) {
+  const res = await fetch(`/api/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j?.error || 'Failed to update status');
+  }
+  return (await res.json()).order as Order;
+}
+
 export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [localOrders, setLocalOrders] = useState<Order[]>(orders);
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = localOrders.filter(order => {
     const matchesSearch = 
       order.id.slice(0, 8).includes(searchTerm) ||
       order.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -36,6 +81,35 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     return matchesSearch && matchesStatus;
   });
 
+  const onAction = async (orderId: string, to: OrderStatus) => {
+    // Optimistic update
+    setBusy((b) => ({ ...b, [orderId]: true }));
+    const prev = localOrders;
+    const idx = localOrders.findIndex((o) => o.id === orderId);
+    if (idx === -1) return;
+
+    const optimistic = [...localOrders];
+    optimistic[idx] = { ...optimistic[idx], status: to } as Order;
+    setLocalOrders(optimistic);
+
+    try {
+      const updated = await patchOrderStatus(orderId, to);
+      setLocalOrders((cur) =>
+        cur.map((o) => (o.id === orderId ? { 
+          ...o, 
+          status: updated.status, 
+          updated_at: updated.updated_at || o.updated_at 
+        } : o))
+      );
+    } catch (e) {
+      // Rollback on error
+      setLocalOrders(prev);
+      alert((e as Error).message);
+    } finally {
+      setBusy((b) => ({ ...b, [orderId]: false }));
+    }
+  };
+
   const formatPrice = (cents: number) => {
     return `SEK ${(cents / 100).toFixed(2)}`;
   };
@@ -44,17 +118,18 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     return new Date(dateString).toLocaleString();
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
       paid: { color: 'bg-green-100 text-green-800', label: 'Paid' },
-      open: { color: 'bg-blue-100 text-blue-800', label: 'Open' },
+      preparing: { color: 'bg-blue-100 text-blue-800', label: 'Preparing' },
       ready: { color: 'bg-purple-100 text-purple-800', label: 'Ready' },
-      picked_up: { color: 'bg-gray-100 text-gray-800', label: 'Picked Up' },
-      cancelled: { color: 'bg-red-100 text-red-800', label: 'Cancelled' }
+      completed: { color: 'bg-gray-100 text-gray-800', label: 'Completed' },
+      cancelled: { color: 'bg-red-100 text-red-800', label: 'Cancelled' },
+      expired: { color: 'bg-red-100 text-red-800', label: 'Expired' }
     };
     
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const config = statusConfig[status] || statusConfig.pending;
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
         {config.label}
@@ -107,10 +182,11 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
               <option value="paid">Paid</option>
-              <option value="open">Open</option>
+              <option value="preparing">Preparing</option>
               <option value="ready">Ready</option>
-              <option value="picked_up">Picked Up</option>
+              <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="expired">Expired</option>
             </select>
           </div>
         </div>
@@ -136,6 +212,9 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Created
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -156,6 +235,20 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {formatDate(order.created_at)}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    {NEXT_ACTIONS[order.status].map((action) => (
+                      <button
+                        key={action.to}
+                        onClick={() => onAction(order.id, action.to)}
+                        disabled={busy[order.id]}
+                        className="rounded-xl border px-3 py-1 text-sm hover:shadow disabled:opacity-50 bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        {busy[order.id] ? '…' : action.label}
+                      </button>
+                    ))}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -166,7 +259,7 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
       {filteredOrders.length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-500">
-            {orders.length === 0 ? (
+            {localOrders.length === 0 ? (
               <div>
                 <p className="text-lg font-medium">No orders yet</p>
                 <p className="text-sm">Orders will appear here once customers place them.</p>
@@ -185,7 +278,7 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
       {filteredOrders.length > 0 && (
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
           <p className="text-sm text-gray-700">
-            Showing {filteredOrders.length} of {orders.length} orders
+            Showing {filteredOrders.length} of {localOrders.length} orders
           </p>
         </div>
       )}
