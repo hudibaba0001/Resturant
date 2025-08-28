@@ -44,9 +44,44 @@ export async function OPTIONS() {
   return cors(new NextResponse(null, { status: 204 }));
 }
 
+// Debug endpoint to test database connection
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const restaurantId = searchParams.get('restaurantId') || 'test-123';
+  
+  try {
+    console.log(`[DEBUG] Testing database connection for restaurant: ${restaurantId}`);
+    
+    const menuItems = await getMenuItems(restaurantId);
+    
+    return cors(NextResponse.json({
+      debug: true,
+      restaurantId,
+      menuItemCount: menuItems.length,
+      menuItems: menuItems.slice(0, 3),
+      isDev: IS_DEV,
+      hasOpenAI: !!openai,
+      env: {
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY
+      }
+    }));
+  } catch (error) {
+    return cors(NextResponse.json({
+      debug: true,
+      error: error instanceof Error ? error.message : String(error),
+      restaurantId,
+      isDev: IS_DEV
+    }));
+  }
+}
+
 // Get menu items with proper error handling
 async function getMenuItems(restaurantId: string) {
   try {
+    console.log(`[MENU] Fetching items for restaurant: ${restaurantId}`);
+    
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('menu_items')
@@ -54,10 +89,15 @@ async function getMenuItems(restaurantId: string) {
       .eq('restaurant_id', restaurantId)
       .limit(50);
     
-    if (error) throw error;
+    if (error) {
+      console.error(`[MENU] Supabase error:`, error);
+      throw error;
+    }
+    
+    console.log(`[MENU] Raw data from DB:`, data?.length || 0, 'items');
     
     // Ensure all required fields exist
-    return (data || []).map(item => ({
+    const formattedItems = (data || []).map(item => ({
       id: item.id || Math.random().toString(),
       name: item.name || 'Unknown Item',
       description: item.description || '',
@@ -66,11 +106,17 @@ async function getMenuItems(restaurantId: string) {
       allergens: item.allergens || [],
       ...item
     }));
+    
+    console.log(`[MENU] Formatted items:`, formattedItems.length);
+    return formattedItems;
+    
   } catch (error) {
+    console.error(`[MENU] Fetch failed:`, error instanceof Error ? error.message : String(error));
     logError('menu_fetch_failed', error, { restaurantId });
     
     // Return mock data in development
     if (IS_DEV) {
+      console.log(`[MENU] Using mock data for development`);
       return [
         {
           id: '1',
@@ -87,6 +133,14 @@ async function getMenuItems(restaurantId: string) {
           price_cents: 7900,
           category: 'Appetizers',
           allergens: ['vegan']
+        },
+        {
+          id: '3',
+          name: 'Spicy Arrabbiata',
+          description: 'Spicy tomato sauce with chili',
+          price_cents: 14900,
+          category: 'Mains',
+          allergens: ['vegetarian', 'spicy']
         }
       ];
     }
@@ -194,6 +248,7 @@ export async function POST(req: Request) {
       console.log(`[CHAT] Restaurant: ${restaurantId}`);
       console.log(`[CHAT] Message: "${message}"`);
       console.log(`[CHAT] Menu items: ${menuItems.length}`);
+      console.log(`[CHAT] Menu items:`, menuItems.map(item => ({ name: item.name, category: item.category, allergens: item.allergens })));
     }
     
     // Check quota (but don't block in dev)
