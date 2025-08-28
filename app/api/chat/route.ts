@@ -69,6 +69,34 @@ export async function OPTIONS(req: Request) {
   return withCORS(new NextResponse(null, { status: 204 }), origin);
 }
 
+// Debug endpoint for testing
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const restaurantId = searchParams.get('restaurantId');
+  
+  if (!restaurantId) {
+    return NextResponse.json({ error: 'Missing restaurantId' }, { status: 400 });
+  }
+  
+  const menuItems = await getMenuItems(restaurantId);
+  const isPilot = isPilotRestaurant(restaurantId);
+  
+  return NextResponse.json({
+    debug: true,
+    restaurantId,
+    isPilot,
+    llmEnabled: CHAT_LLM_ENABLED,
+    hasApiKey: !!OPENAI_API_KEY,
+    menuItemCount: menuItems.length,
+    sampleItems: menuItems.slice(0, 3),
+    config: {
+      model: CHAT_MODEL,
+      embedModel: EMBED_MODEL,
+      ragTopK: RAG_TOP_K
+    }
+  });
+}
+
 // Retrieval function
 async function retrieveRelevantItems(restaurantId: string, query: string): Promise<any[]> {
   try {
@@ -358,15 +386,15 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
        ? `Here are our Italian picks! ${italianItems.length > 1 ? 'Both are popular choices.' : 'This is a customer favorite.'} Want vegetarian or spicy options?`
        : "We focus on Italian classics. Want to see our current menu?";
      
-           return {
-        reply: {
-          text,
-          chips: chipSet ?? [],
-          locale: 'en',
-          intent: 'italian'
-        },
-        cards: italianItems.slice(0, 3)
-      };
+     return {
+       reply: {
+         text,
+         chips: chipSet ?? [],
+         locale: 'en',
+         intent: 'italian'
+       },
+       cards: formatCards(italianItems.slice(0, 3))
+     };
    }
   
      // Spicy intent
@@ -382,15 +410,15 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
        ? `Found ${spicyItems.length} spicy option${spicyItems.length > 1 ? 's' : ''}! Want to see milder alternatives?`
        : "Nothing marked spicy, but we can add chili oil or extra garlic to any dish. Want to see our options?";
      
-           return {
-        reply: {
-          text,
-          chips: chipSet ?? [],
-          locale: 'en',
-          intent: 'spicy'
-        },
-        cards: spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2)
-      };
+     return {
+       reply: {
+         text,
+         chips: chipSet ?? [],
+         locale: 'en',
+         intent: 'spicy'
+       },
+       cards: formatCards(spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2))
+     };
    }
   
      // Vegan intent
@@ -412,7 +440,7 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
          locale: 'en',
          intent: 'vegan'
        },
-       cards: veganItems.slice(0, 3)
+       cards: formatCards(veganItems.slice(0, 3))
      };
    }
   
@@ -431,7 +459,7 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
          locale: 'en',
          intent: 'cuisine_deflection'
        },
-       cards: allItems.slice(0, 2)
+       cards: formatCards(allItems.slice(0, 2))
      };
    }
   
@@ -447,7 +475,7 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
          locale: 'en',
          intent: 'greeting'
        },
-       cards: allItems.slice(0, 2)
+       cards: formatCards(allItems.slice(0, 2))
      };
    }
   
@@ -464,7 +492,7 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
        locale: 'en',
        intent: 'general'
      },
-     cards: allItems.slice(0, 3)
+     cards: formatCards(allItems.slice(0, 3))
    };
 }
 
@@ -477,20 +505,40 @@ export async function POST(req: Request) {
     const raw = await req.json();
     const { restaurantId, sessionToken, message, lastIntent } = BodySchema.parse(raw);
     
-         // Check quota first
-     const quota = await checkQuota(restaurantId);
-     if (!quota.allowed) {
-       const fallback = fallbackRuleEngine(message, [], lastIntent);
-       fallback.reply.chips = ['Upgrade plan'];
-       
-       return withCORS(
-         NextResponse.json({ reply: fallback.reply, cards: fallback.cards }, { status: 200 }),
-         origin
-       );
-     }
+    // Add debug logging
+    console.log(`[CHAT] Restaurant: ${restaurantId}, Message: "${message}"`);
     
-         // Try LLM if enabled, OpenAI key available, and restaurant is pilot
-     if (CHAT_LLM_ENABLED && OPENAI_API_KEY && isPilotRestaurant(restaurantId)) {
+    // Get menu items FIRST (before any LLM attempts)
+    const menuItems = await getMenuItems(restaurantId);
+    console.log(`[CHAT] Loaded ${menuItems.length} menu items`);
+    
+    // If no menu items, return helpful error
+    if (menuItems.length === 0) {
+      return withCORS(NextResponse.json({
+        reply: {
+          text: "I'm loading the menu. Please try again in a moment.",
+          chips: ['Refresh', 'Show menu', 'Help'],
+          locale: 'en',
+          intent: 'menu_loading'
+        },
+        cards: []
+      }), origin);
+    }
+    
+    // Check quota first
+    const quota = await checkQuota(restaurantId);
+    if (!quota.allowed) {
+      const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
+      fallback.reply.chips = ['Upgrade plan'];
+      
+      return withCORS(
+        NextResponse.json({ reply: fallback.reply, cards: fallback.cards }, { status: 200 }),
+        origin
+      );
+    }
+    
+    // Try LLM if enabled, OpenAI key available, and restaurant is pilot
+    if (CHAT_LLM_ENABLED && OPENAI_API_KEY && isPilotRestaurant(restaurantId)) {
       try {
         // Retrieve relevant items
         const retrievedItems = await retrieveRelevantItems(restaurantId, message);
@@ -528,49 +576,47 @@ export async function POST(req: Request) {
       }
     }
     
-         // Fallback to rule engine
-     const menuItems = await getMenuItems(restaurantId);
-     const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
-     
-     // Log telemetry for fallback
-     logChatEvent({
-       restaurantId,
-       sessionToken,
-       retrievalIds: [],
-       token_in: 0,
-       token_out: 0,
-       model: 'rules',
-       latency_ms: Date.now() - startTime,
-       validator_pass: true,
-       source: 'rules',
-       message
-     });
-     
-     const res = NextResponse.json({
-       reply: fallback.reply,
-       cards: fallback.cards
-     }, { status: 200 });
-     
-     return withCORS(res, origin);
+    // Fallback to rule engine with actual menu items
+    const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
+    
+    // Log telemetry for fallback
+    logChatEvent({
+      restaurantId,
+      sessionToken,
+      retrievalIds: [],
+      token_in: 0,
+      token_out: 0,
+      model: 'rules',
+      latency_ms: Date.now() - startTime,
+      validator_pass: true,
+      source: 'rules',
+      message
+    });
+    
+    const res = NextResponse.json({
+      reply: fallback.reply,
+      cards: fallback.cards
+    }, { status: 200 });
+    
+    return withCORS(res, origin);
     
   } catch (error) {
+    console.error('[CHAT] Error:', error);
     logError('chat_api_error', error, { 
       restaurantId: 'unknown', 
       message: 'parse_error' 
     });
     
-         const errorResponse = {
-       reply: {
-         text: "I'm having trouble right now. Please try again in a moment.",
-         chips: ['Show vegetarian', 'Spicy dishes', 'Budget options'],
-         locale: 'en',
-         intent: 'error'
-       },
-       cards: []
-     };
-    
-    const res = NextResponse.json(errorResponse, { status: 200 });
-    return withCORS(res, origin);
+    // Return a valid response even on error
+    return withCORS(NextResponse.json({
+      reply: {
+        text: "I'm having trouble. Please browse the menu above.",
+        chips: ['Show menu', 'Help', 'Contact us'],
+        locale: 'en',
+        intent: 'error'
+      },
+      cards: []
+    }), origin);
   }
 }
 
