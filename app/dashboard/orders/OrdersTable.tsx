@@ -46,17 +46,29 @@ const NEXT_ACTIONS: Record<OrderStatus, Array<{ label: string; to: OrderStatus }
   expired: [],
 };
 
-async function patchOrderStatus(orderId: string, status: OrderStatus) {
+// Add a tiny prompt helper for cancellation reasons
+async function askReasonIfNeeded(to: OrderStatus): Promise<string | undefined> {
+  if (to !== 'cancelled') return undefined;
+  // eslint-disable-next-line no-alert
+  const r = window.prompt('Cancel reason (optional):') || '';
+  return r.trim() || undefined;
+}
+
+async function patchOrderStatus(orderId: string, status: OrderStatus, reason?: string) {
   const res = await fetch(`/api/orders/${orderId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, ...(reason ? { reason } : {}) }),
   });
+  const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error(j?.error || 'Failed to update status');
+    const msg =
+      res.status === 409
+        ? `Conflict: order moved to "${json?.current}". Refresh to sync.`
+        : json?.error || 'Failed to update status';
+    throw new Error(msg);
   }
-  return (await res.json()).order as Order;
+  return json.order as Order;
 }
 
 export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) {
@@ -93,7 +105,10 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
     setLocalOrders(optimistic);
 
     try {
-      const updated = await patchOrderStatus(orderId, to);
+      // Ask for reason if cancelling
+      const reason = await askReasonIfNeeded(to);
+      
+      const updated = await patchOrderStatus(orderId, to, reason);
       setLocalOrders((cur) =>
         cur.map((o) => (o.id === orderId ? { 
           ...o, 

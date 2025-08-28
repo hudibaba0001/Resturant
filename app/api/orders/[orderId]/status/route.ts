@@ -80,18 +80,37 @@ export async function PATCH(
       );
     }
 
-    // 2) Update status (RLS ensures only staff editor+ can update)
+    // 2) Atomic conditional update to avoid race conditions
     const { data: updated, error: updErr } = await supabase
       .from('orders')
-      .update({ status: nextStatus }) // keep it narrow—only status
+      .update({ status: nextStatus })
       .eq('id', orderId)
+      .eq('status', fromStatus)           // <— only update if still in fromStatus
       .select('id,status,restaurant_id,updated_at')
       .single();
 
     if (updErr) {
-      // RLS or other DB errors
+      // Row may not match due to RLS or a concurrent change; return 409 if status changed
+      // Try to detect if the row exists but status moved
+      const { data: check } = await supabase.from('orders').select('status').eq('id', orderId).single();
+      if (check && check.status !== fromStatus) {
+        return NextResponse.json(
+          { error: 'Conflict: status changed concurrently', current: check.status },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: 'Update failed' }, { status: 403 });
     }
+
+    // 3) Fire-and-forget audit insert (RLS: editor+)
+    const reason: string | undefined = (body?.reason as string | undefined)?.slice(0, 500) || undefined;
+    await supabase.from('order_status_events').insert({
+      order_id: orderId,
+      restaurant_id: updated.restaurant_id,
+      from_status: fromStatus,
+      to_status: nextStatus,
+      reason
+    });
 
     return NextResponse.json({ order: updated }, { status: 200 });
   } catch (e) {
