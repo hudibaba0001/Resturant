@@ -1528,8 +1528,8 @@
         addAssistantReply(data.reply);
       } else {
         console.log('[WIDGET DEBUG] No reply.text, using fallback');
-        const intelligentResponse = provideIntelligentResponse(message);
-        addMessage('assistant', intelligentResponse);
+        const reply = provideIntelligentReply(message);
+        addAssistantReply(reply);
       }
       
       // If API suggests specific items, show them as cards
@@ -1547,8 +1547,8 @@
         addMessage('assistant', "I'm having trouble connecting. Please check your internet and try again.");
       } else {
         // Fallback: provide intelligent responses
-        const intelligentResponse = provideIntelligentResponse(message);
-        addMessage('assistant', intelligentResponse);
+        const reply = provideIntelligentReply(message);
+        addAssistantReply(reply);
       }
     } finally {
       state.isLoading = false;
@@ -1557,12 +1557,22 @@
   }
 
   // Provide intelligent AI responses (concise version)
-  function provideIntelligentResponse(message) {
-    if (!state.menu) return "I'm sorry, I don't have access to the menu right now. Please try again later.";
+  function provideIntelligentReply(message) {
+    if (!state.menu) {
+      return {
+        text: "I'm sorry, I don't have access to the menu right now. Please try again later.",
+        chips: [],
+        context: "Menu not loaded",
+        locale: "en"
+      };
+    }
 
     const q = message.toLowerCase();
     const allItems = state.menu.flatMap(s => s.items || []);
     const intent = detectIntent(q);
+    
+    // Avoid repetitive chips when intent doesn't change
+    const chips = intent === state.lastIntent ? [] : undefined;
     state.lastIntent = intent;
 
     // Glossary ("what is tofu?", etc.)
@@ -1571,14 +1581,12 @@
       const term = m && m[1] ? m[1].toLowerCase() : "";
       const ans = GLOSSARY[term];
       if (ans) {
-        state.suggestions = []; // no cards for glossary
-        addAssistantReply({
+        return {
           text: ans,
-          chips: term === "tofu" ? ["See vegan swaps", "Show vegetarian"] : ["Show vegetarian"],
+          chips: chips ?? (term === "tofu" ? ["See vegan swaps", "Show vegetarian"] : ["Show vegetarian"]),
           context: "Simple definitions for common ingredients.",
-          locale: "en",
-        });
-        return ans; // for the legacy path
+          locale: "en"
+        };
       }
     }
 
@@ -1590,7 +1598,12 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return "Here are the pizzas we serve.";
+        return {
+          text: "Here are the pizzas we serve.",
+          chips: chips ?? ["Show vegetarian", "Extra toppings"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
     }
 
@@ -1602,7 +1615,12 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return "Here are a few Italian picks. Prefer vegetarian or spicy?";
+        return {
+          text: "Here are a few Italian picks. Prefer vegetarian or spicy?",
+          chips: chips ?? ["Show vegetarian", "Spicy options"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
     }
 
@@ -1615,7 +1633,12 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return `Here are a few ${intent} options. Want spicy or mild?`;
+        return {
+          text: `Here are a few ${intent} options. Want spicy or mild?`,
+          chips: chips ?? ["Spicy options", "Mild options"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
     }
 
@@ -1627,15 +1650,19 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return `Found ${cards.length} vegan options. Want budget picks?`;
+        return {
+          text: `Found ${cards.length} vegan options. Want budget picks?`,
+          chips: chips ?? ["Budget picks", "Show vegetarian"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
-      addAssistantReply({
+      return {
         text: "I don't see items marked vegan, but several vegetarian dishes can be made vegan.",
-        chips: ["Show vegetarian", "Suggest swaps"],
+        chips: chips ?? ["Show vegetarian", "Suggest swaps"],
         context: "Typical swaps: tofu for paneer, olive oil for butter.",
-        locale: "en",
-      });
-      return "I don't see items marked vegan…";
+        locale: "en"
+      };
     }
 
     if (intent === "vegetarian") {
@@ -1646,7 +1673,12 @@
       );
       state.suggestions = cards;
       renderSuggestions();
-      return `Here are vegetarian options. Many can be made vegan.`;
+      return {
+        text: `Here are vegetarian options. Many can be made vegan.`,
+        chips: chips ?? ["Vegan swaps", "Budget picks"],
+        context: "Based on menu items",
+        locale: "en"
+      };
     }
 
     if (intent === "gluten") {
@@ -1657,15 +1689,19 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return `Found ${cards.length} gluten-free options. Want more?`;
+        return {
+          text: `Found ${cards.length} gluten-free options. Want more?`,
+          chips: chips ?? ["Show mains", "Show drinks"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
-      addAssistantReply({
+      return {
         text: "No items are marked gluten-free, but some can be adapted.",
-        chips: ["Show mains", "Show drinks"],
+        chips: chips ?? ["Show mains", "Show drinks"],
         context: "We can remove bread/pasta in some dishes if suitable.",
-        locale: "en",
-      });
-      return "No gluten-free labels found.";
+        locale: "en"
+      };
     }
 
     if (intent === "spicy") {
@@ -1676,7 +1712,12 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return `Found ${cards.length} spicy dishes. Want milder picks?`;
+        return {
+          text: `Found ${cards.length} spicy dishes. Want milder picks?`,
+          chips: chips ?? ["Milder options", "Budget picks"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
     }
 
@@ -1688,7 +1729,12 @@
       if (cards.length) {
         state.suggestions = cards;
         renderSuggestions();
-        return `Budget-friendly picks under 150 SEK.`;
+        return {
+          text: `Budget-friendly picks under 150 SEK.`,
+          chips: chips ?? ["Show vegetarian", "Add drinks"],
+          context: "Based on menu items",
+          locale: "en"
+        };
       }
     }
 
@@ -1697,14 +1743,29 @@
       const cards = by(i => ["Mains", "Appetizers"].includes(i.category));
       state.suggestions = cards;
       renderSuggestions();
-      return "Here are our popular choices.";
+      return {
+        text: "Here are our popular choices.",
+        chips: chips ?? ["Show vegetarian", "Budget picks"],
+        context: "Based on menu items",
+        locale: "en"
+      };
     }
 
     // True fallback (only show once; otherwise we'll be chatty but not spammy)
     if (sameText(state._lastAssistantText, GENERIC_HELP)) {
-      return "Tell me a cuisine (Italian, Indian), or say vegan/vegetarian/spicy/budget.";
+      return {
+        text: "Tell me a cuisine (Italian, Indian), or say vegan/vegetarian/spicy/budget.",
+        chips: chips ?? ["Show vegetarian", "Spicy dishes", "Budget options"],
+        context: "Grounded in current menu",
+        locale: "en"
+      };
     }
-    return GENERIC_HELP;
+    return {
+      text: GENERIC_HELP,
+      chips: chips ?? ["Show vegetarian", "Spicy dishes", "Budget options"],
+      context: "Grounded in current menu",
+      locale: "en"
+    };
   }
 
    

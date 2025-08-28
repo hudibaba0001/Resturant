@@ -422,7 +422,7 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
      return {
        reply: {
          text,
-         chips: chipSet,
+         chips: chipSet ?? [],
          locale: 'en',
          intent: 'greeting'
        },
@@ -439,7 +439,7 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
    return {
      reply: {
        text,
-       chips: chipSet,
+       chips: chipSet ?? [],
        locale: 'en',
        intent: 'general'
      },
