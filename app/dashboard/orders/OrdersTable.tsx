@@ -15,7 +15,11 @@ type OrderItem = {
 
 async function fetchOrder(orderId: string): Promise<{ items: OrderItem[]; currency: string }> {
   const res = await fetch(`/api/orders/${orderId}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to load order');
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 404) throw new Error('Not found or no access');
+    throw new Error(j?.code || 'Failed to load order');
+  }
   const j = await res.json();
   return { items: j.order.items as OrderItem[], currency: j.order.currency as string };
 }
