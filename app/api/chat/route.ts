@@ -324,23 +324,24 @@ function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: stri
      // Budget intent
    if (q.includes('budget') || q.includes('cheap') || q.includes('affordable') || q.includes('price')) {
      const budgetItems = allItems
+       .filter(item => item.price_cents) // Ensure price exists
        .sort((a, b) => (a.price_cents || 0) - (b.price_cents || 0))
        .slice(0, 3);
      
      const chipSet = CHIP_SETS.budget[Math.floor(Math.random() * CHIP_SETS.budget.length)] || CHIP_SETS.budget[0];
      const text = budgetItems.length > 0 
-       ? `Here are our best-value picks (${budgetItems.length} under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr). Want a drink to pair?`
-       : "I can help you find our most affordable options. What's your budget range?";
+       ? `Found ${budgetItems.length} budget options under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr`
+       : "Let me show you our menu options.";
      
-           return {
-        reply: {
-          text,
-          chips: chipSet ?? [],
-          locale: 'en',
-          intent: 'budget'
-        },
-        cards: budgetItems
-      };
+     return {
+       reply: {
+         text,
+         chips: chipSet ?? [],
+         locale: 'en',
+         intent: 'budget'
+       },
+       cards: formatCards(budgetItems) // Use formatted cards
+     };
    }
   
      // Italian intent
