@@ -203,7 +203,7 @@ async function chatWithLLM(
   message: string,
   retrievedItems: any[]
 ): Promise<{
-  reply: { text: string; context?: string; chips: string[]; locale: string };
+  reply: { text: string; context?: string; chips: string[]; locale: string; intent: string };
   cards: any[];
   token_in: number;
   token_out: number;
@@ -236,17 +236,18 @@ Please provide a helpful, accurate response.`;
   // Validate response
   const validation = validateResponse(replyText, retrievedItems);
   if (!validation.valid) {
-    return {
-      reply: {
-        text: validation.correctedResponse || "I can help you find items from our menu. What are you looking for?",
-        chips: ['Show vegetarian', 'Show spicy', 'Budget options'],
-        locale: 'en'
-      },
-      cards: retrievedItems.slice(0, 3),
-      token_in: usage?.prompt_tokens || 0,
-      token_out: usage?.completion_tokens || 0,
-      model: CHAT_MODEL
-    };
+         return {
+       reply: {
+         text: validation.correctedResponse || "I can help you find items from our menu. What are you looking for?",
+         chips: ['Show vegetarian', 'Show spicy', 'Budget options'],
+         locale: 'en',
+         intent: 'llm_validation_failed'
+       },
+       cards: retrievedItems.slice(0, 3),
+       token_in: usage?.prompt_tokens || 0,
+       token_out: usage?.completion_tokens || 0,
+       model: CHAT_MODEL
+     };
   }
 
      return {
