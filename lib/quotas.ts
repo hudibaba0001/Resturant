@@ -1,9 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy initialization of Supabase client
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Plan limits (messages per month)
 const PLAN_LIMITS = {
@@ -20,6 +27,7 @@ export interface PlanLimits {
 
 export async function getPlanLimits(restaurantId: string): Promise<PlanLimits> {
   try {
+    const supabase = getSupabaseClient();
     const { data: restaurant } = await supabase
       .from('restaurants')
       .select('plan')
@@ -44,6 +52,7 @@ export async function getPlanLimits(restaurantId: string): Promise<PlanLimits> {
 
 export async function getUsage(restaurantId: string, period: string) {
   try {
+    const supabase = getSupabaseClient();
     const { data } = await supabase
       .from('usage_counters')
       .select('messages_used, tokens_used')
@@ -68,6 +77,8 @@ export async function incrementUsage(
   tokens: number = 0
 ) {
   try {
+    const supabase = getSupabaseClient();
+    
     // First get current usage
     const { data: current } = await supabase
       .from('usage_counters')

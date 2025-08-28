@@ -30,10 +30,18 @@ function isPilotRestaurant(restaurantId: string): boolean {
 }
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+
+// Lazy initialization of Supabase client
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
 
 // Validation schema
 const BodySchema = z.object({
@@ -73,6 +81,7 @@ async function retrieveRelevantItems(restaurantId: string, query: string): Promi
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
     // Vector similarity search
+    const supabase = getSupabaseClient();
     const { data: embeddings, error } = await supabase.rpc('match_menu_items', {
       query_embedding: queryEmbedding,
       match_threshold: RAG_SIM_THRESHOLD,
@@ -413,6 +422,7 @@ export async function POST(req: Request) {
 // Helper function to get menu items
 async function getMenuItems(restaurantId: string) {
   try {
+    const supabase = getSupabaseClient();
     const { data } = await supabase
       .from('menu_items')
       .select('id, name, description, allergens, category, price_cents')
