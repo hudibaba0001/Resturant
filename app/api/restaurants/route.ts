@@ -30,8 +30,8 @@ const UpdateRestaurantSchema = CreateRestaurantSchema.partial().extend({
 });
 
 const RestaurantQuerySchema = z.object({
-  page: z.string().transform(Number).pipe(z.number().int().min(1)).default(1),
-  limit: z.string().transform(Number).pipe(z.number().int().min(1).max(100)).default(20),
+  page: z.string().transform(Number).pipe(z.number().int().min(1)).default('1'),
+  limit: z.string().transform(Number).pipe(z.number().int().min(1).max(100)).default('20'),
   search: z.string().optional(),
   city: z.string().optional(),
   cuisine_type: z.string().optional(),
