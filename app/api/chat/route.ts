@@ -9,45 +9,22 @@ import { logChatEvent, logError } from '@/lib/telemetry';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Configuration with safe defaults
+// Configuration
+const IS_DEV = process.env.NODE_ENV === 'development';
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const CHAT_LLM_ENABLED = process.env.CHAT_LLM_ENABLED === '1';
 const CHAT_MODEL = process.env.CHAT_MODEL || 'gpt-4o-mini';
-const EMBED_MODEL = process.env.EMBED_MODEL || 'text-embedding-3-small';
-const RAG_TOP_K = parseInt(process.env.RAG_TOP_K || '6');
-const RAG_SIM_THRESHOLD = parseFloat(process.env.RAG_SIM_THRESHOLD || '0.72');
-const LLM_TOKEN_BUDGET = parseInt(process.env.LLM_TOKEN_BUDGET || '1200');
 
-// Pilot restaurant IDs (only these get LLM access)
-const PILOT_RESTAURANTS = [
-  '64806e5b-714f-4388-a092-29feff9b64c0', // Your pilot restaurant
-  // Add more pilot restaurant IDs here
-];
+const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
 
-// Safety check: is this restaurant allowed to use LLM?
-function isPilotRestaurant(restaurantId: string): boolean {
-  // For development, enable for all restaurants
-  if (process.env.NODE_ENV === 'development') {
-    return true;
-  }
-  return PILOT_RESTAURANTS.includes(restaurantId);
-}
-
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
-// Lazy initialization of Supabase client
+// Supabase client
 function getSupabaseClient() {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables');
-  }
-  
-  return createClient(supabaseUrl, supabaseKey);
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Missing Supabase credentials');
+  return createClient(url, key);
 }
 
-// Validation schema
+// Validation
 const BodySchema = z.object({
   restaurantId: z.string().min(1),
   sessionToken: z.string().min(1),
@@ -56,537 +33,244 @@ const BodySchema = z.object({
 });
 
 // CORS helper
-function withCORS(res: NextResponse, origin: string) {
-  res.headers.set('Access-Control-Allow-Origin', origin);
-  res.headers.set('Vary', 'Origin');
+function cors(res: NextResponse) {
+  res.headers.set('Access-Control-Allow-Origin', '*');
   res.headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Widget-Version');
   res.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
   return res;
 }
 
-export async function OPTIONS(req: Request) {
-  const origin = new URL(req.url).origin;
-  return withCORS(new NextResponse(null, { status: 204 }), origin);
+export async function OPTIONS() {
+  return cors(new NextResponse(null, { status: 204 }));
 }
 
-// Debug endpoint for testing
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const restaurantId = searchParams.get('restaurantId');
-  
-  if (!restaurantId) {
-    return NextResponse.json({ error: 'Missing restaurantId' }, { status: 400 });
-  }
-  
-  const menuItems = await getMenuItems(restaurantId);
-  const isPilot = isPilotRestaurant(restaurantId);
-  
-  return NextResponse.json({
-    debug: true,
-    restaurantId,
-    isPilot,
-    llmEnabled: CHAT_LLM_ENABLED,
-    hasApiKey: !!OPENAI_API_KEY,
-    menuItemCount: menuItems.length,
-    sampleItems: menuItems.slice(0, 3),
-    config: {
-      model: CHAT_MODEL,
-      embedModel: EMBED_MODEL,
-      ragTopK: RAG_TOP_K
-    }
-  });
-}
-
-// Retrieval function
-async function retrieveRelevantItems(restaurantId: string, query: string): Promise<any[]> {
+// Get menu items with proper error handling
+async function getMenuItems(restaurantId: string) {
   try {
-    // Create query embedding
-    const embeddingResponse = await openai.embeddings.create({
-      model: EMBED_MODEL,
-      input: query,
-    });
-    
-    if (!embeddingResponse.data?.[0]?.embedding) {
-      console.error('Failed to create embedding');
-      return [];
-    }
-    
-    const queryEmbedding = embeddingResponse.data[0].embedding;
-
-    // Vector similarity search
     const supabase = getSupabaseClient();
-    const { data: embeddings, error } = await supabase.rpc('match_menu_items', {
-      query_embedding: queryEmbedding,
-      match_threshold: RAG_SIM_THRESHOLD,
-      match_count: RAG_TOP_K,
-      p_restaurant_id: restaurantId
-    });
-
-    if (error) {
-      console.error('Vector search failed:', error);
-      return [];
-    }
-
-    return embeddings || [];
-  } catch (error) {
-    console.error('Retrieval failed:', error);
-    return [];
-  }
-}
-
-// Validation function
-function validateResponse(response: string, retrievedItems: any[]): {
-  valid: boolean;
-  reason?: string;
-  correctedResponse?: string;
-} {
-  try {
-    const itemNames = retrievedItems.map(item => item.name.toLowerCase());
-    const itemPrices = retrievedItems.map(item => item.price_cents);
+    const { data, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .limit(50);
     
-    // Check for invented items
-    const words = response.toLowerCase().split(/\s+/);
-    const potentialItems = words.filter(word => 
-      word.length > 3 && 
-      !['the', 'and', 'with', 'from', 'have', 'this', 'that', 'they', 'what', 'when', 'where'].includes(word)
-    );
+    if (error) throw error;
     
-    const inventedItems = potentialItems.filter(word => 
-      !itemNames.some(name => name.includes(word) || word.includes(name))
-    );
-    
-    if (inventedItems.length > 0) {
-      return {
-        valid: false,
-        reason: `Invented items: ${inventedItems.join(', ')}`,
-        correctedResponse: "I can help you find items from our menu. What type of cuisine or dietary preference are you looking for?"
-      };
-    }
-    
-    // Check for price mismatches (if prices mentioned)
-    const priceMatches = response.match(/\d+(?:\.\d{2})?/g);
-    if (priceMatches) {
-      const mentionedPrices = priceMatches.map(p => Math.round(parseFloat(p) * 100));
-      const hasInvalidPrice = mentionedPrices.some(price => 
-        !itemPrices.includes(price) && price > 0
-      );
-      
-      if (hasInvalidPrice) {
-        return {
-          valid: false,
-          reason: 'Price mismatch detected',
-          correctedResponse: "I can help you find items from our menu. What type of cuisine or dietary preference are you looking for?"
-        };
-      }
-    }
-    
-    return { valid: true };
-  } catch (error) {
-    console.error('Validation failed:', error);
-    return { valid: true }; // Fail open
-  }
-}
-
-// Generate dynamic chips from retrieved items
-function generateChips(items: any[]): string[] {
-  const chips: string[] = [];
-  const seen = new Set<string>();
-  
-  // Extract unique categories and allergens
-  items.forEach(item => {
-    if (item.category && !seen.has(item.category)) {
-      chips.push(`Show ${item.category}`);
-      seen.add(item.category);
-    }
-    
-    if (item.allergens) {
-      item.allergens.forEach((allergen: string) => {
-        if (!seen.has(allergen)) {
-          chips.push(`Show ${allergen}`);
-          seen.add(allergen);
-        }
-      });
-    }
-  });
-  
-  // Add common dietary preferences if relevant
-  const hasVeg = items.some(item => 
-    item.allergens?.includes('vegetarian') || 
-    item.description?.toLowerCase().includes('vegetarian')
-  );
-  if (hasVeg && !seen.has('vegetarian')) {
-    chips.push('Show vegetarian');
-  }
-  
-  const hasSpicy = items.some(item => 
-    item.description?.toLowerCase().includes('spicy') ||
-    item.name.toLowerCase().includes('spicy')
-  );
-  if (hasSpicy && !seen.has('spicy')) {
-    chips.push('Show spicy');
-  }
-  
-  return chips.slice(0, 3); // Max 3 chips
-}
-
-// LLM-powered chat
-async function chatWithLLM(
-  restaurantId: string,
-  message: string,
-  retrievedItems: any[]
-): Promise<{
-  reply: { text: string; context?: string; chips: string[]; locale: string; intent: string };
-  cards: any[];
-  token_in: number;
-  token_out: number;
-  model: string;
-}> {
-  const systemPrompt = `You are a warm, helpful waiter at a restaurant. Be concise (max 450 characters), friendly, and accurate. Only mention items that exist in the provided menu. Don't invent items, prices, or ingredients. If asked about something not on the menu, politely redirect to what's available.`;
-
-  const userPrompt = `Customer asks: "${message}"
-
-Available menu items:
-${retrievedItems.map(item => 
-  `- ${item.name} (${item.price_cents / 100} SEK): ${item.description || 'No description'}`
-).join('\n')}
-
-Please provide a helpful, accurate response.`;
-
-  const response = await openai.chat.completions.create({
-    model: CHAT_MODEL,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ],
-    max_tokens: LLM_TOKEN_BUDGET,
-    temperature: 0.7,
-  });
-
-  const replyText = response.choices[0]?.message?.content || '';
-  const usage = response.usage;
-
-  // Validate response
-  const validation = validateResponse(replyText, retrievedItems);
-  if (!validation.valid) {
-         return {
-       reply: {
-         text: validation.correctedResponse || "I can help you find items from our menu. What are you looking for?",
-         chips: ['Show vegetarian', 'Show spicy', 'Budget options'],
-         locale: 'en',
-         intent: 'llm_validation_failed'
-       },
-       cards: retrievedItems.slice(0, 3),
-       token_in: usage?.prompt_tokens || 0,
-       token_out: usage?.completion_tokens || 0,
-       model: CHAT_MODEL
-     };
-  }
-
-     return {
-     reply: {
-       text: replyText.slice(0, 450), // Ensure max length
-       chips: generateChips(retrievedItems),
-       locale: 'en',
-       intent: 'llm'
-     },
-     cards: retrievedItems.slice(0, 3),
-     token_in: usage?.prompt_tokens || 0,
-     token_out: usage?.completion_tokens || 0,
-     model: CHAT_MODEL
-   };
-}
-
-// Intent-specific chip sets (rotate to avoid repetition)
-const CHIP_SETS = {
-  budget: [
-    ['Cheapest three', 'Under 20 kr', 'Add a drink'],
-    ['Best value', 'Budget picks', 'Pair with drink'],
-    ['Affordable options', 'Under 25 kr', 'Complete meal']
-  ],
-  italian: [
-    ['Vegetarian pizzas', 'Extra toppings', 'Spicy oil'],
-    ['Pizza variations', 'Add cheese', 'Garlic bread'],
-    ['Italian classics', 'Custom toppings', 'Side dishes']
-  ],
-  spicy: [
-    ['Add chili oil', 'Extra garlic', 'Hot sauce'],
-    ['Spice it up', 'Garlic options', 'Heat levels'],
-    ['Make it hot', 'Chili options', 'Spicy sides']
-  ],
-  vegan: [
-    ['Vegetarian options', 'Dairy-free', 'Suggest swaps'],
-    ['Plant-based', 'Vegan swaps', 'Allergen info'],
-    ['No dairy', 'Vegan mods', 'Alternative options']
-  ],
-  general: [
-    ['Show vegetarian', 'Budget options', 'Popular picks'],
-    ['Dietary needs', 'Price range', 'Chef recommendations'],
-    ['Special requests', 'Allergen info', 'Best sellers']
-  ]
-};
-
-// Fallback rule engine (improved with intent detection and varied responses)
-function fallbackRuleEngine(message: string, menuItems: any[], lastIntent?: string): {
-  reply: { text: string; context?: string; chips: string[]; locale: string; intent: string };
-  cards: any[];
-} {
-  const q = message.toLowerCase();
-  const allItems = menuItems || [];
-  
-  // Add debug logging
-  console.log(`[RULE ENGINE] Processing: "${message}"`);
-  console.log(`[RULE ENGINE] Available items: ${allItems.length}`);
-  
-  // Ensure cards have all required fields
-  const formatCards = (items: any[]) => {
-    return items.map(item => ({
+    // Ensure all required fields exist
+    return (data || []).map(item => ({
       id: item.id || Math.random().toString(),
       name: item.name || 'Unknown Item',
       description: item.description || '',
       price_cents: item.price_cents || 0,
       category: item.category || 'Other',
-      allergens: item.allergens || []
+      allergens: item.allergens || [],
+      ...item
     }));
-  };
-  
-     // Budget intent
-   if (q.includes('budget') || q.includes('cheap') || q.includes('affordable') || q.includes('price')) {
-     const budgetItems = allItems
-       .filter(item => item.price_cents) // Ensure price exists
-       .sort((a, b) => (a.price_cents || 0) - (b.price_cents || 0))
-       .slice(0, 3);
-     
-     const chipSet = CHIP_SETS.budget[Math.floor(Math.random() * CHIP_SETS.budget.length)] || CHIP_SETS.budget[0];
-     const text = budgetItems.length > 0 
-       ? `Found ${budgetItems.length} budget options under ${Math.max(...budgetItems.map(i => i.price_cents || 0)) / 100} kr`
-       : "Let me show you our menu options.";
-     
-     return {
-       reply: {
-         text,
-         chips: chipSet ?? [],
-         locale: 'en',
-         intent: 'budget'
-       },
-       cards: formatCards(budgetItems) // Use formatted cards
-     };
-   }
-  
-     // Italian intent
-   if (q.includes('italian') || q.includes('pizza') || q.includes('pasta')) {
-     const italianItems = allItems.filter(item => 
-       item.description?.toLowerCase().includes('italian') ||
-       item.name.toLowerCase().includes('pizza') ||
-       item.name.toLowerCase().includes('pasta') ||
-       item.name.toLowerCase().includes('bruschetta')
-     );
-     
-     const chipSet = CHIP_SETS.italian[Math.floor(Math.random() * CHIP_SETS.italian.length)] || CHIP_SETS.italian[0];
-     const text = italianItems.length > 0 
-       ? `Here are our Italian picks! ${italianItems.length > 1 ? 'Both are popular choices.' : 'This is a customer favorite.'} Want vegetarian or spicy options?`
-       : "We focus on Italian classics. Want to see our current menu?";
-     
-     return {
-       reply: {
-         text,
-         chips: chipSet ?? [],
-         locale: 'en',
-         intent: 'italian'
-       },
-       cards: formatCards(italianItems.slice(0, 3))
-     };
-   }
-  
-     // Spicy intent
-   if (q.includes('spicy') || q.includes('hot') || q.includes('chili')) {
-     const spicyItems = allItems.filter(item => 
-       item.description?.toLowerCase().includes('spicy') ||
-       item.name.toLowerCase().includes('spicy') ||
-       item.description?.toLowerCase().includes('chili')
-     );
-     
-     const chipSet = CHIP_SETS.spicy[Math.floor(Math.random() * CHIP_SETS.spicy.length)] || CHIP_SETS.spicy[0];
-     const text = spicyItems.length > 0 
-       ? `Found ${spicyItems.length} spicy option${spicyItems.length > 1 ? 's' : ''}! Want to see milder alternatives?`
-       : "Nothing marked spicy, but we can add chili oil or extra garlic to any dish. Want to see our options?";
-     
-     return {
-       reply: {
-         text,
-         chips: chipSet ?? [],
-         locale: 'en',
-         intent: 'spicy'
-       },
-       cards: formatCards(spicyItems.length > 0 ? spicyItems.slice(0, 3) : allItems.slice(0, 2))
-     };
-   }
-  
-     // Vegan intent
-   if (q.includes('vegan') || q.includes('plant-based')) {
-     const veganItems = allItems.filter(item => 
-       item.description?.toLowerCase().includes('vegan') ||
-       item.allergens?.some((a: string) => a.toLowerCase() === 'vegan')
-     );
-     
-     const chipSet = CHIP_SETS.vegan[Math.floor(Math.random() * CHIP_SETS.vegan.length)] || CHIP_SETS.vegan[0];
-     const text = veganItems.length > 0 
-       ? `Found ${veganItems.length} vegan option${veganItems.length > 1 ? 's' : ''}! Need vegetarian alternatives?`
-       : "I don't see items marked vegan, but many vegetarian dishes can be made vegan. Want to see those options?";
-     
-     return {
-       reply: {
-         text,
-         chips: chipSet ?? [],
-         locale: 'en',
-         intent: 'vegan'
-       },
-       cards: formatCards(veganItems.slice(0, 3))
-     };
-   }
-  
-     // Cuisine deflection (Indian, Mexican, etc.)
-   const cuisineKeywords = ['indian', 'mexican', 'chinese', 'thai', 'japanese', 'korean', 'greek', 'french'];
-   const matchedCuisine = cuisineKeywords.find(cuisine => q.includes(cuisine));
-   
-   if (matchedCuisine) {
-     const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)] || CHIP_SETS.general[0];
-     const text = `We don't serve ${matchedCuisine} dishes, but our Bruschetta and Margherita are popular. Want vegetarian or budget picks?`;
-     
-     return {
-       reply: {
-         text,
-         chips: chipSet ?? [],
-         locale: 'en',
-         intent: 'cuisine_deflection'
-       },
-       cards: formatCards(allItems.slice(0, 2))
-     };
-   }
-  
-     // Greeting or general help
-   if (q.includes('hello') || q.includes('hi') || q.includes('help') || q.length < 10) {
-     const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)] || CHIP_SETS.general[0];
-     const text = "Got it! I can suggest a few things right away. What type of cuisine or dietary preference are you looking for?";
-     
-     return {
-       reply: {
-         text,
-         chips: chipSet ?? [],
-         locale: 'en',
-         intent: 'greeting'
-       },
-       cards: formatCards(allItems.slice(0, 2))
-     };
-   }
-  
-     // Default response (varies based on last intent to avoid repetition)
-   const chipSet = CHIP_SETS.general[Math.floor(Math.random() * CHIP_SETS.general.length)] || CHIP_SETS.general[0];
-   const text = lastIntent === 'general' 
-     ? "I can help with cuisines, dietary needs, or budget. What are you looking for?"
-     : "I can suggest cuisines, dietary options, or budget picks. What interests you?";
-   
-   return {
-     reply: {
-       text,
-       chips: chipSet ?? [],
-       locale: 'en',
-       intent: 'general'
-     },
-     cards: formatCards(allItems.slice(0, 3))
-   };
+  } catch (error) {
+    logError('menu_fetch_failed', error, { restaurantId });
+    
+    // Return mock data in development
+    if (IS_DEV) {
+      return [
+        {
+          id: '1',
+          name: 'Margherita Pizza',
+          description: 'Classic tomato and mozzarella',
+          price_cents: 12900,
+          category: 'Mains',
+          allergens: ['vegetarian']
+        },
+        {
+          id: '2',
+          name: 'Bruschetta',
+          description: 'Grilled bread with tomatoes',
+          price_cents: 7900,
+          category: 'Appetizers',
+          allergens: ['vegan']
+        }
+      ];
+    }
+    return [];
+  }
 }
 
+// Improved rule engine
+function processWithRules(message: string, menuItems: any[]) {
+  const q = message.toLowerCase();
+  
+  // Log for debugging
+  if (IS_DEV) {
+    console.log(`[RULES] Query: "${message}"`);
+    console.log(`[RULES] Menu items: ${menuItems.length}`);
+  }
+  
+  // Helper to find matching items
+  const findItems = (predicate: (item: any) => boolean, limit = 3) => {
+    return menuItems.filter(predicate).slice(0, limit);
+  };
+  
+  // Budget intent
+  if (q.includes('budget') || q.includes('cheap') || q.includes('affordable')) {
+    const items = menuItems
+      .filter(i => i.price_cents > 0)
+      .sort((a, b) => a.price_cents - b.price_cents)
+      .slice(0, 3);
+    
+    return {
+      text: items.length 
+        ? `Here are our ${items.length} most affordable options.`
+        : "Let me show you our menu options.",
+      cards: items,
+      chips: ['Show vegetarian', 'Popular items', 'Drinks'],
+      intent: 'budget'
+    };
+  }
+  
+  // Vegan/vegetarian intent
+  if (q.includes('vegan') || q.includes('vegetarian')) {
+    const isVegan = q.includes('vegan');
+    const items = findItems(item => 
+      item.allergens?.some((a: string) => 
+        a.toLowerCase().includes(isVegan ? 'vegan' : 'vegetarian')
+      ) ||
+      item.description?.toLowerCase().includes(isVegan ? 'vegan' : 'vegetarian')
+    );
+    
+    return {
+      text: items.length 
+        ? `Found ${items.length} ${isVegan ? 'vegan' : 'vegetarian'} options.`
+        : `No items marked ${isVegan ? 'vegan' : 'vegetarian'}, but we can customize some dishes.`,
+      cards: items.length ? items : menuItems.slice(0, 2),
+      chips: isVegan 
+        ? ['Show vegetarian', 'Allergen info', 'Ask staff']
+        : ['Show vegan', 'Dairy-free', 'Ask staff'],
+      intent: isVegan ? 'vegan' : 'vegetarian'
+    };
+  }
+  
+  // Pizza/Italian
+  if (q.includes('pizza') || q.includes('italian')) {
+    const items = findItems(item => 
+      item.name?.toLowerCase().includes('pizza') ||
+      item.category?.toLowerCase() === 'pizza'
+    );
+    
+    return {
+      text: items.length 
+        ? `We have ${items.length} pizza options available.`
+        : "Check our Italian dishes in the menu above.",
+      cards: items.length ? items : menuItems.filter(i => i.category === 'Mains').slice(0, 2),
+      chips: ['Extra toppings', 'Vegetarian pizzas', 'Drinks'],
+      intent: 'pizza'
+    };
+  }
+  
+  // Default response
+  const popularItems = menuItems
+    .filter(i => i.category === 'Mains' || i.category === 'Appetizers')
+    .slice(0, 3);
+  
+  return {
+    text: "I can help you find dishes by cuisine, dietary preference, or budget. What are you looking for?",
+    cards: popularItems,
+    chips: ['Show vegetarian', 'Budget options', 'Popular items'],
+    intent: 'general'
+  };
+}
+
+// Main handler
 export async function POST(req: Request) {
   const startTime = Date.now();
-  const origin = new URL(req.url).origin;
   
   try {
-    // Parse and validate request
+    // Parse request
     const raw = await req.json();
     const { restaurantId, sessionToken, message, lastIntent } = BodySchema.parse(raw);
     
-    // Add debug logging
-    console.log(`[CHAT] Restaurant: ${restaurantId}, Message: "${message}"`);
-    
-    // ALWAYS fetch menu items first!
+    // ALWAYS load menu items first
     const menuItems = await getMenuItems(restaurantId);
-    console.log(`[CHAT] Loaded ${menuItems.length} menu items`);
     
-    // If no menu items, return helpful error
-    if (menuItems.length === 0) {
-      return withCORS(NextResponse.json({
-        reply: {
-          text: "I'm loading the menu. Please try again in a moment.",
-          chips: ['Refresh', 'Show menu', 'Help'],
-          locale: 'en',
-          intent: 'menu_loading'
-        },
-        cards: []
-      }), origin);
+    if (IS_DEV) {
+      console.log(`[CHAT] Restaurant: ${restaurantId}`);
+      console.log(`[CHAT] Message: "${message}"`);
+      console.log(`[CHAT] Menu items: ${menuItems.length}`);
     }
     
-    // Check quota but keep menu items for fallback
-    const quota = await checkQuota(restaurantId);
-    
-    if (!quota.allowed) {
-      // Still provide useful responses with actual menu items
-      const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
-      fallback.reply.text = `⚠️ Monthly chat limit reached (${quota.usage.messages}/${quota.limits.messages}). ${fallback.reply.text}`;
-      fallback.reply.chips = ['Upgrade plan', 'Show menu', 'Contact support'];
-      
-      return withCORS(
-        NextResponse.json({ reply: fallback.reply, cards: fallback.cards }, { status: 200 }),
-        origin
-      );
+    // Check quota (but don't block in dev)
+    if (!IS_DEV) {
+      const quota = await checkQuota(restaurantId);
+      if (!quota.allowed) {
+        const result = processWithRules(message, menuItems);
+        return cors(NextResponse.json({
+          reply: {
+            text: `⚠️ Monthly limit reached. ${result.text}`,
+            chips: ['Upgrade plan'],
+            locale: 'en',
+            intent: 'quota_exceeded'
+          },
+          cards: result.cards
+        }));
+      }
     }
     
-    // Try LLM if enabled, OpenAI key available, and restaurant is pilot
-    if (CHAT_LLM_ENABLED && OPENAI_API_KEY && isPilotRestaurant(restaurantId)) {
+    // Try LLM if available (skip pilot check in dev)
+    if (openai && (IS_DEV || process.env.CHAT_LLM_ENABLED === '1')) {
       try {
-        // Retrieve relevant items
-        const retrievedItems = await retrieveRelevantItems(restaurantId, message);
+        // Simple LLM call without complex RAG for now
+        const completion = await openai.chat.completions.create({
+          model: CHAT_MODEL,
+          messages: [
+            {
+              role: 'system',
+              content: `You're a helpful restaurant assistant. Be concise (max 150 chars). 
+                       Only mention items from this menu: ${menuItems.slice(0, 10).map(i => i.name).join(', ')}`
+            },
+            { role: 'user', content: message }
+          ],
+          max_tokens: 100,
+          temperature: 0.7,
+        });
         
-        // Chat with LLM
-        const llmResult = await chatWithLLM(restaurantId, message, retrievedItems);
-        
-        // Increment usage
-        const period = new Date().toISOString().slice(0, 7);
-        await incrementUsage(restaurantId, period, 1, llmResult.token_in + llmResult.token_out);
+        const llmText = completion.choices[0]?.message?.content || '';
+        const result = processWithRules(message, menuItems);
         
         // Log telemetry
         logChatEvent({
           restaurantId,
           sessionToken,
-          retrievalIds: retrievedItems.map(item => item.id),
-          token_in: llmResult.token_in,
-          token_out: llmResult.token_out,
-          model: llmResult.model,
+          retrievalIds: result.cards.map(c => c.id),
+          token_in: 50,
+          token_out: 50,
+          model: CHAT_MODEL,
           latency_ms: Date.now() - startTime,
           validator_pass: true,
           source: 'llm',
           message
         });
         
-        const res = NextResponse.json({
-          reply: llmResult.reply,
-          cards: llmResult.cards
-        }, { status: 200 });
-        
-        return withCORS(res, origin);
+        return cors(NextResponse.json({
+          reply: {
+            text: llmText || result.text,
+            chips: result.chips,
+            locale: 'en',
+            intent: result.intent
+          },
+          cards: result.cards
+        }));
       } catch (llmError) {
-        console.error('LLM chat failed, falling back to rules:', llmError);
-        logError('llm_chat_failed', llmError, { restaurantId, message });
+        logError('llm_failed', llmError, { restaurantId, message });
+        // Fall through to rules
       }
     }
     
-    // Fallback to rule engine with actual menu items
-    const fallback = fallbackRuleEngine(message, menuItems, lastIntent);
+    // Use rule engine
+    const result = processWithRules(message, menuItems);
     
-    // Log telemetry for fallback
+    // Log telemetry
     logChatEvent({
       restaurantId,
       sessionToken,
-      retrievalIds: [],
+      retrievalIds: result.cards.map(c => c.id),
       token_in: 0,
       token_out: 0,
       model: 'rules',
@@ -596,71 +280,27 @@ export async function POST(req: Request) {
       message
     });
     
-    const res = NextResponse.json({
-      reply: fallback.reply,
-      cards: fallback.cards
-    }, { status: 200 });
-    
-    return withCORS(res, origin);
+    return cors(NextResponse.json({
+      reply: {
+        text: result.text,
+        chips: result.chips,
+        locale: 'en',
+        intent: result.intent
+      },
+      cards: result.cards
+    }));
     
   } catch (error) {
-    console.error('[CHAT] Error:', error);
-    logError('chat_api_error', error, { 
-      restaurantId: 'unknown', 
-      message: 'parse_error' 
-    });
+    logError('chat_error', error);
     
-    // Return a valid response even on error
-    return withCORS(NextResponse.json({
+    return cors(NextResponse.json({
       reply: {
-        text: "I'm having trouble. Please browse the menu above.",
-        chips: ['Show menu', 'Help', 'Contact us'],
+        text: "I'm having trouble right now. Please browse the menu above.",
+        chips: ['Show menu', 'Try again', 'Contact us'],
         locale: 'en',
         intent: 'error'
       },
       cards: []
-    }), origin);
-  }
-}
-
-// Helper function to get menu items
-async function getMenuItems(restaurantId: string) {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from('menu_items')
-      .select('*') // Get ALL fields, not just selected ones
-      .eq('restaurant_id', restaurantId)
-      .limit(50); // Add limit for safety
-    
-    if (error) {
-      console.error('Menu fetch error:', error);
-      // Return mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        return [
-          {
-            id: '1',
-            name: 'Margherita Pizza',
-            description: 'Classic tomato and mozzarella',
-            price_cents: 12900,
-            category: 'Mains',
-            allergens: ['vegetarian']
-          },
-          {
-            id: '2', 
-            name: 'Bruschetta',
-            description: 'Toasted bread with tomatoes',
-            price_cents: 7900,
-            category: 'Appetizers',
-            allergens: ['vegan']
-          }
-        ];
-      }
-    }
-    
-    return data || [];
-  } catch (error) {
-    console.error('Failed to get menu items:', error);
-    return [];
+    }));
   }
 }

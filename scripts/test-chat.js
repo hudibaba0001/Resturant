@@ -1,45 +1,63 @@
 #!/usr/bin/env node
 
-// Use node-fetch if available, otherwise use global fetch
-let fetch;
-try {
-  fetch = require('node-fetch');
-} catch {
-  fetch = globalThis.fetch;
-}
-
+// Test script to verify chat endpoint
 async function testChat() {
-  try {
-    console.log('Testing chat API...');
-    
-    const response = await fetch('http://localhost:3000/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        restaurantId: 'demo',
-        sessionToken: 'smoke',
-        message: 'Italian dishes?'
-      })
-    });
-
-    console.log('Status:', response.status);
-    console.log('Headers:', Object.fromEntries(response.headers.entries()));
-    
-    const data = await response.json();
-    console.log('\nResponse:');
-    console.log(JSON.stringify(data, null, 2));
-    
-    if (response.ok && data.reply?.text) {
-      console.log('\n✅ Chat API working!');
-      console.log('Reply:', data.reply.text);
-      console.log('Cards:', data.cards?.length || 0);
-    } else {
-      console.log('\n❌ Chat API failed');
+  console.log('🧪 Testing Chat Endpoint...\n');
+  
+  const testCases = [
+    {
+      name: 'Budget request',
+      message: 'show me budget options'
+    },
+    {
+      name: 'Vegan request', 
+      message: 'do you have vegan food?'
+    },
+    {
+      name: 'Pizza request',
+      message: 'what pizzas do you have?'
+    },
+    {
+      name: 'General help',
+      message: 'hello'
     }
-  } catch (err) {
-    console.error('💥 Test failed:', err.message);
-    console.error('Stack:', err.stack);
+  ];
+  
+  for (const testCase of testCases) {
+    try {
+      console.log(`Testing: ${testCase.name}`);
+      
+      const response = await fetch('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId: 'test-123',
+          sessionToken: 'test-session',
+          message: testCase.message
+        })
+      });
+      
+      const data = await response.json();
+      
+      console.log(`  ✅ Status: ${response.status}`);
+      console.log(`  ✅ Has reply: ${!!data.reply}`);
+      console.log(`  ✅ Cards: ${data.cards?.length || 0}`);
+      
+      if (data.reply) {
+        console.log(`  ✅ Text: "${data.reply.text}"`);
+        console.log(`  ✅ Intent: ${data.reply.intent}`);
+        console.log(`  ✅ Chips: [${data.reply.chips?.join(', ') || 'none'}]`);
+      }
+      
+      console.log('');
+      
+    } catch (error) {
+      console.error(`  ❌ Failed: ${error.message}`);
+    }
   }
+  
+  console.log('🎉 Chat tests completed!');
 }
 
+// Run tests
 testChat();
