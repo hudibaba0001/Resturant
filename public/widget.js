@@ -92,16 +92,17 @@
   };
 
   function detectIntent(q) {
-    if (/\bvegan|plant[- ]?based\b/i.test(q)) return "vegan";
-    if (/\bvegetarian|veg-only|veg\b/i.test(q)) return "vegetarian";
-    if (/\bgluten\b/i.test(q)) return "gluten";
-    if (/\bspicy|hot\b/i.test(q)) return "spicy";
-    if (/\bbudget|cheap|affordable\b/i.test(q)) return "budget";
+    // More flexible intent detection
+    if (/\bvegan|plant[- ]?based|vegan[- ]?friendly\b/i.test(q)) return "vegan";
+    if (/\bvegetarian|veg[- ]?only|veg\b/i.test(q)) return "vegetarian";
+    if (/\bgluten|gluten[- ]?free\b/i.test(q)) return "gluten";
+    if (/\bspicy|hot|chili|chilli\b/i.test(q)) return "spicy";
+    if (/\bbudget|cheap|affordable|price|cost\b/i.test(q)) return "budget";
     if (/\bpizza\b/i.test(q)) return "pizza";
-    if (/\bindian\b/i.test(q)) return "indian";
+    if (/\bindian|curry|tikka|biryani\b/i.test(q)) return "indian";
     if (/\bitalian|pasta|risotto|bruschetta\b/i.test(q)) return "italian";
     if (/\bmexican|taco|burrito|quesadilla\b/i.test(q)) return "mexican";
-    if (/\bpopular|recommend|best\b/i.test(q)) return "popular";
+    if (/\bpopular|recommend|best|favorite\b/i.test(q)) return "popular";
     if (/\bwhat(?:'| i)?s\s+([a-z]+)/i.test(q)) return "glossary";
     return "unknown";
   }
@@ -1450,110 +1451,97 @@
   // Send chat message
   async function sendMessage() {
     const message = elements.chatInput.value.trim();
-    if (!message) return;
-
-    console.log('[WIDGET DEBUG] sendMessage called with:', message);
-    console.log('[WIDGET DEBUG] API_BASE:', API_BASE);
-    console.log('[WIDGET DEBUG] restaurantId:', state.restaurantId);
-    console.log('[WIDGET DEBUG] sessionToken:', state.sessionToken);
-
-    // Add user message
-    addMessage('user', message);
+    if (!message || state.isLoading) return;
+    
+    // Clear input immediately for better UX
     elements.chatInput.value = '';
-
-    // Track chat interaction
-    track('chat_ask', { q: message.slice(0, 80) });
-
+    addMessage('user', message);
+    
+    state.isLoading = true;
+    elements.chatSubmit.disabled = true;
+    
     try {
-      // de-dupe fast Enter clicks
-      if (state.isLoading) return;
-      // Show loading (after the guard)
-      state.isLoading = true;
-      elements.chatSubmit.disabled = true;
-      
-      console.log('[WIDGET DEBUG] Making API call to:', `${API_BASE}/api/chat`);
-      console.log('[WIDGET DEBUG] Request payload:', {
-        restaurantId: state.restaurantId,
-        sessionToken: state.sessionToken,
-        message: message
+      const response = await fetch(`${API_BASE}/api/chat`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Widget-Version': WIDGET_VERSION
+        },
+        body: JSON.stringify({
+          restaurantId: state.restaurantId,
+          sessionToken: state.sessionToken,
+          message: message,
+          lastIntent: state.lastIntent
+        }),
+        signal: AbortSignal.timeout(5000) // Built-in timeout
       });
       
-      const requestBody = JSON.stringify({
-        restaurantId: state.restaurantId,
-        sessionToken: state.sessionToken,
-        message: message,
-        lastIntent: state.lastIntent
-      });
-      
-      console.log('[WIDGET DEBUG] Request body stringified:', requestBody);
-      
-      console.log('[WIDGET DEBUG] About to make fetch call...');
-      let response;
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
+      if (response.ok) {
+        const data = await response.json();
         
-        response = await fetch(`${API_BASE}/api/chat`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-Widget-Version': WIDGET_VERSION
-          },
-          body: requestBody,
-          signal: controller.signal
-        });
-        clearTimeout(timer);
-        
-        console.log('[WIDGET DEBUG] Fetch call completed successfully');
-      } catch (fetchError) {
-        console.error('[WIDGET DEBUG] Fetch call failed:', fetchError);
-        throw fetchError;
-      }
-      
-      console.log('[WIDGET DEBUG] Response status:', response.status);
-      console.log('[WIDGET DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
-      
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      
-      console.log('[WIDGET DEBUG] Response data:', data);
-      
-      // Use server reply first, fallback to intelligent response
-      if (data.reply?.text) {
-        console.log('[WIDGET DEBUG] Adding assistant reply:', data.reply.text);
-        // Update lastIntent from server response
-        if (data.reply.intent) {
-          state.lastIntent = data.reply.intent;
+        // Debug logging for localhost
+        if (window.location.hostname === 'localhost') {
+          console.log('=== CHAT API RESPONSE ===');
+          console.log('Status:', response.status);
+          console.log('Data:', JSON.stringify(data, null, 2));
+          console.log('=========================');
         }
-        addAssistantReply(data.reply);
+        
+        // Store chat history
+        state.chatHistory.push({ role: 'user', text: message });
+        
+        // Always try to use server response first
+        if (data.reply) {
+          state.chatHistory.push({ role: 'assistant', text: data.reply.text });
+          addAssistantReply(data.reply);
+          
+          // Show cards if provided
+          if (data.cards?.length > 0) {
+            state.suggestions = data.cards;
+            renderSuggestions();
+          }
+        } else {
+          throw new Error('Empty server response');
+        }
       } else {
-        console.log('[WIDGET DEBUG] No reply.text, using fallback');
-        const reply = provideIntelligentReply(message);
-        addAssistantReply(reply);
-      }
-      
-      // If API suggests specific items, show them as cards
-      if (Array.isArray(data.cards) && data.cards.length > 0) {
-        console.log('[WIDGET DEBUG] Rendering cards:', data.cards.length);
-        state.suggestions = data.cards;
-        renderSuggestions();
-        track('chat_reply', { cards: data.cards.length });
+        throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
-      console.error('[WIDGET DEBUG] Chat error:', error);
+      console.error('Chat error:', error);
       
-      // Better error UX based on response status
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        addMessage('assistant', "I'm having trouble connecting. Please check your internet and try again.");
-      } else {
-        // Fallback: provide intelligent responses
-        const reply = provideIntelligentReply(message);
-        addAssistantReply(reply);
-      }
+      // Better fallback handling
+      handleChatError(message, error);
     } finally {
       state.isLoading = false;
       elements.chatSubmit.disabled = false;
     }
+  }
+
+  // Handle chat errors with better UX
+  function handleChatError(message, error) {
+    // Don't use the broken provideIntelligentReply - be honest about the error
+    const isNetworkError = error.name === 'TypeError' || error.name === 'AbortError';
+    const isServerError = error.message.includes('Server error');
+    
+    let response;
+    if (isNetworkError) {
+      response = "I'm having connection issues. While I reconnect, you can browse the menu above.";
+    } else if (isServerError) {
+      response = "The chat service is temporarily unavailable. You can still browse and order from the menu.";
+    } else {
+      // Try basic keyword matching as last resort
+      const keywords = {
+        'vegan': "Check our menu for items marked with vegan tags. You can filter by clicking the category buttons above.",
+        'gluten': "Look for items marked gluten-free in the menu. Use the filters above to narrow your search.",
+        'popular': "Our Mains section has our most popular dishes. Check the menu above.",
+        'price': "Prices are shown next to each item in the menu above."
+      };
+      
+      const found = Object.keys(keywords).find(key => message.toLowerCase().includes(key));
+      response = found ? keywords[found] : "I'm having trouble understanding. Please browse the menu above or try asking differently.";
+    }
+    
+    addMessage('assistant', response);
   }
 
   // Provide intelligent AI responses (concise version)
@@ -1781,33 +1769,29 @@
 
   // Add assistant reply with chips and context
   function addAssistantReply(reply) {
-    // De-dup identical consecutive assistant text
-    if (sameText(reply.text, state._lastAssistantText)) {
-      reply = { ...reply, chips: [] };
-    }
-    state._lastAssistantText = reply.text || "";
-
-    // De-dup chip sets (don't show identical set back-to-back)
-    let chips = Array.isArray(reply.chips) ? reply.chips : [];
-    const chipsKey = chips.join("|").toLowerCase();
-    if (chipsKey === state._lastChipsKey) chips = [];
-    state._lastChipsKey = chipsKey;
-
+    // Remove the broken de-duplication logic entirely
     const wrap = document.createElement('div');
     wrap.className = 'stjarna-message assistant';
-    const chipsHtml = chips.map(c => `<button class="stjarna-quick-btn">${escapeHtml(c)}</button>`).join('');
+    
+    // Only show chips if they exist and are different from last set
+    const chips = Array.isArray(reply.chips) ? reply.chips : [];
+    const chipsHtml = chips.map(c => 
+      `<button class="stjarna-quick-btn">${escapeHtml(c)}</button>`
+    ).join('');
+    
     wrap.innerHTML = `
       <div class="stjarna-message-content">
-        <p>${escapeHtml(reply.text || '')}</p>
+        <p>${escapeHtml(reply.text || 'I couldn\'t process that request.')}</p>
         ${reply.context ? `<p class="stjarna-context">${escapeHtml(reply.context)}</p>` : ''}
         ${chips.length ? `<div class="stjarna-quick-questions">${chipsHtml}</div>` : ''}
         <p class="stjarna-disclaimer">Ingredients from our menu; preparation may vary.</p>
       </div>
     `;
+    
     elements.chatMessages.appendChild(wrap);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
-
-    // chip interactions - use server chips directly
+    
+    // Re-attach chip listeners
     wrap.querySelectorAll('.stjarna-quick-btn').forEach(b => {
       b.addEventListener('click', () => {
         elements.chatInput.value = b.textContent;
