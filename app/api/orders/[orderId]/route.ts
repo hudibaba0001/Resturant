@@ -185,7 +185,7 @@ export async function GET(
     console.log('💥 [DEBUG] Exception stack:', e?.stack);
     return NextResponse.json(
       { code: 'ROUTE_THROW', error: e?.message || 'Unknown error' },
-      { status: 500, headers: res.headers }
+      { status: 500 }
     );
   }
 }
