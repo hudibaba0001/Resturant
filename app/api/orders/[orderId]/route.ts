@@ -22,7 +22,27 @@ export async function GET(
   });
   
   try {
-    const { supabase, res } = getSupabaseForRoute(req);
+    // Create Supabase client directly without the helper
+    const res = NextResponse.next();
+    
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return req.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            res.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            res.cookies.set({ name, value: '', ...options });
+          },
+        },
+      }
+    );
+    
     console.log('✅ [DEBUG] Supabase client created successfully');
 
     const orderId = params.orderId;
