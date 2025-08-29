@@ -1,86 +1,140 @@
 // app/api/orders/[orderId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseForRoute } from '@/app/api/_lib/supabase-route';
+import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { orderId: string } }
-) {
+const UUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+export async function GET(req: NextRequest, { params }: { params: { orderId: string } }) {
   try {
-    const { supabase, res } = getSupabaseForRoute(req);
-    
-    // Check auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: res.headers });
+    const { supabase, accessToken } = getSupabaseWithBearer(req);
+
+    const orderId = params.orderId;
+    if (!UUID_RE.test(orderId)) {
+      return NextResponse.json({ code: 'BAD_ID' }, { status: 400 });
+    }
+    if (!accessToken) {
+      return NextResponse.json({ code: 'UNAUTHENTICATED' }, { status: 401 });
     }
 
-    // Get order (simple query, no joins)
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', params.orderId)
-      .single();
+    // --- Path A: RPC fast path
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_order_with_items', { p_order_id: orderId });
 
-    if (orderError || !order) {
-      return NextResponse.json({ 
-        error: 'Order not found',
-        details: orderError?.message 
-      }, { status: 404, headers: res.headers });
-    }
+    if (!rpcError && rpcData && rpcData.length > 0) {
+      const base = rpcData[0];
+      const items = rpcData
+        .filter((r: any) => r.order_item_id)
+        .map((r: any) => ({
+          id: r.order_item_id,
+          qty: r.qty,
+          price_cents: r.price_cents,
+          notes: r.notes ?? null,
+          menu_item: r.menu_item_id
+            ? {
+                id: r.menu_item_id,
+                name: r.menu_item_name,
+                currency: r.menu_item_currency ?? base.currency ?? 'SEK',
+              }
+            : null,
+        }));
 
-    // Get order items separately
-    const { data: orderItems, error: itemsError } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', params.orderId);
-
-    if (itemsError) {
-      // Still return the order even if items fail
       return NextResponse.json({
         order: {
-          id: order.id,
-          code: order.order_code || order.code || '',
-          status: order.status,
-          total_cents: order.total_cents || 0,
-          currency: order.currency || 'SEK',
-          created_at: order.created_at,
-          items: []
+          id: base.order_id,
+          code: base.code,
+          status: base.status,
+          total_cents: base.total_cents,
+          currency: base.currency,
+          created_at: base.created_at,
+          items,
         },
-        warning: 'Could not fetch order items'
-      }, { status: 200, headers: res.headers });
+      }, { status: 200 });
     }
 
-    // Format response
-    const items = (orderItems || []).map(item => ({
-      id: item.id,
-      qty: item.qty || 1,
-      price_cents: item.price_cents || 0,
-      notes: item.notes || null,
-      menu_item: null // Skip menu items for now
-    }));
+    // Map RPC errors
+    if (rpcError) {
+      const msg = rpcError.message?.toLowerCase() || '';
+      const rpcMissing = msg.includes('does not exist') || msg.includes('get_order_with_items');
+      if (!rpcMissing) {
+        if (msg.includes('insufficient') || msg.includes('forbidden')) {
+          return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
+        }
+        if (msg.includes('not found')) {
+          return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
+        }
+        return NextResponse.json({ code: 'INTERNAL', error: rpcError.message }, { status: 500 });
+      }
+      // fall through to fallback when RPC is missing
+    }
+
+    // --- Path B: RLS-safe fallback (lean queries, no nested select)
+    const { data: order, error: oErr } = await supabase
+      .from('orders')
+      .select('id, code, order_code, status, total_cents, currency, created_at')
+      .eq('id', orderId)
+      .single();
+
+    if (oErr || !order) {
+      return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
+    }
+
+    const { data: lines, error: lErr } = await supabase
+      .from('order_items')
+      .select('id, qty, price_cents, notes, item_id')
+      .eq('order_id', orderId);
+
+    if (lErr) {
+      return NextResponse.json({ code: 'DB_LINE_ERROR' }, { status: 500 });
+    }
+
+    const ids = Array.from(new Set((lines || []).map(li => li.item_id).filter(Boolean)));
+    let map = new Map<string, { id: string; name: string; currency: string | null }>();
+    if (ids.length > 0) {
+      const { data: menu, error: mErr } = await supabase
+        .from('menu_items')
+        .select('id, name, currency')
+        .in('id', ids);
+      if (mErr) {
+        return NextResponse.json({ code: 'DB_MENU_ERROR' }, { status: 500 });
+      }
+      map = new Map(menu!.map(m => [m.id, m]));
+    }
+
+    const items = (lines || []).map(li => {
+      const mi = li.item_id ? map.get(li.item_id) || null : null;
+      return {
+        id: li.id,
+        qty: li.qty,
+        price_cents: li.price_cents,
+        notes: li.notes ?? null,
+        menu_item: mi
+          ? { id: mi.id, name: mi.name, currency: mi.currency ?? order.currency ?? 'SEK' }
+          : null,
+      };
+    });
 
     return NextResponse.json({
       order: {
         id: order.id,
-        code: order.order_code || order.code || '',
+        code: order.order_code || order.code,
         status: order.status,
-        total_cents: order.total_cents || 0,
+        total_cents: order.total_cents,
         currency: order.currency || 'SEK',
         created_at: order.created_at,
-        items
-      }
-    }, { status: 200, headers: res.headers });
+        items,
+      },
+      code: 'RPC_NOT_FOUND_FALLBACK_USED',
+    }, { status: 200 });
 
   } catch (e: any) {
-    // Always return a proper error response
-    return NextResponse.json({
-      error: 'Internal server error',
-      message: e?.message || 'Unknown error',
-      type: e?.constructor?.name
-    }, { status: 500 });
+    return NextResponse.json(
+      { code: 'ROUTE_THROW', error: e?.message || 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
