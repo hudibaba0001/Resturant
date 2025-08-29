@@ -13,23 +13,44 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { orderId: string } }
 ) {
-  const { supabase, res } = getSupabaseForRoute(req);
-
+  console.log('🔍 [DEBUG] Orders API called with orderId:', params.orderId);
+  
   try {
+    const { supabase, res } = getSupabaseForRoute(req);
+    console.log('✅ [DEBUG] Supabase client created successfully');
+
     const orderId = params.orderId;
     if (!UUID_RE.test(orderId)) {
+      console.log('❌ [DEBUG] Invalid UUID format:', orderId);
       return NextResponse.json({ code: 'BAD_ID' }, { status: 400, headers: res.headers });
     }
 
     // Auth required (keeps auth.uid() non-null in RPC)
-    const { data: auth } = await supabase.auth.getUser();
+    console.log('🔍 [DEBUG] Checking authentication...');
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.log('❌ [DEBUG] Auth error:', authError);
+      return NextResponse.json({ code: 'AUTH_ERROR', error: authError.message }, { status: 500, headers: res.headers });
+    }
+    
     if (!auth?.user) {
+      console.log('❌ [DEBUG] No authenticated user found');
       return NextResponse.json({ code: 'UNAUTHENTICATED' }, { status: 401, headers: res.headers });
     }
+    
+    console.log('✅ [DEBUG] User authenticated:', auth.user.id);
 
     // --- Path A: RPC fast-path
+    console.log('🔍 [DEBUG] Attempting RPC call...');
     const { data: rpcData, error: rpcError } = await supabase.rpc('get_order_with_items', {
       p_order_id: orderId,
+    });
+
+    console.log('🔍 [DEBUG] RPC result:', { 
+      hasError: !!rpcError, 
+      errorMessage: rpcError?.message,
+      dataLength: rpcData?.length || 0 
     });
 
     if (!rpcError && rpcData && rpcData.length > 0) {
@@ -70,19 +91,25 @@ export async function GET(
     if (rpcError) {
       const msg = rpcError.message?.toLowerCase() || '';
       const rpcMissing = msg.includes('does not exist') || msg.includes('get_order_with_items');
+      console.log('🔍 [DEBUG] RPC error analysis:', { msg, rpcMissing });
+      
       if (!rpcMissing) {
         if (msg.includes('insufficient') || msg.includes('forbidden')) {
+          console.log('❌ [DEBUG] RPC: FORBIDDEN');
           return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403, headers: res.headers });
         }
         if (msg.includes('not found')) {
+          console.log('❌ [DEBUG] RPC: NOT_FOUND');
           return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404, headers: res.headers });
         }
+        console.log('❌ [DEBUG] RPC: INTERNAL ERROR');
         return NextResponse.json({ code: 'INTERNAL', error: rpcError.message }, { status: 500, headers: res.headers });
       }
-      // fall through to fallback when RPC is missing
+      console.log('🔄 [DEBUG] RPC missing, falling back to direct queries...');
     }
 
     // --- Path B: RLS-safe fallback (lean selects)
+    console.log('🔍 [DEBUG] Starting fallback path...');
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select('id, code, order_code, status, total_cents, currency, created_at')
@@ -154,6 +181,8 @@ export async function GET(
       { status: 200, headers: res.headers }
     );
   } catch (e: any) {
+    console.log('💥 [DEBUG] Route threw exception:', e);
+    console.log('💥 [DEBUG] Exception stack:', e?.stack);
     return NextResponse.json(
       { code: 'ROUTE_THROW', error: e?.message || 'Unknown error' },
       { status: 500, headers: res.headers }
