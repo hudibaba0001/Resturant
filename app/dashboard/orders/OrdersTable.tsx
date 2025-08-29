@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { trackOrderStatusChange, trackOrderConflict, trackOrderError } from '@/utils/analytics';
 import { formatMoney } from '@/lib/format';
@@ -123,7 +123,8 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [lines, setLines] = useState<Record<string, OrderItem[]>>({});
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
+  const itemsCache = useRef<Map<string, OrderItem[]>>(new Map());
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -147,18 +148,26 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
       setOpen(s => ({ ...s, [id]: false })); 
       return; 
     }
-    if (!lines[id]) {
-      setLoading(s => ({ ...s, [id]: true }));
-      try {
-        const { items } = await fetchOrder(id);
-        setLines(s => ({ ...s, [id]: items }));
-      } catch (e) {
-        alert('Could not load items for this order.');
-      } finally {
-        setLoading(s => ({ ...s, [id]: false }));
-      }
+    
+    // Check cache first
+    if (itemsCache.current.has(id)) {
+      setLines(s => ({ ...s, [id]: itemsCache.current.get(id) || [] }));
+      setOpen(s => ({ ...s, [id]: true }));
+      return;
     }
-    setOpen(s => ({ ...s, [id]: true }));
+    
+    // Fetch if not cached
+    setLoadingOrderId(id);
+    try {
+      const { items } = await fetchOrder(id);
+      itemsCache.current.set(id, items);
+      setLines(s => ({ ...s, [id]: items }));
+      setOpen(s => ({ ...s, [id]: true }));
+    } catch (e) {
+      alert('Could not load items for this order.');
+    } finally {
+      setLoadingOrderId(null);
+    }
   };
 
   const onAction = async (orderId: string, to: OrderStatus) => {
@@ -363,9 +372,9 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
                     <button
                       onClick={() => toggle(order)}
                       className="rounded-xl border px-3 py-1 text-sm hover:shadow disabled:opacity-50 bg-white hover:bg-gray-50 transition-colors"
-                      disabled={loading[order.id]}
+                      disabled={loadingOrderId === order.id}
                     >
-                      {open[order.id] ? 'Hide items' : (loading[order.id] ? 'Loading…' : 'View items')}
+                      {open[order.id] ? 'Hide items' : (loadingOrderId === order.id ? 'Loading…' : 'View items')}
                     </button>
                   </td>
                 </tr>

@@ -91,7 +91,7 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
         return NextResponse.json({
           order: {
             id: base.order_id,
-            code: base.code || base.order_code || '',
+            order_code: base.code ?? base.order_code ?? '', // keep aliasing to this key
             status: base.status,
             total_cents: Math.max(0, parseInt(base.total_cents) || 0),
             currency: base.currency || 'SEK',
@@ -237,7 +237,7 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
     return NextResponse.json({
       order: {
         id: order.id,
-        code: order.order_code || '',
+        order_code: order.order_code || '', // canonical field
         status: order.status,
         total_cents: Math.max(0, parseInt(order.total_cents) || 0),
         currency: order.currency || 'SEK',
