@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseForRoute } from '@/app/api/_lib/supabase-route';
+import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export async function GET(
   console.log('🔍 [PUBLIC] Orders API called with orderId:', params.orderId);
   
   try {
-    const { supabase, res } = getSupabaseForRoute(req);
+    const { supabase, accessToken } = getSupabaseWithBearer(req);
     console.log('✅ [PUBLIC] Supabase client created');
 
     // Skip authentication for testing
@@ -30,7 +30,7 @@ export async function GET(
         success: false,
         error: error.message,
         code: 'QUERY_ERROR'
-      }, { status: 500, headers: res.headers });
+      }, { status: 500 });
     }
 
     console.log('✅ [PUBLIC] Query successful:', order);
@@ -42,7 +42,7 @@ export async function GET(
         status: order.status,
         total_cents: order.total_cents
       }
-    }, { status: 200, headers: res.headers });
+    }, { status: 200 });
 
   } catch (e: any) {
     console.log('💥 [PUBLIC] Exception:', e?.message);
