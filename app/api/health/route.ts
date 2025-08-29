@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const checks: Record<string, any> = {
       uptime_s: Math.floor(process.uptime()),
       env: {
-        supabase: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        supabase: !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.SUPABASE_ANON_KEY,
         stripe: !!process.env.STRIPE_SECRET_KEY,
       },
     };
