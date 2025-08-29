@@ -14,6 +14,12 @@ export async function GET(
   { params }: { params: { orderId: string } }
 ) {
   console.log('🔍 [DEBUG] Orders API called with orderId:', params.orderId);
+  console.log('🔍 [DEBUG] Environment check:', {
+    hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+    urlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length || 0,
+    anonKeyLength: process.env.SUPABASE_ANON_KEY?.length || 0
+  });
   
   try {
     const { supabase, res } = getSupabaseForRoute(req);
@@ -183,9 +189,13 @@ export async function GET(
   } catch (e: any) {
     console.log('💥 [DEBUG] Route threw exception:', e);
     console.log('💥 [DEBUG] Exception stack:', e?.stack);
-    return NextResponse.json(
+    
+    // Create a response object to ensure we always return headers
+    const errorResponse = NextResponse.json(
       { code: 'ROUTE_THROW', error: e?.message || 'Unknown error' },
       { status: 500 }
     );
+    
+    return errorResponse;
   }
 }
