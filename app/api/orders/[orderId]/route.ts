@@ -9,51 +9,66 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { orderId: string } }
 ) {
-  const { supabase, res } = getSupabaseForRoute(req);
-  
   try {
+    const { supabase, res } = getSupabaseForRoute(req);
+    
     // Check auth
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: res.headers });
     }
 
-    // Skip RPC and use direct queries
+    // Get order (simple query, no joins)
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select(`
-        *,
-        order_items (
-          *,
-          menu_items (*)
-        )
-      `)
+      .select('*')
       .eq('id', params.orderId)
       .single();
 
     if (orderError || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404, headers: res.headers });
+      return NextResponse.json({ 
+        error: 'Order not found',
+        details: orderError?.message 
+      }, { status: 404, headers: res.headers });
+    }
+
+    // Get order items separately
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', params.orderId);
+
+    if (itemsError) {
+      // Still return the order even if items fail
+      return NextResponse.json({
+        order: {
+          id: order.id,
+          code: order.order_code || order.code || '',
+          status: order.status,
+          total_cents: order.total_cents || 0,
+          currency: order.currency || 'SEK',
+          created_at: order.created_at,
+          items: []
+        },
+        warning: 'Could not fetch order items'
+      }, { status: 200, headers: res.headers });
     }
 
     // Format response
-    const items = (order.order_items || []).map((item: any) => ({
+    const items = (orderItems || []).map(item => ({
       id: item.id,
-      qty: item.qty,
-      price_cents: item.price_cents,
+      qty: item.qty || 1,
+      price_cents: item.price_cents || 0,
       notes: item.notes || null,
-      menu_item: item.menu_items ? {
-        id: item.menu_items.id,
-        name: item.menu_items.name,
-        currency: item.menu_items.currency || order.currency || 'SEK'
-      } : null
+      menu_item: null // Skip menu items for now
     }));
 
     return NextResponse.json({
       order: {
         id: order.id,
-        code: order.order_code || order.code,
+        code: order.order_code || order.code || '',
         status: order.status,
-        total_cents: order.total_cents,
+        total_cents: order.total_cents || 0,
         currency: order.currency || 'SEK',
         created_at: order.created_at,
         items
@@ -61,10 +76,11 @@ export async function GET(
     }, { status: 200, headers: res.headers });
 
   } catch (e: any) {
-    console.error('Order fetch error:', e);
-    return NextResponse.json(
-      { error: e?.message || 'Failed to fetch order' },
-      { status: 500, headers: res.headers }
-    );
+    // Always return a proper error response
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: e?.message || 'Unknown error',
+      type: e?.constructor?.name
+    }, { status: 500 });
   }
 }
