@@ -66,11 +66,11 @@ export function isValidUUID(uuid: string): boolean {
 
 // Token validation
 export function isValidToken(token: string): boolean {
-  return token && 
+  return Boolean(token && 
          typeof token === 'string' &&
          token.startsWith('eyJ') &&
          token.length >= SECURITY_CONFIG.VALIDATION.MIN_TOKEN_LENGTH &&
-         token.length <= SECURITY_CONFIG.VALIDATION.MAX_TOKEN_LENGTH;
+         token.length <= SECURITY_CONFIG.VALIDATION.MAX_TOKEN_LENGTH);
 }
 
 // Rate limiting helper
