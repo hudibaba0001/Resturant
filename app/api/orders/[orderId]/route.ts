@@ -72,24 +72,39 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
       // fall through to fallback when RPC is missing
     }
 
-    // --- Path B: RLS-safe fallback (lean queries, no nested select)
+    // --- Path B: RLS-safe fallback (lean queries, correct columns + better errors)
     const { data: order, error: oErr } = await supabase
       .from('orders')
-      .select('id, code, order_code, status, total_cents, currency, created_at')
+      // ⬅️ Remove non-existent "code" column
+      .select('id, order_code, status, total_cents, currency, created_at')
       .eq('id', orderId)
-      .single();
+      .maybeSingle(); // don't throw on 0 rows
 
-    if (oErr || !order) {
+    if (oErr) {
+      const msg = (oErr as any)?.message?.toLowerCase?.() || '';
+      // propagate meaningful statuses instead of 404
+      if (msg.includes('permission denied') || msg.includes('rls')) {
+        return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
+      }
+      if (msg.includes('jwt') || msg.includes('invalid') || msg.includes('expired')) {
+        return NextResponse.json({ code: 'UNAUTHENTICATED' }, { status: 401 });
+      }
+      // column not found / syntax / other server errors
+      return NextResponse.json({ code: 'INTERNAL', error: (oErr as any)?.message }, { status: 500 });
+    }
+
+    if (!order) {
       return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
     }
 
+    // Items
     const { data: lines, error: lErr } = await supabase
       .from('order_items')
       .select('id, qty, price_cents, notes, item_id')
       .eq('order_id', orderId);
 
     if (lErr) {
-      return NextResponse.json({ code: 'DB_LINE_ERROR' }, { status: 500 });
+      return NextResponse.json({ code: 'DB_LINE_ERROR', error: (lErr as any)?.message }, { status: 500 });
     }
 
     const ids = Array.from(new Set((lines || []).map(li => li.item_id).filter(Boolean)));
@@ -100,7 +115,7 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
         .select('id, name, currency')
         .in('id', ids);
       if (mErr) {
-        return NextResponse.json({ code: 'DB_MENU_ERROR' }, { status: 500 });
+        return NextResponse.json({ code: 'DB_MENU_ERROR', error: (mErr as any)?.message }, { status: 500 });
       }
       map = new Map(menu!.map(m => [m.id, m]));
     }
@@ -121,7 +136,7 @@ export async function GET(req: NextRequest, { params }: { params: { orderId: str
     return NextResponse.json({
       order: {
         id: order.id,
-        code: order.order_code || order.code,
+        code: order.order_code, // ⬅️ use the correct field
         status: order.status,
         total_cents: order.total_cents,
         currency: order.currency || 'SEK',
