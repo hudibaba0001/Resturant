@@ -58,24 +58,35 @@ export async function POST(req: NextRequest) {
     // Get menu items for context
     let menuContext = '';
     if (restaurantId) {
+      console.log(`Chat API: Attempting to fetch menu for restaurant ${restaurantId}`);
       try {
-        const { data: items } = await supabase
+        const { data: items, error } = await supabase
           .from('menu_items')
           .select('name, description, price_cents, currency, dietary, allergens')
           .eq('restaurant_id', restaurantId)
           .eq('is_available', true)
           .limit(50); // Increased from 20 to 50
 
+        if (error) {
+          console.error('Supabase error fetching menu:', error);
+        }
+
         if (items && items.length > 0) {
           console.log(`Chat API: Found ${items.length} menu items for restaurant ${restaurantId}:`, items.map((item: any) => item.name));
           menuContext = `Available menu items:\n${items.map((item: any) =>
             `- ${item.name}: ${item.description || 'No description'} (${item.price_cents ? `${item.price_cents/100} ${item.currency}` : 'Price not set'})${item.dietary?.length ? ` [${item.dietary.join(', ')}]` : ''}`
           ).join('\n')}`;
+        } else {
+          console.log(`Chat API: No menu items found for restaurant ${restaurantId}`);
         }
       } catch (error) {
         console.error('Error fetching menu items:', error);
       }
+    } else {
+      console.log('Chat API: No restaurantId provided');
     }
+
+    console.log('Chat API: Final menuContext length:', menuContext.length);
 
     // Create AI prompt
     const systemPrompt = `You are a helpful restaurant assistant. You help customers find menu items, answer questions about ingredients, and make recommendations.
