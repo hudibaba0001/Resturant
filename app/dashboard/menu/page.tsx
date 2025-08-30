@@ -1,30 +1,19 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createTenant } from '@/app/onboard/actions';
-import { useRouter } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'default-no-store';
 
-export default function DashboardMenuPage() {
+export default function MenuPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const pending = searchParams.get('pending');
-    const welcome = searchParams.get('welcome');
-
-    if (pending === 'restaurant' && welcome === 'true') {
-      // Handle pending restaurant creation
-      handlePendingRestaurant();
-    }
-  }, [searchParams]);
-
-  const handlePendingRestaurant = async () => {
+  const handlePendingRestaurant = useCallback(async () => {
     const pendingData = localStorage.getItem('pendingRestaurantData');
     if (!pendingData) {
       setError('No pending restaurant data found');
@@ -57,7 +46,17 @@ export default function DashboardMenuPage() {
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const pending = searchParams.get('pending');
+    const welcome = searchParams.get('welcome');
+
+    if (pending === 'restaurant' && welcome === 'true') {
+      // Handle pending restaurant creation
+      handlePendingRestaurant();
+    }
+  }, [searchParams, handlePendingRestaurant]);
 
   if (isCreating) {
     return (

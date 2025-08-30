@@ -9,13 +9,15 @@ export function ItemDetailModal() {
   }));
   const [variant, setVariant] = useState<{ groupId: string; optionId: string; name: string; plus_cents: number }>();
   const [mods, setMods] = useState<Array<{ optionId: string; name: string; plus_cents: number }>>([]);
-  if (!item) return null;
-
+  
   const total = useMemo(() => {
+    if (!item) return 0;
     const v = variant?.plus_cents ?? 0;
     const m = mods.reduce((s, x) => s + (x.plus_cents || 0), 0);
     return item.price_cents + v + m;
-  }, [item.price_cents, variant, mods]);
+  }, [item?.price_cents, variant, mods]);
+
+  if (!item) return null;
 
   const vg = item.variantGroups?.[0];
   const valid = !vg?.required || !!variant;
