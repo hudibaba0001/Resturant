@@ -7,6 +7,7 @@ import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+const SIMPLE_ID_RE = /^[a-zA-Z0-9-_]+$/; // Allow simple IDs for MVP
 
 type RawItem = {
   itemId?: string; id?: string;
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
     const { supabase } = getSupabaseWithBearer(req);
     const body = await req.json().catch(() => ({} as any));
 
+    // Debug: Log the incoming payload
+    console.log('🔍 Orders API - Incoming payload:', JSON.stringify(body, null, 2));
+
     // ---- 1) Normalize fields
     const restaurantId: string =
       body.restaurantId || body.restaurant_id || '';
@@ -34,7 +38,7 @@ export async function POST(req: NextRequest) {
     const type = normType(typeRaw);
     const typeOk = ['pickup', 'dine_in', 'delivery'].includes(type);
 
-    if (!UUID_RE.test(restaurantId)) {
+    if (!UUID_RE.test(restaurantId) && !SIMPLE_ID_RE.test(restaurantId)) {
       return NextResponse.json({ code: 'BAD_RESTAURANT' }, { status: 400 });
     }
     if (!sessionInput) {
@@ -54,13 +58,41 @@ export async function POST(req: NextRequest) {
       return { itemId, qty, notes: r.notes ?? null };
     });
 
-    if (items.some(i => !UUID_RE.test(i.itemId) || (i.qty ?? 0) <= 0)) {
-      return NextResponse.json({ code: 'BAD_LINE' }, { status: 400 });
+    // Debug: Log normalized items
+    console.log('🔍 Orders API - Normalized items:', JSON.stringify(items, null, 2));
+
+    if (items.some(i => (!UUID_RE.test(i.itemId) && !SIMPLE_ID_RE.test(i.itemId)) || (i.qty ?? 0) <= 0)) {
+      console.log('❌ Orders API - BAD_LINE validation failed:', {
+        items: items.map(i => ({ 
+          itemId: i.itemId, 
+          qty: i.qty, 
+          isValidUUID: UUID_RE.test(i.itemId), 
+          isValidSimpleId: SIMPLE_ID_RE.test(i.itemId),
+          isValidQty: (i.qty ?? 0) > 0 
+        }))
+      });
+      return NextResponse.json({ 
+        code: 'BAD_LINE', 
+        debug: { 
+          items: items.map(i => ({ 
+            itemId: i.itemId, 
+            qty: i.qty, 
+            isValidUUID: UUID_RE.test(i.itemId), 
+            isValidSimpleId: SIMPLE_ID_RE.test(i.itemId),
+            isValidQty: (i.qty ?? 0) > 0 
+          })) 
+        } 
+      }, { status: 400 });
     }
 
     // ---- 2) Resolve session: accept UUID or session_token
     let sessionRow: { id: string; restaurant_id: string } | null = null;
-    if (UUID_RE.test(sessionInput)) {
+    
+    // For MVP, skip session verification if it's a simple ID
+    if (SIMPLE_ID_RE.test(sessionInput) && !UUID_RE.test(sessionInput)) {
+      console.log('🔧 MVP: Using simple session ID, skipping verification');
+      sessionRow = { id: sessionInput, restaurant_id: restaurantId };
+    } else if (UUID_RE.test(sessionInput)) {
       const { data, error } = await supabase
         .from('widget_sessions')
         .select('id, restaurant_id')
