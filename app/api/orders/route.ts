@@ -9,7 +9,7 @@ import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
 type OrderItemIn = { itemId: string; qty: number; notes?: string | null };
 type OrderIn = {
   restaurantId: string;
-  sessionId: string;
+  sessionToken: string; // widget sends sessionToken, not sessionId
   type: 'pickup' | 'dine_in';
   items: OrderItemIn[];
 };
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     if (!body?.restaurantId || !UUID.test(body.restaurantId)) {
       return NextResponse.json({ code: 'BAD_RESTAURANT' }, { status: 400 });
     }
-    if (!body?.sessionId || !UUID.test(body.sessionId)) {
+    if (!body?.sessionToken || !UUID.test(body.sessionToken)) {
       return NextResponse.json({ code: 'BAD_SESSION' }, { status: 400 });
     }
     if (body?.type !== 'pickup' && body?.type !== 'dine_in') {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     const { data: sess, error: sErr } = await supabase
       .from('widget_sessions')
       .select('id, restaurant_id')
-      .eq('id', body.sessionId)
+      .eq('id', body.sessionToken)
       .eq('restaurant_id', body.restaurantId)
       .maybeSingle();
 
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       .from('orders')
       .insert([{
         restaurant_id: body.restaurantId,
-        session_id: body.sessionId,
+        session_id: body.sessionToken,
         type: body.type,
         status: 'pending',
         order_code,
@@ -126,19 +126,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ code: 'LINE_INSERT_ERROR', error: liErr.message }, { status: 500 });
     }
 
-    // 7) Return created order summary (no items list needed for widget)
-    return NextResponse.json({
-      order: {
-        id: order.id,
-        order_code: order.order_code,
-        status: order.status,
-        total_cents: order.total_cents,
-        currency: order.currency,
-        type: order.type,
-        created_at: order.created_at,
-        pin,                // show to user if pickup
-      }
-    }, { status: 201 });
+    // 7) Return widget-compatible response format
+    if (body.type === 'dine_in') {
+      return NextResponse.json({
+        orderCode: order.order_code,
+        orderId: order.id
+      }, { status: 201 });
+    } else {
+      // For pickup, return checkout URL (widget expects this)
+      const origin = new URL(req.url).origin;
+      const checkoutUrl = `${origin}/dev/checkout?orderId=${encodeURIComponent(order.id)}`;
+      return NextResponse.json({
+        checkoutUrl,
+        orderId: order.id,
+        pin
+      }, { status: 201 });
+    }
 
   } catch (e: any) {
     return NextResponse.json({ code: 'ROUTE_THROW', error: String(e?.message || e) }, { status: 500 });
