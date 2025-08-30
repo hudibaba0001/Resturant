@@ -13,6 +13,14 @@ export default function MenuPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Redirect to the new menu management system
+  useEffect(() => {
+    const welcome = searchParams.get('welcome');
+    if (welcome !== 'true') {
+      router.replace('/dashboard/menus');
+    }
+  }, [searchParams, router]);
+
   const handlePendingRestaurant = useCallback(async () => {
     const pendingData = localStorage.getItem('pendingRestaurantData');
     if (!pendingData) {
@@ -95,12 +103,18 @@ export default function MenuPage() {
               <h1 className="text-2xl font-bold text-gray-900 mb-4">
                 {searchParams.get('welcome') === 'true' ? 'Welcome to Stjarna!' : 'Dashboard'}
               </h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-4">
                 {searchParams.get('welcome') === 'true' 
-                  ? 'Your restaurant has been created successfully. Menu management coming soon!'
-                  : 'Menu management dashboard coming soon...'
+                  ? 'Your restaurant has been created successfully!'
+                  : 'Menu management dashboard is now available!'
                 }
               </p>
+              <button 
+                onClick={() => router.push('/dashboard/menus')}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Go to Menu Management
+              </button>
             </div>
           </div>
         </div>
