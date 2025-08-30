@@ -1,209 +1,83 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
+import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer'; // your stateless helper
 
-const UUID_RE =
-  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
-const SIMPLE_ID_RE = /^[a-zA-Z0-9-_]+$/; // Allow simple IDs for MVP
+const UUID_RE=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
-type RawItem = {
-  itemId?: string; id?: string;
-  qty?: number; quantity?: number;
-  notes?: string | null;
-  variant?: { groupId: string; optionId: string } | null;
-  modifiers?: string[] | null;
-};
+type RawItem={itemId?:string;id?:string;qty?:number;quantity?:number;notes?:string|null;variant?:any;modifiers?:string[]|null};
 
-export async function POST(req: NextRequest) {
-  try {
+export async function POST(req:NextRequest){
+  try{
     const { supabase } = getSupabaseWithBearer(req);
-    const body = await req.json().catch(() => ({} as any));
+    const body = await req.json().catch(()=> ({} as any));
 
-    // Debug: Log the incoming payload
-    console.log('🔍 Orders API - Incoming payload:', JSON.stringify(body, null, 2));
+    const restaurantId = body.restaurantId || body.restaurant_id || '';
+    const sessionInput = body.sessionId || body.session_id || body.sessionToken || body.session_token || '';
+    const type = String(body.type || 'pickup').toLowerCase().replace(/[\s-]/g,'_');
+    const itemsRaw:RawItem[] = Array.isArray(body.items)? body.items: [];
 
-    // ---- 1) Normalize fields
-    const restaurantId: string =
-      body.restaurantId || body.restaurant_id || '';
-    const sessionInput: string =
-      body.sessionId || body.session_id || body.sessionToken || body.session_token || '';
-    const typeRaw: string = (body.type || 'pickup') + '';
-    const itemsRaw: RawItem[] = Array.isArray(body.items) ? body.items : [];
+    if(!UUID_RE.test(restaurantId)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
+    if(!sessionInput) return NextResponse.json({code:'BAD_SESSION'},{status:400});
+    if(!['pickup','dine_in','delivery'].includes(type)) return NextResponse.json({code:'BAD_TYPE'},{status:400});
+    if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
 
-    const normType = (s: string) =>
-      s.toLowerCase().replace(/[\s-]/g, '_');
-    const type = normType(typeRaw);
-    const typeOk = ['pickup', 'dine_in', 'delivery'].includes(type);
-
-    if (!UUID_RE.test(restaurantId) && !SIMPLE_ID_RE.test(restaurantId)) {
-      return NextResponse.json({ code: 'BAD_RESTAURANT' }, { status: 400 });
-    }
-    if (!sessionInput) {
-      return NextResponse.json({ code: 'BAD_SESSION', why: 'missing sessionId/sessionToken' }, { status: 400 });
-    }
-    if (!typeOk) {
-      return NextResponse.json({ code: 'BAD_TYPE', got: typeRaw }, { status: 400 });
-    }
-    if (!itemsRaw.length) {
-      return NextResponse.json({ code: 'NO_ITEMS' }, { status: 400 });
-    }
-
-    // Map item aliases
-    const items = itemsRaw.map((r) => {
+    const items = itemsRaw.map(r=>{
       const itemId = r.itemId || r.id || '';
-      const qty = Number.isInteger(r.qty) ? r.qty : Number(r.quantity) || 0;
-      return { itemId, qty, notes: r.notes ?? null };
+      const qty = Number.isInteger(r.qty)? r.qty : Number(r.quantity)||0;
+      return {itemId, qty, notes: r.notes ?? null};
     });
+    if(items.some(i=>!UUID_RE.test(i.itemId)||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
-    // Debug: Log normalized items
-    console.log('🔍 Orders API - Normalized items:', JSON.stringify(items, null, 2));
+    // Resolve widget session (UUID or token) bound to restaurant
+    const sessionQuery = UUID_RE.test(sessionInput)
+      ? supabase.from('widget_sessions').select('id, restaurant_id').eq('id', sessionInput).eq('restaurant_id', restaurantId).maybeSingle()
+      : supabase.from('widget_sessions').select('id, restaurant_id').eq('session_token', sessionInput).eq('restaurant_id', restaurantId).maybeSingle();
 
-    if (items.some(i => (!UUID_RE.test(i.itemId) && !SIMPLE_ID_RE.test(i.itemId)) || (i.qty ?? 0) <= 0)) {
-      console.log('❌ Orders API - BAD_LINE validation failed:', {
-        items: items.map(i => ({ 
-          itemId: i.itemId, 
-          qty: i.qty, 
-          isValidUUID: UUID_RE.test(i.itemId), 
-          isValidSimpleId: SIMPLE_ID_RE.test(i.itemId),
-          isValidQty: (i.qty ?? 0) > 0 
-        }))
-      });
-      return NextResponse.json({ 
-        code: 'BAD_LINE', 
-        debug: { 
-          items: items.map(i => ({ 
-            itemId: i.itemId, 
-            qty: i.qty, 
-            isValidUUID: UUID_RE.test(i.itemId), 
-            isValidSimpleId: SIMPLE_ID_RE.test(i.itemId),
-            isValidQty: (i.qty ?? 0) > 0 
-          })) 
-        } 
-      }, { status: 400 });
-    }
+    const { data: sessionRow, error: sErr } = await sessionQuery;
+    if(sErr) return NextResponse.json({code:'SESSION_LOOKUP_ERROR', error:sErr.message},{status:500});
+    if(!sessionRow) return NextResponse.json({code:'SESSION_INVALID'},{status:403});
 
-    // ---- 2) Resolve session: accept UUID or session_token
-    let sessionRow: { id: string; restaurant_id: string } | null = null;
-    
-    // For MVP, skip session verification if it's a simple ID
-    if (SIMPLE_ID_RE.test(sessionInput) && !UUID_RE.test(sessionInput)) {
-      console.log('🔧 MVP: Using simple session ID, skipping verification');
-      sessionRow = { id: sessionInput, restaurant_id: restaurantId };
-    } else if (UUID_RE.test(sessionInput)) {
-      const { data, error } = await supabase
-        .from('widget_sessions')
-        .select('id, restaurant_id')
-        .eq('id', sessionInput)
-        .eq('restaurant_id', restaurantId)
-        .maybeSingle();
-      if (error) return NextResponse.json({ code: 'SESSION_LOOKUP_ERROR', error: error.message }, { status: 500 });
-      sessionRow = data;
-    } else {
-      const { data, error } = await supabase
-        .from('widget_sessions')
-        .select('id, restaurant_id')
-        .eq('session_token', sessionInput)
-        .eq('restaurant_id', restaurantId)
-        .maybeSingle();
-      if (error) return NextResponse.json({ code: 'SESSION_LOOKUP_ERROR', error: error.message }, { status: 500 });
-      sessionRow = data;
-    }
-    if (!sessionRow) {
-      // Keep as 403 so we don't reveal anything about sessions
-      return NextResponse.json({ code: 'SESSION_INVALID' }, { status: 403 });
-    }
-
-    // ---- 3) Load base prices for itemIds
-    const ids = Array.from(new Set(items.map(i => i.itemId)));
-    const { data: menu, error: mErr } = await supabase
-      .from('menu_items')
-      .select('id, price_cents, currency')
-      .in('id', ids);
-    if (mErr) return NextResponse.json({ code: 'MENU_LOOKUP_ERROR', error: mErr.message }, { status: 500 });
-
-    const priceMap = new Map(menu!.map(m => [m.id, m]));
-    // For MVP, we ignore variant/modifier deltas in price calc here (base price only)
-    const lines = items.map(i => {
-      const mi = priceMap.get(i.itemId);
-      if (!mi) return null;
-      return {
-        order_id: '', // set later
-        item_id: i.itemId,
-        qty: i.qty,
-        price_cents: mi.price_cents,
-        notes: i.notes ?? null,
-        selections: {} // future: persist variant/modifier choices
-      };
+    // Price lookup
+    const ids = Array.from(new Set(items.map(i=>i.itemId)));
+    const { data: menu, error: mErr } = await supabase.from('menu_items').select('id, price_cents, currency').in('id', ids);
+    if(mErr) return NextResponse.json({code:'MENU_LOOKUP_ERROR', error:mErr.message},{status:500});
+    const map = new Map(menu!.map(m=>[m.id,m]));
+    const lines = items.map(i=>{
+      const mi = map.get(i.itemId);
+      if(!mi) return null;
+      return { order_id:'', item_id:i.itemId, qty:i.qty, price_cents: mi.price_cents, notes:i.notes, selections:{} };
     });
-    if (lines.some(l => l === null)) {
-      return NextResponse.json({ code: 'BAD_LINE', why: 'unknown item id' }, { status: 400 });
+    if(lines.some(l=>l===null)) return NextResponse.json({code:'BAD_LINE', why:'unknown item or unavailable'},{status:400});
+
+    const currency = menu?.[0]?.currency || 'SEK';
+    const total_cents = (lines as any[]).reduce((s,l)=> s + l.price_cents*l.qty, 0);
+    const order_code = genCode(); const pin = type==='pickup'? genPin(): null;
+
+    const { data: order, error: oErr } = await supabase.from('orders').insert([{
+      restaurant_id: restaurantId, session_id: sessionRow.id, type, status:'pending',
+      order_code, total_cents, currency, pin, pin_issued_at: pin? new Date().toISOString(): null
+    }]).select('id, order_code, status, total_cents, currency, type, created_at').single();
+    if(oErr || !order){
+      const msg=oErr?.message?.toLowerCase?.()||'';
+      if(msg.includes('rls')||msg.includes('permission')) return NextResponse.json({code:'FORBIDDEN'},{status:403});
+      return NextResponse.json({code:'ORDER_INSERT_ERROR', error:oErr?.message},{status:500});
     }
 
-    const currency = (menu && menu[0]?.currency) || 'SEK';
-    const total_cents = (lines as any[]).reduce((s, l) => s + l.price_cents * l.qty, 0);
-
-    // ---- 4) Create order
-    const order_code = genCode(6);
-    const pin = type === 'pickup' ? genPin() : null;
-
-    const { data: order, error: oErr } = await supabase
-      .from('orders')
-      .insert([{
-        restaurant_id: restaurantId,
-        session_id: sessionRow.id,
-        type,
-        status: 'pending',
-        order_code,
-        total_cents,
-        currency,
-        pin,
-        pin_issued_at: pin ? new Date().toISOString() : null,
-      }])
-      .select('id, order_code, status, total_cents, currency, type, created_at')
-      .single();
-
-    if (oErr || !order) {
-      const msg = oErr?.message?.toLowerCase?.() || '';
-      if (msg.includes('rls') || msg.includes('permission')) {
-        return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
-      }
-      return NextResponse.json({ code: 'ORDER_INSERT_ERROR', error: oErr?.message }, { status: 500 });
-    }
-
-    // ---- 5) Insert lines
-    const payload = (lines as any[]).map(l => ({ ...l, order_id: order.id }));
+    const payload=(lines as any[]).map(l=>({...l, order_id: order.id}));
     const { error: liErr } = await supabase.from('order_items').insert(payload);
-    if (liErr) {
-      return NextResponse.json({ code: 'LINE_INSERT_ERROR', error: liErr.message }, { status: 500 });
-    }
+    if(liErr) return NextResponse.json({code:'LINE_INSERT_ERROR', error: liErr.message},{status:500});
 
-    return NextResponse.json({
-      order: {
-        id: order.id,
-        order_code: order.order_code,
-        status: order.status,
-        total_cents: order.total_cents,
-        currency: order.currency,
-        type: order.type,
-        created_at: order.created_at,
-        pin,
-      }
-    }, { status: 201 });
+    return NextResponse.json({ order: {
+      id: order.id, order_code: order.order_code, status: order.status, total_cents: order.total_cents,
+      currency: order.currency, type: order.type, created_at: order.created_at, pin
+    } }, {status:201});
 
-  } catch (e: any) {
-    return NextResponse.json({ code: 'ROUTE_THROW', error: String(e?.message || e) }, { status: 500 });
+  }catch(e:any){
+    return NextResponse.json({code:'ROUTE_THROW', error:String(e?.message||e)},{status:500});
   }
 }
 
-function genCode(len = 6) {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = '';
-  for (let i = 0; i < len; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return s;
-}
-function genPin() {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
+function genCode(len=6){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<len;i++)s+=a[(Math.random()*a.length)|0];return s;}
+function genPin(){return String((Math.random()*9000+1000)|0);}
