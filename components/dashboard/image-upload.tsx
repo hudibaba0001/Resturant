@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 
 // NOTE: For client side, we create a small fetcher that calls a signed upload action
 export function ImageUpload({ value, onChange }: { value?: string | null; onChange: (url: string) => void }) {

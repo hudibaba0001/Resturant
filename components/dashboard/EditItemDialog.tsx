@@ -6,10 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { nanoid } from 'nanoid';
 import type { Item, OptionGroup, ModifierGroup, PriceMatrix } from '@/lib/types/menu';
 import { ImageUpload } from './image-upload';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,9 +20,9 @@ const Dietary = ['Vegan','Vegetarian','Halal','Kosher','Gluten-free'];
 const ItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
-  image_url: z.string().url().optional().or(z.literal('')),
+  image_url: z.string().optional(),
   price_cents: z.number().int().nonnegative().optional(),
-  currency: z.string().default('SEK'),
+  currency: z.string().optional(),
   allergens: z.array(z.string()).optional(),
   dietary: z.array(z.string()).optional(),
   item_number: z.string().optional(),
@@ -75,10 +75,10 @@ export function EditItemDialog({
     const next: Item = {
       ...initial,
       name: v.name,
-      description: v.description,
+      description: v.description || null,
       image_url: v.image_url || null,
       price_cents: v.price_cents ?? null,
-      currency: v.currency,
+      currency: v.currency || null,
       allergens: v.allergens || [],
       dietary: v.dietary || [],
       item_number: v.item_number || null,
@@ -201,8 +201,10 @@ function VariantGroupsEditor({ value, onChange }: { value: OptionGroup[]; onChan
   const addGroup = () => onChange([...value, { id: nanoid(), name: 'New Group', options: [] }]);
   const addOption = (gi: number) => {
     const next = [...value];
-    next[gi].options.push({ id: nanoid(), name: 'Option' });
-    onChange(next);
+    if (next[gi]) {
+      next[gi].options.push({ id: nanoid(), name: 'Option' });
+      onChange(next);
+    }
   };
   return (
     <div className="space-y-3">
@@ -213,14 +215,14 @@ function VariantGroupsEditor({ value, onChange }: { value: OptionGroup[]; onChan
       {value.map((g, gi) => (
         <div key={g.id} className="rounded-xl border p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Input value={g.name} onChange={(e) => { const next = [...value]; next[gi].name = e.target.value; onChange(next); }} />
+            <Input value={g.name} onChange={(e) => { const next = [...value]; if (next[gi]) next[gi].name = e.target.value; onChange(next); }} />
             <Button size="icon" variant="ghost" onClick={() => { const next = value.filter((_, i) => i !== gi); onChange(next); }}>✕</Button>
           </div>
           <div className="space-y-2">
             {g.options.map((o, oi) => (
               <div key={o.id} className="flex items-center gap-2">
-                <Input value={o.name} onChange={(e) => { const next = [...value]; next[gi].options[oi].name = e.target.value; onChange(next); }} />
-                <Button size="icon" variant="ghost" onClick={() => { const next = [...value]; next[gi].options.splice(oi,1); onChange(next); }}>✕</Button>
+                <Input value={o.name} onChange={(e) => { const next = [...value]; if (next[gi] && next[gi].options[oi]) next[gi].options[oi].name = e.target.value; onChange(next); }} />
+                <Button size="icon" variant="ghost" onClick={() => { const next = [...value]; if (next[gi]) next[gi].options.splice(oi,1); onChange(next); }}>✕</Button>
               </div>
             ))}
             <Button variant="outline" onClick={() => addOption(gi)}>+ Add Option</Button>
@@ -232,11 +234,13 @@ function VariantGroupsEditor({ value, onChange }: { value: OptionGroup[]; onChan
 }
 
 function ModifierGroupsEditor({ value, onChange }: { value: ModifierGroup[]; onChange: (v: ModifierGroup[]) => void }) {
-  const addGroup = () => onChange([...value, { id: nanoid(), name: 'New Group', min: 0, max: undefined, required: false, options: [] }]);
+  const addGroup = () => onChange([...value, { id: nanoid(), name: 'New Group', min: 0, required: false, options: [] }]);
   const addOption = (gi: number) => {
     const next = [...value];
-    next[gi].options.push({ id: nanoid(), name: 'Option', price_delta_cents: 0 });
-    onChange(next);
+    if (next[gi]) {
+      next[gi].options.push({ id: nanoid(), name: 'Option', price_delta_cents: 0 });
+      onChange(next);
+    }
   };
   return (
     <div className="space-y-3">
@@ -247,17 +251,17 @@ function ModifierGroupsEditor({ value, onChange }: { value: ModifierGroup[]; onC
       {value.map((g, gi) => (
         <div key={g.id} className="rounded-xl border p-3 space-y-2">
           <div className="grid grid-cols-4 gap-2">
-            <Input value={g.name} onChange={(e) => { const next = [...value]; next[gi].name = e.target.value; onChange(next); }} />
-            <Input type="number" placeholder="min" value={g.min ?? ''} onChange={(e) => { const next = [...value]; next[gi].min = e.target.value ? parseInt(e.target.value) : undefined; onChange(next); }} />
-            <Input type="number" placeholder="max" value={g.max ?? ''} onChange={(e) => { const next = [...value]; next[gi].max = e.target.value ? parseInt(e.target.value) : undefined; onChange(next); }} />
-            <label className="flex items-center gap-2"><input type="checkbox" checked={!!g.required} onChange={(e) => { const next = [...value]; next[gi].required = e.target.checked; onChange(next); }} /> Required</label>
+            <Input value={g.name} onChange={(e) => { const next = [...value]; if (next[gi]) next[gi].name = e.target.value; onChange(next); }} />
+            <Input type="number" placeholder="min" value={g.min ?? ''} onChange={(e) => { const next = [...value]; if (next[gi]) next[gi].min = e.target.value ? parseInt(e.target.value) : undefined; onChange(next); }} />
+            <Input type="number" placeholder="max" value={g.max ?? ''} onChange={(e) => { const next = [...value]; if (next[gi]) next[gi].max = e.target.value ? parseInt(e.target.value) : undefined; onChange(next); }} />
+            <label className="flex items-center gap-2"><input type="checkbox" checked={!!g.required} onChange={(e) => { const next = [...value]; if (next[gi]) next[gi].required = e.target.checked; onChange(next); }} /> Required</label>
           </div>
           <div className="space-y-2">
             {g.options.map((o, oi) => (
               <div key={o.id} className="grid grid-cols-6 gap-2 items-center">
-                <Input className="col-span-4" value={o.name} onChange={(e) => { const next = [...value]; next[gi].options[oi].name = e.target.value; onChange(next); }} />
-                <Input className="col-span-1" type="number" value={o.price_delta_cents ?? 0} onChange={(e) => { const next = [...value]; next[gi].options[oi].price_delta_cents = parseInt(e.target.value || '0'); onChange(next); }} />
-                <Button size="icon" variant="ghost" onClick={() => { const next = [...value]; next[gi].options.splice(oi,1); onChange(next); }}>✕</Button>
+                <Input className="col-span-4" value={o.name} onChange={(e) => { const next = [...value]; if (next[gi] && next[gi].options[oi]) next[gi].options[oi].name = e.target.value; onChange(next); }} />
+                <Input className="col-span-1" type="number" value={o.price_delta_cents ?? 0} onChange={(e) => { const next = [...value]; if (next[gi] && next[gi].options[oi]) next[gi].options[oi].price_delta_cents = parseInt(e.target.value || '0'); onChange(next); }} />
+                <Button size="icon" variant="ghost" onClick={() => { const next = [...value]; if (next[gi]) next[gi].options.splice(oi,1); onChange(next); }}>✕</Button>
               </div>
             ))}
             <Button variant="outline" onClick={() => addOption(gi)}>+ Add Modifier</Button>

@@ -35,8 +35,8 @@ export type ModifierOption = {
 export type ModifierGroup = {
   id: string;       // stable id
   name: string;     // e.g., Add-ons
-  min?: number;     // default 0
-  max?: number;     // default unlimited
+  min?: number | undefined;     // default 0
+  max?: number | undefined;     // default unlimited
   required?: boolean;
   options: ModifierOption[];
 };

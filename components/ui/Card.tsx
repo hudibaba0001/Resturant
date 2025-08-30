@@ -71,3 +71,16 @@ export function CardFooter({ children, className = '' }: CardFooterProps) {
     </div>
   )
 }
+
+interface CardTitleProps {
+  children: React.ReactNode
+  className?: string
+}
+
+export function CardTitle({ children, className = '' }: CardTitleProps) {
+  return (
+    <h3 className={`text-lg font-semibold text-text ${className}`}>
+      {children}
+    </h3>
+  )
+}

@@ -87,7 +87,7 @@ export class MenuRepository {
           unique.set(id, {
             id,
             menuId,
-            name: sub[sub.length - 1],
+            name: sub[sub.length - 1] || 'Unknown',
             parentId: i > 0 ? sub.slice(0, i).join(':') : null,
             path: sub,
             sort: i,

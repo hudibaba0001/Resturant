@@ -2,10 +2,10 @@ import { MenuRepository } from '@/lib/menuRepo';
 import { getServerSupabase } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils/slug';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 import { Suspense } from 'react';
 
 async function getRestaurantId(): Promise<string> {
