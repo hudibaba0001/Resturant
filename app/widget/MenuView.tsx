@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 import { useWidget } from './store';
 import type { MenuItemDTO } from './types/menu';
