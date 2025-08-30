@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useWidget } from './store';
+import { useWidget, type Store } from './store';
 import { ToastHost } from './ui/Toast';
 import { MenuView } from './MenuView';
 
 export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; sessionId?: string }) {
-  const { setContext, bootstrapSession, sessionToken } = useWidget();
+  const setContext = useWidget((s: Store) => s.setContext);
+  const bootstrapSession = useWidget((s: Store) => s.bootstrapSession);
+  const sessionToken = useWidget((s: Store) => s.sessionToken);
   const [menu, setMenu] = useState<{ sections: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

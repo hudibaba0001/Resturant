@@ -17,7 +17,7 @@ export type CartLine = {
 
 type UIState = 'menu' | 'item' | 'cart' | 'checkout' | null;
 
-type Store = {
+export type Store = {
   restaurantId: string;
   sessionId: string;
   sessionToken: string;

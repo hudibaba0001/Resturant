@@ -1,13 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { useWidget, type CartLine } from './store';
+import { useWidget, type CartLine, type Store } from './store';
 import { formatMoney } from './utils/money';
 import { useToast } from './ui/Toast';
 
 export function CartBar() {
-  const cart = useWidget(s => s.cart);
+  const cart = useWidget((s: Store) => s.cart);
   const currency = cart[0]?.currency ?? 'SEK';
-  const go = useWidget(s => s.go);
+  const go = useWidget((s: Store) => s.go);
 
   const total = cart.reduce((s, l) => s + l.unit_cents * l.qty, 0);
   if (!cart.length) return null;
@@ -25,11 +25,11 @@ export function CartBar() {
 }
 
 export function CheckoutScreen() {
-  const cart         = useWidget(s => s.cart);
-  const restaurantId = useWidget(s => s.restaurantId);
-  const sessionToken = useWidget(s => s.sessionToken);
-  const clearCart    = useWidget(s => s.clearCart);
-  const go           = useWidget(s => s.go);
+  const cart         = useWidget((s: Store) => s.cart);
+  const restaurantId = useWidget((s: Store) => s.restaurantId);
+  const sessionToken = useWidget((s: Store) => s.sessionToken);
+  const clearCart    = useWidget((s: Store) => s.clearCart);
+  const go           = useWidget((s: Store) => s.go);
 
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
