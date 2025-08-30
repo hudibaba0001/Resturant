@@ -1,0 +1,399 @@
+{
+  "discoveredTables": [
+    "restaurants",
+    "menu_items",
+    "orders",
+    "order_items",
+    "widget_sessions"
+  ],
+  "tableSchemas": {
+    "restaurants": {
+      "columns": [
+        "id",
+        "name",
+        "description",
+        "address",
+        "city",
+        "state",
+        "postal_code",
+        "country",
+        "phone",
+        "email",
+        "website",
+        "cuisine_type",
+        "price_range",
+        "capacity",
+        "opening_hours",
+        "latitude",
+        "longitude",
+        "search_vector",
+        "is_active",
+        "is_verified",
+        "owner_id",
+        "created_at",
+        "updated_at",
+        "slug",
+        "allowed_origins"
+      ],
+      "sampleData": [
+        {
+          "id": "0878c22f-bf42-40ab-ab61-0b30fe5273da",
+          "name": "sdcdwc",
+          "description": "dwcwced",
+          "address": "postflyget 29",
+          "city": "Uppsala",
+          "state": null,
+          "postal_code": null,
+          "country": "FI",
+          "phone": null,
+          "email": null,
+          "website": null,
+          "cuisine_type": "wced",
+          "price_range": null,
+          "capacity": null,
+          "opening_hours": {
+            "friday": {
+              "open": "09:00",
+              "close": "20:00"
+            },
+            "monday": {
+              "open": "09:00",
+              "close": "20:08"
+            },
+            "sunday": {
+              "open": "09:00",
+              "close": "20:00"
+            },
+            "tuesday": {
+              "open": "09:00",
+              "close": "20:00"
+            },
+            "saturday": {
+              "open": "09:00",
+              "close": "20:00"
+            },
+            "thursday": {
+              "open": "09:00",
+              "close": "20:00"
+            },
+            "wednesday": {
+              "open": "09:00",
+              "close": "20:00"
+            }
+          },
+          "latitude": null,
+          "longitude": null,
+          "search_vector": "'dwcwced':2B 'sdcdwc':1A 'uppsala':3C",
+          "is_active": true,
+          "is_verified": false,
+          "owner_id": "d63f475b-1319-4597-9960-cb6f2b0dc62b",
+          "created_at": "2025-08-22T14:40:28.995253+00:00",
+          "updated_at": "2025-08-22T16:29:25.233489+00:00",
+          "slug": null,
+          "allowed_origins": []
+        },
+        {
+          "id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "name": "fffff",
+          "description": "ewdfew",
+          "address": "postflyget 29",
+          "city": "Uppsala",
+          "state": null,
+          "postal_code": null,
+          "country": "SE",
+          "phone": null,
+          "email": null,
+          "website": null,
+          "cuisine_type": "Indian ",
+          "price_range": null,
+          "capacity": null,
+          "opening_hours": {
+            "friday": {
+              "open": "11:00",
+              "close": "00:01"
+            },
+            "monday": {
+              "open": "11:00",
+              "close": "00:00"
+            },
+            "sunday": {
+              "open": "12:00",
+              "close": "21:00"
+            },
+            "tuesday": {
+              "open": "11:00",
+              "close": "22:00"
+            },
+            "saturday": {
+              "open": "00:00",
+              "close": "23:00"
+            },
+            "thursday": {
+              "open": "11:00",
+              "close": "22:00"
+            },
+            "wednesday": {
+              "open": "11:00",
+              "close": "22:00"
+            }
+          },
+          "latitude": null,
+          "longitude": null,
+          "search_vector": "'ewdfew':2B 'fffff':1A 'uppsala':3C",
+          "is_active": true,
+          "is_verified": true,
+          "owner_id": "40b0acf1-910e-4f3c-9c44-845a0298d8ab",
+          "created_at": "2025-08-22T12:44:09.865592+00:00",
+          "updated_at": "2025-08-25T20:30:39.658319+00:00",
+          "slug": null,
+          "allowed_origins": []
+        }
+      ],
+      "rowCount": 2
+    },
+    "menu_items": {
+      "columns": [
+        "id",
+        "restaurant_id",
+        "name",
+        "description",
+        "price",
+        "category",
+        "is_available",
+        "image_url",
+        "allergens",
+        "nutritional_info",
+        "created_at",
+        "updated_at",
+        "price_cents",
+        "currency",
+        "search_vector"
+      ],
+      "sampleData": [
+        {
+          "id": "ff459e81-84a6-4cf9-b6fb-f6002d91c93e",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "name": "Margherita Pizza",
+          "description": "Tomato, mozzarella, basil",
+          "price": 99,
+          "category": "Mains",
+          "is_available": true,
+          "image_url": null,
+          "allergens": [],
+          "nutritional_info": {},
+          "created_at": "2025-08-22T20:35:34.068309+00:00",
+          "updated_at": "2025-08-22T20:35:34.068309+00:00",
+          "price_cents": null,
+          "currency": "SEK",
+          "search_vector": null
+        },
+        {
+          "id": "5eb86e74-a171-4f1e-9863-d7499630bd3f",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "name": "Caesar Salad",
+          "description": "Romaine, parmesan, croutons",
+          "price": 79,
+          "category": "Salads",
+          "is_available": true,
+          "image_url": null,
+          "allergens": [],
+          "nutritional_info": {},
+          "created_at": "2025-08-22T20:35:34.068309+00:00",
+          "updated_at": "2025-08-22T20:35:34.068309+00:00",
+          "price_cents": null,
+          "currency": "SEK",
+          "search_vector": null
+        },
+        {
+          "id": "fbda3481-7695-4468-b311-cfc12359379f",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "name": "Pasta Carbonara",
+          "description": "Creamy sauce, pancetta",
+          "price": 89,
+          "category": "Mains",
+          "is_available": true,
+          "image_url": null,
+          "allergens": [],
+          "nutritional_info": {},
+          "created_at": "2025-08-22T20:35:34.068309+00:00",
+          "updated_at": "2025-08-22T20:35:34.068309+00:00",
+          "price_cents": null,
+          "currency": "SEK",
+          "search_vector": null
+        }
+      ],
+      "rowCount": 3
+    },
+    "orders": {
+      "columns": [
+        "id",
+        "restaurant_id",
+        "session_id",
+        "type",
+        "status",
+        "order_code",
+        "total_cents",
+        "currency",
+        "stripe_checkout_session_id",
+        "stripe_payment_intent_id",
+        "created_at",
+        "updated_at",
+        "customer_name",
+        "phone_e164",
+        "email",
+        "pin_issued_at",
+        "pin_attempts",
+        "notification_status",
+        "picked_up_at",
+        "pin_hash"
+      ],
+      "sampleData": [
+        {
+          "id": "31d0c44c-d90b-4ed0-9e2f-5e39c5b6893a",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "session_id": "d53f660e-9cc1-45ed-8b65-867c3451b7b3",
+          "type": "pickup",
+          "status": "completed",
+          "order_code": "9CZBQX",
+          "total_cents": 277200,
+          "currency": "SEK",
+          "stripe_checkout_session_id": null,
+          "stripe_payment_intent_id": null,
+          "created_at": "2025-08-22T21:34:41.902249+00:00",
+          "updated_at": "2025-08-28T21:48:44.722728+00:00",
+          "customer_name": null,
+          "phone_e164": null,
+          "email": null,
+          "pin_issued_at": null,
+          "pin_attempts": 0,
+          "notification_status": {},
+          "picked_up_at": null,
+          "pin_hash": null
+        },
+        {
+          "id": "0837a164-b6a0-40ce-954f-88f4dbd07851",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "session_id": "41a9826e-1618-4fb9-b3b9-6d87f3abdb31",
+          "type": "pickup",
+          "status": "completed",
+          "order_code": "YTI3C9",
+          "total_cents": 9900,
+          "currency": "SEK",
+          "stripe_checkout_session_id": null,
+          "stripe_payment_intent_id": null,
+          "created_at": "2025-08-22T20:52:23.130594+00:00",
+          "updated_at": "2025-08-28T21:48:58.626441+00:00",
+          "customer_name": null,
+          "phone_e164": null,
+          "email": null,
+          "pin_issued_at": null,
+          "pin_attempts": 0,
+          "notification_status": {},
+          "picked_up_at": null,
+          "pin_hash": null
+        },
+        {
+          "id": "57d4a359-d987-44a5-8f93-bfa0549f813f",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "session_id": "41a9826e-1618-4fb9-b3b9-6d87f3abdb31",
+          "type": "pickup",
+          "status": "completed",
+          "order_code": "QGC3MF",
+          "total_cents": 9900,
+          "currency": "SEK",
+          "stripe_checkout_session_id": null,
+          "stripe_payment_intent_id": null,
+          "created_at": "2025-08-22T20:52:23.162832+00:00",
+          "updated_at": "2025-08-28T21:49:06.523602+00:00",
+          "customer_name": null,
+          "phone_e164": null,
+          "email": null,
+          "pin_issued_at": null,
+          "pin_attempts": 0,
+          "notification_status": {},
+          "picked_up_at": null,
+          "pin_hash": null
+        }
+      ],
+      "rowCount": 3
+    },
+    "order_items": {
+      "columns": [
+        "id",
+        "order_id",
+        "item_id",
+        "qty",
+        "price_cents",
+        "notes",
+        "created_at"
+      ],
+      "sampleData": [
+        {
+          "id": "a7b179e5-c7ba-4b39-b935-6bb1b6fccc28",
+          "order_id": "0837a164-b6a0-40ce-954f-88f4dbd07851",
+          "item_id": "ff459e81-84a6-4cf9-b6fb-f6002d91c93e",
+          "qty": 1,
+          "price_cents": 9900,
+          "notes": null,
+          "created_at": "2025-08-22T20:52:23.194633+00:00"
+        },
+        {
+          "id": "5ad80d7f-4637-4e94-96a9-1cbfb8028ad0",
+          "order_id": "57d4a359-d987-44a5-8f93-bfa0549f813f",
+          "item_id": "ff459e81-84a6-4cf9-b6fb-f6002d91c93e",
+          "qty": 1,
+          "price_cents": 9900,
+          "notes": null,
+          "created_at": "2025-08-22T20:52:23.214114+00:00"
+        },
+        {
+          "id": "7a369a10-aec6-40da-9c8c-6ec2a9bbcb87",
+          "order_id": "97dea2ad-0ba6-427b-9baa-0ef80f2372d4",
+          "item_id": "ff459e81-84a6-4cf9-b6fb-f6002d91c93e",
+          "qty": 1,
+          "price_cents": 9900,
+          "notes": null,
+          "created_at": "2025-08-22T20:52:30.161459+00:00"
+        }
+      ],
+      "rowCount": 3
+    },
+    "widget_sessions": {
+      "columns": [
+        "id",
+        "restaurant_id",
+        "session_token",
+        "user_agent",
+        "created_at",
+        "last_seen_at",
+        "locale",
+        "session_token_hash"
+      ],
+      "sampleData": [
+        {
+          "id": "cc2d57b1-f20e-469b-9097-402f958ba6c2",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "session_token": "test-session",
+          "user_agent": "Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) WindowsPowerShell/5.1.19041.6216",
+          "created_at": "2025-08-25T20:04:10.283881+00:00",
+          "last_seen_at": "2025-08-25T20:04:10.283881+00:00",
+          "locale": null,
+          "session_token_hash": "\\x4943e43bc034c8bf90e1c2895796b954d3c34dc90afe838448dee6678fa765f8"
+        },
+        {
+          "id": "91a1bc3a-83b9-491d-b79e-b9e6a3f9d19a",
+          "restaurant_id": "64806e5b-714f-4388-a092-29feff9b64c0",
+          "session_token": "test-session-1756152258140",
+          "user_agent": "node",
+          "created_at": "2025-08-25T20:04:18.586851+00:00",
+          "last_seen_at": "2025-08-25T20:04:18.586851+00:00",
+          "locale": null,
+          "session_token_hash": "\\x58353d714639b5a2543fd054b96446631266dfb578e4dbc3a40c4bde8b9c264a"
+        }
+      ],
+      "rowCount": 2
+    }
+  },
+  "timestamp": "2025-08-30T12:45:10.301Z",
+  "totalTables": 5
+}

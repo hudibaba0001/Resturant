@@ -1,0 +1,33 @@
+DISCOVERED TABLES SUMMARY
+==========================
+
+Total tables found: 5
+
+TABLES:
+  - restaurants
+  - menu_items
+  - orders
+  - order_items
+  - widget_sessions
+
+TABLE SCHEMAS:
+  restaurants:
+    Columns: id, name, description, address, city, state, postal_code, country, phone, email, website, cuisine_type, price_range, capacity, opening_hours, latitude, longitude, search_vector, is_active, is_verified, owner_id, created_at, updated_at, slug, allowed_origins
+    Sample rows: 2
+
+  menu_items:
+    Columns: id, restaurant_id, name, description, price, category, is_available, image_url, allergens, nutritional_info, created_at, updated_at, price_cents, currency, search_vector
+    Sample rows: 3
+
+  orders:
+    Columns: id, restaurant_id, session_id, type, status, order_code, total_cents, currency, stripe_checkout_session_id, stripe_payment_intent_id, created_at, updated_at, customer_name, phone_e164, email, pin_issued_at, pin_attempts, notification_status, picked_up_at, pin_hash
+    Sample rows: 3
+
+  order_items:
+    Columns: id, order_id, item_id, qty, price_cents, notes, created_at
+    Sample rows: 3
+
+  widget_sessions:
+    Columns: id, restaurant_id, session_token, user_agent, created_at, last_seen_at, locale, session_token_hash
+    Sample rows: 2
+

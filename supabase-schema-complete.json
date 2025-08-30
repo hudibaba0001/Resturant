@@ -1,0 +1,572 @@
+{
+  "schema": {
+    "version": "1.0",
+    "exported_at": "2025-08-30T12:45:10.301Z",
+    "database": "supabase",
+    "tables": {
+      "restaurants": {
+        "description": "Restaurant information and configuration",
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary_key": true,
+            "nullable": false,
+            "default": "gen_random_uuid()"
+          },
+          "name": {
+            "type": "text",
+            "nullable": false,
+            "description": "Restaurant name"
+          },
+          "description": {
+            "type": "text",
+            "nullable": true,
+            "description": "Restaurant description"
+          },
+          "address": {
+            "type": "text",
+            "nullable": true,
+            "description": "Street address"
+          },
+          "city": {
+            "type": "text",
+            "nullable": true,
+            "description": "City name"
+          },
+          "state": {
+            "type": "text",
+            "nullable": true,
+            "description": "State/province"
+          },
+          "postal_code": {
+            "type": "text",
+            "nullable": true,
+            "description": "Postal/ZIP code"
+          },
+          "country": {
+            "type": "text",
+            "nullable": true,
+            "description": "Country code (e.g., SE, FI)"
+          },
+          "phone": {
+            "type": "text",
+            "nullable": true,
+            "description": "Phone number"
+          },
+          "email": {
+            "type": "text",
+            "nullable": true,
+            "description": "Email address"
+          },
+          "website": {
+            "type": "text",
+            "nullable": true,
+            "description": "Website URL"
+          },
+          "cuisine_type": {
+            "type": "text",
+            "nullable": true,
+            "description": "Type of cuisine"
+          },
+          "price_range": {
+            "type": "text",
+            "nullable": true,
+            "description": "Price range indicator"
+          },
+          "capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Seating capacity"
+          },
+          "opening_hours": {
+            "type": "jsonb",
+            "nullable": true,
+            "description": "Opening hours by day of week"
+          },
+          "latitude": {
+            "type": "numeric",
+            "nullable": true,
+            "description": "GPS latitude"
+          },
+          "longitude": {
+            "type": "numeric",
+            "nullable": true,
+            "description": "GPS longitude"
+          },
+          "search_vector": {
+            "type": "tsvector",
+            "nullable": true,
+            "description": "Full-text search vector"
+          },
+          "is_active": {
+            "type": "boolean",
+            "nullable": false,
+            "default": true,
+            "description": "Whether restaurant is active"
+          },
+          "is_verified": {
+            "type": "boolean",
+            "nullable": false,
+            "default": false,
+            "description": "Whether restaurant is verified"
+          },
+          "owner_id": {
+            "type": "uuid",
+            "nullable": true,
+            "description": "Owner user ID"
+          },
+          "created_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Last update timestamp"
+          },
+          "slug": {
+            "type": "text",
+            "nullable": true,
+            "description": "URL slug"
+          },
+          "allowed_origins": {
+            "type": "text[]",
+            "nullable": true,
+            "default": "[]",
+            "description": "Allowed CORS origins for widget"
+          }
+        },
+        "indexes": [
+          "CREATE INDEX restaurants_search_vector_idx ON restaurants USING gin(search_vector)",
+          "CREATE INDEX restaurants_owner_id_idx ON restaurants(owner_id)",
+          "CREATE INDEX restaurants_is_active_idx ON restaurants(is_active)",
+          "CREATE INDEX restaurants_slug_idx ON restaurants(slug)"
+        ],
+        "triggers": [
+          "CREATE TRIGGER restaurants_updated_at BEFORE UPDATE ON restaurants FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+        ]
+      },
+      "menu_items": {
+        "description": "Menu items for restaurants",
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary_key": true,
+            "nullable": false,
+            "default": "gen_random_uuid()"
+          },
+          "restaurant_id": {
+            "type": "uuid",
+            "nullable": false,
+            "foreign_key": "restaurants.id",
+            "description": "Reference to restaurant"
+          },
+          "name": {
+            "type": "text",
+            "nullable": false,
+            "description": "Item name"
+          },
+          "description": {
+            "type": "text",
+            "nullable": true,
+            "description": "Item description"
+          },
+          "price": {
+            "type": "numeric",
+            "nullable": true,
+            "description": "Price in major currency units"
+          },
+          "category": {
+            "type": "text",
+            "nullable": true,
+            "description": "Menu category"
+          },
+          "is_available": {
+            "type": "boolean",
+            "nullable": false,
+            "default": true,
+            "description": "Whether item is available"
+          },
+          "image_url": {
+            "type": "text",
+            "nullable": true,
+            "description": "Image URL"
+          },
+          "allergens": {
+            "type": "text[]",
+            "nullable": true,
+            "default": "[]",
+            "description": "List of allergens"
+          },
+          "nutritional_info": {
+            "type": "jsonb",
+            "nullable": true,
+            "default": "{}",
+            "description": "Nutritional information"
+          },
+          "created_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Last update timestamp"
+          },
+          "price_cents": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Price in cents"
+          },
+          "currency": {
+            "type": "text",
+            "nullable": true,
+            "default": "SEK",
+            "description": "Currency code"
+          },
+          "search_vector": {
+            "type": "tsvector",
+            "nullable": true,
+            "description": "Full-text search vector"
+          }
+        },
+        "indexes": [
+          "CREATE INDEX menu_items_restaurant_id_idx ON menu_items(restaurant_id)",
+          "CREATE INDEX menu_items_category_idx ON menu_items(category)",
+          "CREATE INDEX menu_items_is_available_idx ON menu_items(is_available)",
+          "CREATE INDEX menu_items_search_vector_idx ON menu_items USING gin(search_vector)"
+        ],
+        "triggers": [
+          "CREATE TRIGGER menu_items_updated_at BEFORE UPDATE ON menu_items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+        ]
+      },
+      "orders": {
+        "description": "Customer orders",
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary_key": true,
+            "nullable": false,
+            "default": "gen_random_uuid()"
+          },
+          "restaurant_id": {
+            "type": "uuid",
+            "nullable": false,
+            "foreign_key": "restaurants.id",
+            "description": "Reference to restaurant"
+          },
+          "session_id": {
+            "type": "uuid",
+            "nullable": false,
+            "foreign_key": "widget_sessions.id",
+            "description": "Widget session ID"
+          },
+          "type": {
+            "type": "text",
+            "nullable": false,
+            "check": "type IN ('pickup', 'dine_in', 'delivery')",
+            "description": "Order type"
+          },
+          "status": {
+            "type": "text",
+            "nullable": false,
+            "default": "pending",
+            "check": "status IN ('pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled')",
+            "description": "Order status"
+          },
+          "order_code": {
+            "type": "text",
+            "nullable": false,
+            "unique": true,
+            "description": "Human-readable order code"
+          },
+          "total_cents": {
+            "type": "integer",
+            "nullable": false,
+            "description": "Total amount in cents"
+          },
+          "currency": {
+            "type": "text",
+            "nullable": false,
+            "default": "SEK",
+            "description": "Currency code"
+          },
+          "stripe_checkout_session_id": {
+            "type": "text",
+            "nullable": true,
+            "description": "Stripe checkout session ID"
+          },
+          "stripe_payment_intent_id": {
+            "type": "text",
+            "nullable": true,
+            "description": "Stripe payment intent ID"
+          },
+          "created_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Creation timestamp"
+          },
+          "updated_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Last update timestamp"
+          },
+          "customer_name": {
+            "type": "text",
+            "nullable": true,
+            "description": "Customer name"
+          },
+          "phone_e164": {
+            "type": "text",
+            "nullable": true,
+            "description": "Phone number in E164 format"
+          },
+          "email": {
+            "type": "text",
+            "nullable": true,
+            "description": "Customer email"
+          },
+          "pin_issued_at": {
+            "type": "timestamp with time zone",
+            "nullable": true,
+            "description": "When pickup PIN was issued"
+          },
+          "pin_attempts": {
+            "type": "integer",
+            "nullable": false,
+            "default": 0,
+            "description": "Number of PIN attempts"
+          },
+          "notification_status": {
+            "type": "jsonb",
+            "nullable": true,
+            "default": "{}",
+            "description": "Notification status tracking"
+          },
+          "picked_up_at": {
+            "type": "timestamp with time zone",
+            "nullable": true,
+            "description": "When order was picked up"
+          },
+          "pin_hash": {
+            "type": "text",
+            "nullable": true,
+            "description": "Hashed pickup PIN"
+          }
+        },
+        "indexes": [
+          "CREATE INDEX orders_restaurant_id_idx ON orders(restaurant_id)",
+          "CREATE INDEX orders_session_id_idx ON orders(session_id)",
+          "CREATE INDEX orders_status_idx ON orders(status)",
+          "CREATE INDEX orders_order_code_idx ON orders(order_code)",
+          "CREATE INDEX orders_created_at_idx ON orders(created_at)"
+        ],
+        "triggers": [
+          "CREATE TRIGGER orders_updated_at BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()"
+        ]
+      },
+      "order_items": {
+        "description": "Individual items in orders",
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary_key": true,
+            "nullable": false,
+            "default": "gen_random_uuid()"
+          },
+          "order_id": {
+            "type": "uuid",
+            "nullable": false,
+            "foreign_key": "orders.id",
+            "description": "Reference to order"
+          },
+          "item_id": {
+            "type": "uuid",
+            "nullable": false,
+            "foreign_key": "menu_items.id",
+            "description": "Reference to menu item"
+          },
+          "qty": {
+            "type": "integer",
+            "nullable": false,
+            "check": "qty > 0",
+            "description": "Quantity ordered"
+          },
+          "price_cents": {
+            "type": "integer",
+            "nullable": false,
+            "description": "Price per unit in cents"
+          },
+          "notes": {
+            "type": "text",
+            "nullable": true,
+            "description": "Special instructions"
+          },
+          "created_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Creation timestamp"
+          }
+        },
+        "indexes": [
+          "CREATE INDEX order_items_order_id_idx ON order_items(order_id)",
+          "CREATE INDEX order_items_item_id_idx ON order_items(item_id)"
+        ]
+      },
+      "widget_sessions": {
+        "description": "Widget user sessions",
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary_key": true,
+            "nullable": false,
+            "default": "gen_random_uuid()"
+          },
+          "restaurant_id": {
+            "type": "uuid",
+            "nullable": false,
+            "foreign_key": "restaurants.id",
+            "description": "Reference to restaurant"
+          },
+          "session_token": {
+            "type": "text",
+            "nullable": false,
+            "description": "Session token for widget"
+          },
+          "user_agent": {
+            "type": "text",
+            "nullable": true,
+            "description": "User agent string"
+          },
+          "created_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Creation timestamp"
+          },
+          "last_seen_at": {
+            "type": "timestamp with time zone",
+            "nullable": false,
+            "default": "now()",
+            "description": "Last activity timestamp"
+          },
+          "locale": {
+            "type": "text",
+            "nullable": true,
+            "description": "User locale preference"
+          },
+          "session_token_hash": {
+            "type": "bytea",
+            "nullable": true,
+            "description": "Hashed session token"
+          }
+        },
+        "indexes": [
+          "CREATE INDEX widget_sessions_restaurant_id_idx ON widget_sessions(restaurant_id)",
+          "CREATE INDEX widget_sessions_session_token_idx ON widget_sessions(session_token)",
+          "CREATE INDEX widget_sessions_last_seen_at_idx ON widget_sessions(last_seen_at)"
+        ]
+      }
+    },
+    "relationships": [
+      {
+        "from": "menu_items",
+        "to": "restaurants",
+        "type": "many_to_one",
+        "foreign_key": "restaurant_id"
+      },
+      {
+        "from": "orders",
+        "to": "restaurants",
+        "type": "many_to_one",
+        "foreign_key": "restaurant_id"
+      },
+      {
+        "from": "orders",
+        "to": "widget_sessions",
+        "type": "many_to_one",
+        "foreign_key": "session_id"
+      },
+      {
+        "from": "order_items",
+        "to": "orders",
+        "type": "many_to_one",
+        "foreign_key": "order_id"
+      },
+      {
+        "from": "order_items",
+        "to": "menu_items",
+        "type": "many_to_one",
+        "foreign_key": "item_id"
+      },
+      {
+        "from": "widget_sessions",
+        "to": "restaurants",
+        "type": "many_to_one",
+        "foreign_key": "restaurant_id"
+      }
+    ],
+    "functions": [
+      {
+        "name": "update_updated_at_column",
+        "description": "Automatically update updated_at timestamp",
+        "definition": "CREATE OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $$ BEGIN NEW.updated_at = now(); RETURN NEW; END; $$ language 'plpgsql';"
+      }
+    ],
+    "policies": [
+      {
+        "table": "restaurants",
+        "name": "Enable read access for all users",
+        "definition": "CREATE POLICY \"Enable read access for all users\" ON restaurants FOR SELECT USING (true);"
+      },
+      {
+        "table": "menu_items",
+        "name": "Enable read access for all users",
+        "definition": "CREATE POLICY \"Enable read access for all users\" ON menu_items FOR SELECT USING (true);"
+      },
+      {
+        "table": "orders",
+        "name": "Enable insert for authenticated users only",
+        "definition": "CREATE POLICY \"Enable insert for authenticated users only\" ON orders FOR INSERT WITH CHECK (auth.role() = 'authenticated');"
+      },
+      {
+        "table": "orders",
+        "name": "Enable select for users based on user_id",
+        "definition": "CREATE POLICY \"Enable select for users based on user_id\" ON orders FOR SELECT USING (auth.uid() = user_id);"
+      },
+      {
+        "table": "order_items",
+        "name": "Enable insert for authenticated users only",
+        "definition": "CREATE POLICY \"Enable insert for authenticated users only\" ON order_items FOR INSERT WITH CHECK (auth.role() = 'authenticated');"
+      },
+      {
+        "table": "order_items",
+        "name": "Enable select for users based on user_id",
+        "definition": "CREATE POLICY \"Enable select for users based on user_id\" ON order_items FOR SELECT USING (auth.uid() = user_id);"
+      }
+    ]
+  },
+  "metadata": {
+    "total_tables": 5,
+    "total_columns": 67,
+    "total_indexes": 15,
+    "total_policies": 6,
+    "total_functions": 1,
+    "export_notes": [
+      "This schema represents a restaurant ordering system with widget integration",
+      "Tables include restaurants, menu items, orders, order items, and widget sessions",
+      "RLS policies are in place for security",
+      "Full-text search is enabled on restaurants and menu_items",
+      "Timestamps are automatically managed with triggers"
+    ]
+  }
+}
