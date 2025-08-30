@@ -64,9 +64,10 @@ export async function POST(req: NextRequest) {
           .select('name, description, price_cents, currency, dietary, allergens')
           .eq('restaurant_id', restaurantId)
           .eq('is_available', true)
-          .limit(20);
+          .limit(50); // Increased from 20 to 50
 
         if (items && items.length > 0) {
+          console.log(`Chat API: Found ${items.length} menu items for restaurant ${restaurantId}:`, items.map((item: any) => item.name));
           menuContext = `Available menu items:\n${items.map((item: any) =>
             `- ${item.name}: ${item.description || 'No description'} (${item.price_cents ? `${item.price_cents/100} ${item.currency}` : 'Price not set'})${item.dietary?.length ? ` [${item.dietary.join(', ')}]` : ''}`
           ).join('\n')}`;
