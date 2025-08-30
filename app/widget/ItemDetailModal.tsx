@@ -85,8 +85,13 @@ export function ItemDetailModal() {
           <button className="flex-1 rounded-xl bg-black text-white disabled:opacity-40" disabled={!valid}
             onClick={() => {
               useWidget.getState().addToCart({
-                itemId: item.id, name: item.name, qty: 1, unit_cents: total, currency: item.currency,
-                variant, modifiers: mods,
+                itemId: item.id, 
+                name: item.name, 
+                qty: 1, 
+                unit_cents: total, 
+                currency: item.currency,
+                ...(variant ? { variant } : {}),
+                ...(mods && mods.length ? { modifiers: mods } : {}),
               });
               useWidget.getState().closeModal();
             }}>

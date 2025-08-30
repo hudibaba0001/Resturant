@@ -70,11 +70,18 @@ export const useWidget = create<Store>()(
       },
       openItem: (item) => set({ selectedItem: item, ui: 'item' }),
       closeModal: () => set({ selectedItem: null, ui: 'menu' }),
-      addToCart: (line) =>
+      addToCart: (input) => {
+        // enforce defaults so callers can omit optional fields
+        const line: CartLine = {
+          tempId: crypto.randomUUID(),
+          modifiers: [],
+          ...input,
+        };
         set((s) => {
-          if (s.cart.length && s.cart[0].currency !== line.currency) return s; // prevent mixed currency
-          return { cart: [...s.cart, { ...line, tempId: crypto.randomUUID() }], ui: 'menu' };
-        }),
+          if (s.cart.length > 0 && s.cart[0]?.currency !== line.currency) return s; // prevent mixed currency
+          return { cart: [...s.cart, line], ui: 'menu' };
+        });
+      },
       updateCartLine: (tempId, patch) =>
         set((s) => ({ cart: s.cart.map(l => l.tempId === tempId ? { ...l, ...patch } : l) })),
       removeCartLine: (tempId) =>
