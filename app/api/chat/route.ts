@@ -1,47 +1,57 @@
-export const runtime = 'nodejs';
+// ✅ Add these at the TOP so Next never tries to pre-render this route:
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
 // Initialize OpenAI client
-const openai = process.env.OPENAI_API_KEY 
+const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// ✅ Replace with a lazy factory (RLS-only, no service key):
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return null; // don't throw at import time
+  return createClient(url, anon, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { 'x-client-info': 'api-chat' } },
+  });
+}
 
 export async function POST(req: NextRequest) {
+  const supabase = getSupabase();
+  if (!supabase) {
+    return NextResponse.json({ code: 'ENV_MISSING_SUPABASE' }, { status: 500 });
+  }
+
   try {
     const body = await req.json().catch(() => ({}));
     const { message, sessionId, restaurantId } = body;
-    
+
     if (!message) {
-      return NextResponse.json({ 
-        reply: { 
-          text: 'Hi! Ask me about our menu, ingredients, or recommendations.', 
-          chips: ['Popular items', 'Vegan options', 'Spicy dishes'], 
-          locale: 'en' 
-        }, 
-        cards: [] 
+      return NextResponse.json({
+        reply: {
+          text: 'Hi! Ask me about our menu, ingredients, or recommendations.',
+          chips: ['Popular items', 'Vegan options', 'Spicy dishes'],
+          locale: 'en'
+        },
+        cards: []
       });
     }
 
     // If no OpenAI key, return helpful fallback
     if (!openai) {
-      return NextResponse.json({ 
-        reply: { 
-          text: 'I can help you find menu items! What are you looking for?', 
-          chips: ['Show menu', 'Popular items', 'Dietary options'], 
-          locale: 'en' 
-        }, 
-        cards: [] 
+      return NextResponse.json({
+        reply: {
+          text: 'I can help you find menu items! What are you looking for?',
+          chips: ['Show menu', 'Popular items', 'Dietary options'],
+          locale: 'en'
+        },
+        cards: []
       });
     }
 
@@ -57,7 +67,7 @@ export async function POST(req: NextRequest) {
           .limit(20);
 
         if (items && items.length > 0) {
-          menuContext = `Available menu items:\n${items.map(item => 
+          menuContext = `Available menu items:\n${items.map((item: any) =>
             `- ${item.name}: ${item.description || 'No description'} (${item.price_cents ? `${item.price_cents/100} ${item.currency}` : 'Price not set'})${item.dietary?.length ? ` [${item.dietary.join(', ')}]` : ''}`
           ).join('\n')}`;
         }
