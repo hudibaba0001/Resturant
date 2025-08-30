@@ -15,7 +15,7 @@ export function ItemDetailModal() {
     const v = variant?.plus_cents ?? 0;
     const m = mods.reduce((s, x) => s + (x.plus_cents || 0), 0);
     return item.price_cents + v + m;
-  }, [item?.price_cents, variant, mods]);
+  }, [item, item?.price_cents, variant, mods]);
 
   if (!item) return null;
 
