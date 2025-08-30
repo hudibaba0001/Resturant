@@ -8,7 +8,7 @@ export function CartBar() {
   const { cart } = useWidget();
   const total = cart.reduce((s: number, l: CartLine) => s + l.unit_cents * l.qty, 0);
   const currency = cart[0]?.currency ?? 'SEK';
-  const go = useWidget(s => s.go);
+  const go = useWidget((s: any) => s.go);
   if (!cart.length) return null;
   return (
     <div className="fixed bottom-0 inset-x-0 p-3 bg-white border-t">
