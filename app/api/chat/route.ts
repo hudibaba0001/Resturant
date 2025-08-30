@@ -271,8 +271,8 @@ export async function POST(req: Request) {
       }
     }
     
-    // Try LLM if available (skip pilot check in dev)
-    if (openai && (IS_DEV || process.env.CHAT_LLM_ENABLED === '1')) {
+    // Try LLM if available and properly configured
+    if (openai && OPENAI_API_KEY && (IS_DEV || process.env.CHAT_LLM_ENABLED === '1')) {
       try {
         // Simple LLM call without complex RAG for now
         const completion = await openai.chat.completions.create({
@@ -321,7 +321,7 @@ export async function POST(req: Request) {
       }
     }
     
-    // Use rule engine
+    // Use rule engine (fallback when LLM is disabled or fails)
     const result = processWithRules(message, menuItems);
     
     // Log telemetry
@@ -351,6 +351,7 @@ export async function POST(req: Request) {
   } catch (error) {
     logError('chat_error', error);
     
+    // Always return a valid response, never crash
     return cors(NextResponse.json({
       reply: {
         text: "I'm having trouble right now. Please browse the menu above.",

@@ -1,91 +1,146 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { z } from 'zod';
-import { verifySessionToken } from '@/lib/session';
-
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-const Body = z.object({
-  restaurantId: z.string().min(1),
-  sessionToken: z.string().min(1),
-  type: z.enum(['dine_in', 'pickup']),
-  items: z.array(z.object({ itemId: z.string().min(1), qty: z.number().int().positive() })).min(1),
-});
+import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
+
+// input the widget sends
+type OrderItemIn = { itemId: string; qty: number; notes?: string | null };
+type OrderIn = {
+  restaurantId: string;
+  sessionId: string;
+  type: 'pickup' | 'dine_in';
+  items: OrderItemIn[];
+};
+
+const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+function genCode(len = 6) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0, I/1
+  let s = '';
+  for (let i = 0; i < len; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return s;
+}
+
+function genPin() {
+  return String(Math.floor(1000 + Math.random() * 9000)); // 4-digit
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { restaurantId, sessionToken, type, items } = Body.parse(body);
+    const { supabase } = getSupabaseWithBearer(req);
+    const body = (await req.json()) as Partial<OrderIn>;
 
-    // Verify session token using the new hashed approach
-    const sessionId = await verifySessionToken(restaurantId, sessionToken);
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Invalid session token' }, { status: 401 });
+    // 1) Validate input
+    if (!body?.restaurantId || !UUID.test(body.restaurantId)) {
+      return NextResponse.json({ code: 'BAD_RESTAURANT' }, { status: 400 });
+    }
+    if (!body?.sessionId || !UUID.test(body.sessionId)) {
+      return NextResponse.json({ code: 'BAD_SESSION' }, { status: 400 });
+    }
+    if (body?.type !== 'pickup' && body?.type !== 'dine_in') {
+      return NextResponse.json({ code: 'BAD_TYPE' }, { status: 400 });
+    }
+    const items = Array.isArray(body?.items) ? body!.items : [];
+    if (items.length === 0) {
+      return NextResponse.json({ code: 'NO_ITEMS' }, { status: 400 });
     }
 
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // 2) Verify the widget session (authorizes anon under RLS)
+    const { data: sess, error: sErr } = await supabase
+      .from('widget_sessions')
+      .select('id, restaurant_id')
+      .eq('id', body.sessionId)
+      .eq('restaurant_id', body.restaurantId)
+      .maybeSingle();
 
-    let orderId = `dev_${Math.random().toString(36).slice(2)}`;
-    if (url && key) {
-      const sb = createClient(url, key, { auth: { persistSession: false } });
-      
-      // Generate order code
-      const orderCode = 'O' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      
-      // Calculate total (simplified - you'd normally get prices from menu_items)
-      const totalCents = items.reduce((sum, item) => sum + (item.qty * 1000), 0); // 1000 cents = 10 SEK per item
-      
-      const { data, error } = await sb
-        .from('orders')
-        .insert({
-          restaurant_id: restaurantId,
-          session_id: sessionId,
-          status: type === 'pickup' ? 'pending' : 'open',
-          type,
-          order_code: orderCode,
-          total_cents: totalCents,
-          currency: 'SEK'
-        })
-        .select('id')
-        .limit(1)
-        .single();
-        
-      if (error) {
-        console.error('ORDERS_INSERT_ERROR', error);
-      } else if (data?.id) {
-        orderId = String(data.id);
-        
-        // Insert order items
-        for (const item of items) {
-          await sb.from('order_items').insert({
-            order_id: data.id,
-            item_id: item.itemId,
-            qty: item.qty,
-            price_cents: 1000 // Simplified pricing
-          });
-        }
+    if (sErr) {
+      return NextResponse.json({ code: 'SESSION_LOOKUP_ERROR', error: sErr.message }, { status: 500 });
+    }
+    if (!sess) {
+      return NextResponse.json({ code: 'SESSION_INVALID' }, { status: 403 });
+    }
+
+    // 3) Load menu prices for itemIds
+    const ids = Array.from(new Set(items.map(i => i.itemId).filter(Boolean)));
+    const { data: menu, error: mErr } = await supabase
+      .from('menu_items')
+      .select('id, price_cents, currency')
+      .in('id', ids);
+
+    if (mErr) {
+      return NextResponse.json({ code: 'MENU_LOOKUP_ERROR', error: mErr.message }, { status: 500 });
+    }
+    const priceMap = new Map(menu!.map(m => [m.id, m]));
+    // Resolve lines; reject if any item missing or qty invalid
+    const lines = items.map(i => {
+      const mi = priceMap.get(i.itemId);
+      if (!mi || !(Number.isInteger(i.qty) && i.qty > 0)) return null;
+      return {
+        item_id: i.itemId,
+        qty: i.qty,
+        price_cents: mi.price_cents,
+        notes: i.notes ?? null,
+      };
+    });
+    if (lines.some(l => l === null)) {
+      return NextResponse.json({ code: 'BAD_LINE' }, { status: 400 });
+    }
+
+    // 4) Compute totals and generate codes
+    const total_cents = lines.reduce((s, l: any) => s + l.price_cents * l.qty, 0);
+    const currency = (menu && menu[0]?.currency) || 'SEK';
+    const order_code = genCode(6);
+    const pin = body.type === 'pickup' ? genPin() : null;
+
+    // 5) Create order (RLS: orders_widget_insert)
+    const { data: order, error: oErr } = await supabase
+      .from('orders')
+      .insert([{
+        restaurant_id: body.restaurantId,
+        session_id: body.sessionId,
+        type: body.type,
+        status: 'pending',
+        order_code,
+        total_cents,
+        currency,
+        pin,
+        pin_issued_at: pin ? new Date().toISOString() : null,
+      }])
+      .select('id, order_code, status, total_cents, currency, type, created_at')
+      .single();
+
+    if (oErr || !order) {
+      const msg = oErr?.message?.toLowerCase?.() || '';
+      if (msg.includes('rls') || msg.includes('permission')) {
+        return NextResponse.json({ code: 'FORBIDDEN' }, { status: 403 });
       }
+      return NextResponse.json({ code: 'ORDER_INSERT_ERROR', error: oErr?.message }, { status: 500 });
     }
 
-    const origin = new URL(req.url).origin;
-
-    if (type === 'dine_in') {
-      // Return a short pickup/dine-in code (what the widget expects)
-      const orderCode = String(Math.floor(1000 + Math.random() * 9000));
-      return NextResponse.json({ orderId, orderCode }, { status: 200 });
+    // 6) Insert order_items (RLS: order_items_widget_insert)
+    const payload = (lines as any[]).map(l => ({ ...l, order_id: order.id }));
+    const { error: liErr } = await supabase.from('order_items').insert(payload);
+    if (liErr) {
+      return NextResponse.json({ code: 'LINE_INSERT_ERROR', error: liErr.message }, { status: 500 });
     }
 
-    if (type === 'pickup') {
-      // Use internal dev checkout
-      const checkoutUrl = `${origin}/dev/checkout?orderId=${encodeURIComponent(orderId)}`;
-      return NextResponse.json({ orderId, checkoutUrl }, { status: 200 });
-    }
+    // 7) Return created order summary (no items list needed for widget)
+    return NextResponse.json({
+      order: {
+        id: order.id,
+        order_code: order.order_code,
+        status: order.status,
+        total_cents: order.total_cents,
+        currency: order.currency,
+        type: order.type,
+        created_at: order.created_at,
+        pin,                // show to user if pickup
+      }
+    }, { status: 201 });
 
-    return NextResponse.json({ error: 'unsupported_type' }, { status: 400 });
-  } catch (err: any) {
-    const status = err?.name === 'ZodError' ? 400 : 500;
-    console.error('Orders API error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status });
+  } catch (e: any) {
+    return NextResponse.json({ code: 'ROUTE_THROW', error: String(e?.message || e) }, { status: 500 });
   }
 }
