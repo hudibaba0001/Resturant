@@ -4,9 +4,9 @@ import { slugify } from '@/lib/utils/slug';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/Input';
 import { Suspense } from 'react';
+import CreateMenuClient from '@/components/dashboard/CreateMenuClient';
 
 async function getRestaurantId(): Promise<string | null> {
   try {
@@ -53,7 +53,7 @@ export default async function MenusPage() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Menus</h1>
-          <CreateMenuButton />
+          <CreateMenuClient />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {menus.map((m) => (
@@ -86,20 +86,4 @@ export default async function MenusPage() {
       </div>
     );
   }
-}
-
-function CreateMenuButton() {
-  return (
-    <Dialog>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Create New Menu</DialogTitle></DialogHeader>
-        <div className="flex items-center gap-2">
-          <Input name="name" placeholder="e.g., Lunch" />
-          <Button type="submit" asChild>
-            <a href="#" onClick={(e) => { e.preventDefault(); const input = (e.currentTarget.closest('div')?.querySelector('input[name=name]') as HTMLInputElement); const name = input?.value || 'Menu'; window.location.href = `/dashboard/menus/${slugify(name)}`; }}>Create</a>
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }

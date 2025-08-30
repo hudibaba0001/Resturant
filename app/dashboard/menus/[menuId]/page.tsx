@@ -1,6 +1,5 @@
 import { MenuRepository } from '@/lib/menuRepo';
 import { getServerSupabase } from '@/lib/supabase/server';
-import { EditItemDialog } from '@/components/dashboard/EditItemDialog';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -8,7 +7,7 @@ import { Suspense } from 'react';
 import { revalidatePath } from 'next/cache';
 import { nanoid } from 'nanoid';
 import type { Item } from '@/lib/types/menu';
-import { AddItemClient } from './AddItemClient';
+import AddItemClient from '@/components/dashboard/AddItemClient';
 import { ItemRowClient } from './ItemRowClient';
 import Link from 'next/link';
 
