@@ -2,7 +2,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer'; // your stateless helper
+import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
+import { resolveSession } from '@/app/api/_lib/resolveSession';
 
 const UUID_RE=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -14,12 +15,13 @@ export async function POST(req:NextRequest){
     const body = await req.json().catch(()=> ({} as any));
 
     const restaurantId = body.restaurantId || body.restaurant_id || '';
-    const sessionInput = body.sessionId || body.session_id || body.sessionToken || body.session_token || '';
+    const sessionId = body.sessionId || body.session_id;
+    const sessionToken = body.sessionToken || body.session_token;
     const type = String(body.type || 'pickup').toLowerCase().replace(/[\s-]/g,'_');
     const itemsRaw:RawItem[] = Array.isArray(body.items)? body.items: [];
 
     if(!UUID_RE.test(restaurantId)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
-    if(!sessionInput) return NextResponse.json({code:'BAD_SESSION'},{status:400});
+    if(!sessionId && !sessionToken) return NextResponse.json({code:'BAD_SESSION'},{status:400});
     if(!['pickup','dine_in','delivery'].includes(type)) return NextResponse.json({code:'BAD_TYPE'},{status:400});
     if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
 
@@ -30,14 +32,11 @@ export async function POST(req:NextRequest){
     });
     if(items.some(i=>!UUID_RE.test(i.itemId)||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
-    // Resolve widget session (UUID or token) bound to restaurant
-    const sessionQuery = UUID_RE.test(sessionInput)
-      ? supabase.from('widget_sessions').select('id, restaurant_id').eq('id', sessionInput).eq('restaurant_id', restaurantId).maybeSingle()
-      : supabase.from('widget_sessions').select('id, restaurant_id').eq('session_token', sessionInput).eq('restaurant_id', restaurantId).maybeSingle();
-
-    const { data: sessionRow, error: sErr } = await sessionQuery;
-    if(sErr) return NextResponse.json({code:'SESSION_LOOKUP_ERROR', error:sErr.message},{status:500});
-    if(!sessionRow) return NextResponse.json({code:'SESSION_INVALID'},{status:403});
+    // Resolve session using the helper
+    const session = await resolveSession(supabase, restaurantId, sessionId, sessionToken);
+    if ('code' in session) {
+      return NextResponse.json({ code: session.code }, { status: 401 });
+    }
 
     // Price lookup
     const ids = Array.from(new Set(items.map(i=>i.itemId)));
@@ -56,7 +55,7 @@ export async function POST(req:NextRequest){
     const order_code = genCode(); const pin = type==='pickup'? genPin(): null;
 
     const { data: order, error: oErr } = await supabase.from('orders').insert([{
-      restaurant_id: restaurantId, session_id: sessionRow.id, type, status:'pending',
+      restaurant_id: restaurantId, session_id: session.sessionId, type, status:'pending',
       order_code, total_cents, currency, pin, pin_issued_at: pin? new Date().toISOString(): null
     }]).select('id, order_code, status, total_cents, currency, type, created_at').single();
     if(oErr || !order){

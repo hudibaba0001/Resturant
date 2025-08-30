@@ -20,10 +20,12 @@ type UIState = 'menu' | 'item' | 'cart' | 'checkout' | null;
 type Store = {
   restaurantId: string;
   sessionId: string;
+  sessionToken: string;
   cart: CartLine[];
   ui: UIState;
   selectedItem: MenuItemDTO | null;
-  setContext: (restaurantId: string, sessionId: string) => void;
+  setContext: (restaurantId: string, sessionId: string, sessionToken: string) => void;
+  bootstrapSession: (restaurantId: string) => Promise<boolean>;
   openItem: (item: MenuItemDTO) => void;
   closeModal: () => void;
   addToCart: (line: Omit<CartLine, 'tempId'>) => void;
@@ -38,10 +40,34 @@ export const useWidget = create<Store>()(
     (set, get) => ({
       restaurantId: '',
       sessionId: '',
+      sessionToken: '',
       cart: [],
       ui: 'menu',
       selectedItem: null,
-      setContext: (restaurantId, sessionId) => set({ restaurantId, sessionId }),
+      setContext: (restaurantId, sessionId, sessionToken) => set({ restaurantId, sessionId, sessionToken }),
+      bootstrapSession: async (restaurantId) => {
+        try {
+          const res = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ restaurantId, locale: navigator.language })
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            console.error('Session bootstrap failed:', json);
+            return false;
+          }
+          set({ 
+            restaurantId, 
+            sessionId: json.sessionId, 
+            sessionToken: json.sessionToken 
+          });
+          return true;
+        } catch (error) {
+          console.error('Session bootstrap error:', error);
+          return false;
+        }
+      },
       openItem: (item) => set({ selectedItem: item, ui: 'item' }),
       closeModal: () => set({ selectedItem: null, ui: 'menu' }),
       addToCart: (line) =>
@@ -58,7 +84,7 @@ export const useWidget = create<Store>()(
     }),
     {
       name: 'stjarna-cart',
-      partialize: (s) => ({ cart: s.cart }),
+      partialize: (s) => ({ cart: s.cart, sessionId: s.sessionId, sessionToken: s.sessionToken }),
       storage: createJSONStorage(() => (typeof window !== 'undefined' ? localStorage : undefined as any)),
     }
   )

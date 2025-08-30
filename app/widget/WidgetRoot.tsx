@@ -4,28 +4,58 @@ import { useWidget } from './store';
 import { ToastHost } from './ui/Toast';
 import { MenuView } from './MenuView';
 
-export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; sessionId: string }) {
-  const setContext = useWidget(s => s.setContext);
+export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; sessionId?: string }) {
+  const { setContext, bootstrapSession, sessionToken } = useWidget();
   const [menu, setMenu] = useState<{ sections: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setContext(restaurantId, sessionId);
-    (async () => {
+    const initWidget = async () => {
       setLoading(true);
-      const res = await fetch(`/api/menu?restaurantId=${restaurantId}`, { cache: 'no-store' });
-      const json = await res.json().catch(() => null);
-      setMenu(json);
-      setLoading(false);
-    })();
-  }, [restaurantId, sessionId, setContext]);
+      setError(null);
+      
+      try {
+        // If sessionId is provided, use it directly
+        if (sessionId) {
+          setContext(restaurantId, sessionId, sessionToken || '');
+        } else {
+          // Auto-bootstrap a new session
+          const success = await bootstrapSession(restaurantId);
+          if (!success) {
+            setError('Failed to initialize session');
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Load menu
+        const res = await fetch(`/api/menu?restaurantId=${restaurantId}`, { cache: 'no-store' });
+        const json = await res.json().catch(() => null);
+        setMenu(json);
+      } catch (err) {
+        setError('Failed to load menu');
+        console.error('Widget initialization error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initWidget();
+  }, [restaurantId, sessionId, setContext, bootstrapSession, sessionToken]);
 
   return (
     <>
       <ToastHost />
-      {loading ? <div className="p-4 text-center">Loading menu…</div>
-        : menu ? <MenuView sections={menu.sections} />
-        : <div className="p-4">Menu unavailable.</div>}
+      {loading ? (
+        <div className="p-4 text-center">Loading menu…</div>
+      ) : error ? (
+        <div className="p-4 text-center text-red-600">{error}</div>
+      ) : menu ? (
+        <MenuView sections={menu.sections} />
+      ) : (
+        <div className="p-4">Menu unavailable.</div>
+      )}
     </>
   );
 }

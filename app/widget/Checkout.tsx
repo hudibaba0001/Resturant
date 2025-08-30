@@ -27,7 +27,7 @@ export function CartBar() {
 export function CheckoutScreen() {
   const cart         = useWidget(s => s.cart);
   const restaurantId = useWidget(s => s.restaurantId);
-  const sessionId    = useWidget(s => s.sessionId);
+  const sessionToken = useWidget(s => s.sessionToken);
   const clearCart    = useWidget(s => s.clearCart);
   const go           = useWidget(s => s.go);
 
@@ -51,7 +51,7 @@ export function CheckoutScreen() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurantId, sessionId, type: 'pickup', items }),
+        body: JSON.stringify({ restaurantId, sessionToken, type: 'pickup', items }),
       });
 
       const json = await res.json().catch(() => ({} as any));
