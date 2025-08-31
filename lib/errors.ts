@@ -1,3 +1,4 @@
+// Safe error helpers – never leak stack traces to clients.
 export function safeErr(code = 'INTERNAL_ERROR', status = 500) {
   return { code, status };
 }
@@ -10,6 +11,13 @@ export function jsonError(code: string, status = 400, extra?: Record<string, unk
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' },
+  });
+}
+
+export function jsonOk(body: unknown, init?: ResponseInit) {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
   });
 }
 
