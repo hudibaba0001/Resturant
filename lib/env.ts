@@ -13,4 +13,5 @@ export const env = {
   supabaseServiceRole: () => required('SUPABASE_SERVICE_ROLE_KEY'),
   // add more as needed
   openaiKey: () => required('OPENAI_API_KEY'),
+  stripeSecretKey: () => required('STRIPE_SECRET_KEY'),
 };

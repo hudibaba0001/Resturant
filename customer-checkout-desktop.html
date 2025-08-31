@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Stjarna Restaurant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .step-indicator { transition: all 0.3s ease; }
+        .step-indicator.active { background: #3b82f6; color: white; }
+        .step-indicator.completed { background: #10b981; color: white; }
+        .payment-method { transition: all 0.2s ease; }
+        .payment-method.selected { border-color: #3b82f6; background: #eff6ff; }
+        .hero-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .order-summary-card { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.95); }
+        .floating-back { position: fixed; top: 2rem; left: 2rem; z-index: 50; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Floating Back Button -->
+<div class="floating-back">
+    <button class="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl shadow-lg border border-gray-200 flex items-center gap-2 transition-colors">
+        <i class="fas fa-arrow-left"></i>Back to Menu
+    </button>
+</div>
+
+<!-- Header -->
+<div class="hero-gradient text-white py-6">
+    <div class="max-w-6xl mx-auto px-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">Checkout</h1>
+                <p class="text-blue-100">Complete your order at Stjarna Restaurant</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-blue-100">Order #</div>
+                <div class="text-lg font-bold">STJ-2024-001</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Steps -->
+<div class="bg-white border-b border-gray-200 py-4">
+    <div class="max-w-6xl mx-auto px-8">
+        <div class="flex items-center justify-center gap-8">
+            <div class="flex items-center gap-3">
+                <div class="step-indicator completed w-10 h-10 rounded-full flex items-center justify-center font-bold">
+                    <i class="fas fa-check"></i>
+                </div>
+                <span class="font-medium text-gray-900">Order Details</span>
+            </div>
+            <div class="w-16 h-1 bg-green-500 rounded"></div>
+            <div class="flex items-center gap-3">
+                <div class="step-indicator active w-10 h-10 rounded-full flex items-center justify-center font-bold">
+                    2
+                </div>
+                <span class="font-medium text-gray-900">Payment</span>
+            </div>
+            <div class="w-16 h-1 bg-gray-200 rounded"></div>
+            <div class="flex items-center gap-3">
+                <div class="step-indicator w-10 h-10 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center font-bold">
+                    3
+                </div>
+                <span class="font-medium text-gray-600">Confirmation</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="max-w-6xl mx-auto px-8 py-8">
+    <div class="grid grid-cols-12 gap-8">
+        
+        <!-- Left Column - Checkout Form -->
+        <div class="col-span-8 space-y-8">
+            
+            <!-- Order Type & Timing -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Order Details</h2>
+                
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Order Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Order Type</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center p-4 border-2 border-blue-500 bg-blue-50 rounded-xl cursor-pointer">
+                                <input type="radio" name="orderType" value="pickup" checked class="sr-only">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white">
+                                        <i class="fas fa-walking text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">Pickup</div>
+                                        <div class="text-sm text-gray-600">Ready in 15-20 minutes</div>
+                                    </div>
+                                </div>
+                            </label>
+                            <label class="flex items-center p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-gray-300">
+                                <input type="radio" name="orderType" value="dinein" class="sr-only">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center text-white">
+                                        <i class="fas fa-utensils text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-gray-900">Dine In</div>
+                                        <div class="text-sm text-gray-600">Table service</div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Pickup Time -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Pickup Time</label>
+                        <select class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option>ASAP (15-20 minutes)</option>
+                            <option>18:30 (30 minutes)</option>
+                            <option>19:00 (1 hour)</option>
+                            <option>19:30 (1.5 hours)</option>
+                            <option>20:00 (2 hours)</option>
+                        </select>
+                        
+                        <!-- Special Instructions -->
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Special Instructions</label>
+                            <textarea rows="3" placeholder="Any special requests or dietary notes..." 
+                                    class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Information -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Contact Information</h2>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                        <input type="text" placeholder="John" 
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                        <input type="text" placeholder="Doe" 
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <input type="tel" placeholder="+46 70 123 4567" 
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
+                        <input type="email" placeholder="john@example.com" 
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Payment Method</h2>
+                
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <label class="payment-method selected border-2 p-4 rounded-xl cursor-pointer text-center">
+                        <input type="radio" name="payment" value="card" checked class="sr-only">
+                        <div class="text-2xl mb-2"><i class="fas fa-credit-card text-blue-600"></i></div>
+                        <div class="font-medium">Credit Card</div>
+                        <div class="text-xs text-gray-600">Visa, Mastercard</div>
+                    </label>
+                    <label class="payment-method border-2 border-gray-200 p-4 rounded-xl cursor-pointer text-center hover:border-gray-300">
+                        <input type="radio" name="payment" value="swish" class="sr-only">
+                        <div class="text-2xl mb-2"><i class="fas fa-mobile-alt text-orange-600"></i></div>
+                        <div class="font-medium">Swish</div>
+                        <div class="text-xs text-gray-600">Mobile payment</div>
+                    </label>
+                    <label class="payment-method border-2 border-gray-200 p-4 rounded-xl cursor-pointer text-center hover:border-gray-300">
+                        <input type="radio" name="payment" value="cash" class="sr-only">
+                        <div class="text-2xl mb-2"><i class="fas fa-money-bills text-green-600"></i></div>
+                        <div class="font-medium">Pay at Pickup</div>
+                        <div class="text-xs text-gray-600">Cash or card</div>
+                    </label>
+                </div>
+
+                <!-- Credit Card Form -->
+                <div id="card-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
+                        <div class="relative">
+                            <input type="text" placeholder="1234 5678 9012 3456" 
+                                   class="w-full p-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <div class="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-1">
+                                <i class="fab fa-cc-visa text-blue-600"></i>
+                                <i class="fab fa-cc-mastercard text-red-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+                            <input type="text" placeholder="MM/YY" 
+                                   class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">CVC</label>
+                            <input type="text" placeholder="123" 
+                                   class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Cardholder Name</label>
+                        <input type="text" placeholder="John Doe" 
+                               class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <!-- Swish Form (Hidden by default) -->
+                <div id="swish-form" class="hidden">
+                    <div class="text-center py-8">
+                        <div class="text-6xl mb-4"><i class="fas fa-mobile-alt text-orange-600"></i></div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Pay with Swish</h3>
+                        <p class="text-gray-600 mb-4">You'll be redirected to Swish to complete your payment</p>
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                            <p class="text-sm text-orange-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                Make sure you have the Swish app installed on your phone
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pay at Pickup Form (Hidden by default) -->
+                <div id="cash-form" class="hidden">
+                    <div class="text-center py-8">
+                        <div class="text-6xl mb-4"><i class="fas fa-store text-green-600"></i></div>
+                        <h3 class="text-xl font-bold text-gray-900 mb-2">Pay at Pickup</h3>
+                        <p class="text-gray-600 mb-4">You can pay with cash or card when you collect your order</p>
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                            <p class="text-sm text-green-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                We accept cash, Visa, Mastercard, and Swish at the restaurant
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Order Summary -->
+        <div class="col-span-4">
+            <div class="order-summary-card sticky top-8 rounded-2xl shadow-lg border border-gray-200 p-6">
+                <h3 class="text-xl font-bold text-gray-900 mb-4">Order Summary</h3>
+
+                <!-- Order Items -->
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=60&h=60&fit=crop" 
+                             alt="Salmon" class="w-12 h-12 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900 text-sm">Grilled Atlantic Salmon</h4>
+                            <p class="text-gray-600 text-xs">189 SEK × 1</p>
+                        </div>
+                        <span class="font-bold text-gray-900">189 SEK</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=60&h=60&fit=crop" 
+                             alt="Caesar Salad" class="w-12 h-12 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900 text-sm">Classic Caesar Salad</h4>
+                            <p class="text-gray-600 text-xs">89 SEK × 2</p>
+                        </div>
+                        <span class="font-bold text-gray-900">178 SEK</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=60&h=60&fit=crop" 
+                             alt="Bruschetta" class="w-12 h-12 rounded-lg object-cover">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900 text-sm">Tomato Bruschetta</h4>
+                            <p class="text-gray-600 text-xs">75 SEK × 1</p>
+                        </div>
+                        <span class="font-bold text-gray-900">75 SEK</span>
+                    </div>
+                </div>
+
+                <!-- Pricing Breakdown -->
+                <div class="border-t border-gray-200 pt-4 space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Subtotal</span>
+                        <span class="font-medium">442 SEK</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Tax (12%)</span>
+                        <span class="font-medium">53 SEK</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-600">Service Fee</span>
+                        <span class="font-medium">15 SEK</span>
+                    </div>
+                    <div class="border-t border-gray-200 pt-2">
+                        <div class="flex justify-between text-lg font-bold">
+                            <span>Total</span>
+                            <span>510 SEK</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estimated Time -->
+                <div class="mt-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div>
+                            <div class="font-medium text-blue-900">Ready for pickup</div>
+                            <div class="text-sm text-blue-700">Today at 18:45 (15-20 min)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Place Order Button -->
+                <button class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg transition-colors">
+                    <i class="fas fa-credit-card mr-2"></i>Place Order - 510 SEK
+                </button>
+
+                <!-- Security Notice -->
+                <div class="mt-4 text-center">
+                    <p class="text-xs text-gray-600">
+                        <i class="fas fa-lock mr-1"></i>
+                        Your payment information is secure and encrypted
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for form interactions -->
+<script>
+    // Payment method switching
+    document.querySelectorAll('input[name="payment"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Remove selected class from all payment methods
+            document.querySelectorAll('.payment-method').forEach(method => {
+                method.classList.remove('selected', 'border-blue-500', 'bg-blue-50');
+                method.classList.add('border-gray-200');
+            });
+            
+            // Add selected class to chosen method
+            this.closest('.payment-method').classList.add('selected', 'border-blue-500', 'bg-blue-50');
+            this.closest('.payment-method').classList.remove('border-gray-200');
+            
+            // Show/hide appropriate forms
+            document.getElementById('card-form').classList.add('hidden');
+            document.getElementById('swish-form').classList.add('hidden');
+            document.getElementById('cash-form').classList.add('hidden');
+            
+            if (this.value === 'card') {
+                document.getElementById('card-form').classList.remove('hidden');
+            } else if (this.value === 'swish') {
+                document.getElementById('swish-form').classList.remove('hidden');
+            } else if (this.value === 'cash') {
+                document.getElementById('cash-form').classList.remove('hidden');
+            }
+        });
+    });
+
+    // Order type switching
+    document.querySelectorAll('input[name="orderType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Remove selected styling from all order type labels
+            document.querySelectorAll('input[name="orderType"]').forEach(r => {
+                const label = r.closest('label');
+                label.classList.remove('border-blue-500', 'bg-blue-50');
+                label.classList.add('border-gray-200');
+                
+                const icon = label.querySelector('.w-12');
+                icon.classList.remove('bg-blue-500');
+                icon.classList.add('bg-gray-400');
+            });
+            
+            // Add selected styling to chosen option
+            const selectedLabel = this.closest('label');
+            selectedLabel.classList.add('border-blue-500', 'bg-blue-50');
+            selectedLabel.classList.remove('border-gray-200');
+            
+            const selectedIcon = selectedLabel.querySelector('.w-12');
+            selectedIcon.classList.add('bg-blue-500');
+            selectedIcon.classList.remove('bg-gray-400');
+        });
+    });
+
+    // Form validation and submission
+    document.querySelector('button[class*="bg-green-600"]').addEventListener('click', function() {
+        // Simple validation example
+        const requiredFields = document.querySelectorAll('input[required]');
+        let isValid = true;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('border-red-500');
+                isValid = false;
+            } else {
+                field.classList.remove('border-red-500');
+            }
+        });
+        
+        if (isValid) {
+            // Simulate order processing
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+            this.disabled = true;
+            
+            setTimeout(() => {
+                window.location.href = '#confirmation'; // Would redirect to confirmation page
+            }, 2000);
+        } else {
+            alert('Please fill in all required fields');
+        }
+    });
+</script>
+
+</body>
+</html>
