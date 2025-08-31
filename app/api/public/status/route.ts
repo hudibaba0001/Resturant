@@ -1,31 +1,38 @@
-import { NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-function withCORS(req: Request, res: NextResponse) {
-  const reqOrigin = req.headers.get('origin') ?? '*';
-  res.headers.set('Access-Control-Allow-Origin', reqOrigin);
-  res.headers.set('Vary', 'Origin');
-  res.headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Widget-Version');
-  res.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  return res;
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { env } from '@/lib/env';
+import { corsHeaders } from '@/lib/cors';
+
+const ALLOW = [
+  'https://resturant.vercel.app',
+  'https://*.your-customer.com', // optional wildcard if you must
+];
+
+function sb() {
+  const url = env.supabaseUrl();
+  const anon = env.supabaseAnon();
+  return createClient(url, anon, { auth: { persistSession: false } });
 }
 
-export async function OPTIONS(req: Request) {
-  return withCORS(req, new NextResponse(null, { status: 204 }));
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { 
+    headers: corsHeaders(req.headers.get('origin') || '', ALLOW) 
+  });
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const restaurantId = url.searchParams.get('restaurantId') ?? '';
-    // TODO: Hook to DB/hours later. For now, never fail and default to open.
-    const res = NextResponse.json(
-      { open: true, restaurantId, mode: 'fallback' },
-      { status: 200, headers: { 'Cache-Control': 'no-store' } },
-    );
-    return withCORS(req, res);
-  } catch {
-    // Absolutely never 500 for status
-    const res = NextResponse.json({ open: true, mode: 'degraded' }, { status: 200 });
-    return withCORS(req, res);
+    // keep this strictly public (no PII)
+    const supabase = sb();
+    // example: only return static status or public config; do NOT expose cross-tenant data
+    const headers = corsHeaders(req.headers.get('origin') || '', ALLOW);
+    return NextResponse.json({ ok: true, ts: Date.now() }, { headers });
+  } catch (error) {
+    console.error('Status route error:', error);
+    const headers = corsHeaders(req.headers.get('origin') || '', ALLOW);
+    return NextResponse.json({ code: 'INTERNAL_ERROR' }, { status: 500, headers });
   }
 }
