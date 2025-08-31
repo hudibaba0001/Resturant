@@ -9,10 +9,8 @@ import { MenuRepository } from '@/lib/menuRepo';
 import { jsonError } from '@/lib/errors';
 import { corsHeaders } from '@/lib/cors';
 
-// Initialize OpenAI client
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+// Initialize OpenAI client lazily
+import { getOpenAI } from '@/lib/ai';
 
 // ✅ Replace with a lazy factory (RLS-only, no service key):
 function getSupabase() {
@@ -56,8 +54,10 @@ export async function POST(req: NextRequest) {
       }, { headers });
     }
 
-    // If no OpenAI key, return helpful fallback
-    if (!openai) {
+    // Check if OpenAI is available
+    try {
+      getOpenAI(); // This will throw if OPENAI_API_KEY is missing
+    } catch (error) {
       return NextResponse.json({
         reply: {
           text: 'I can help you find menu items! What are you looking for?',
@@ -123,6 +123,7 @@ Current menu items are listed above.`;
 Please provide a helpful response based on the available menu items.`;
 
     // Get AI response
+    const openai = getOpenAI();
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [

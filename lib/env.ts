@@ -11,5 +11,6 @@ export const env = {
   supabaseUrl: () => required('NEXT_PUBLIC_SUPABASE_URL'),
   supabaseAnon: () => required('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
   supabaseServiceRole: () => required('SUPABASE_SERVICE_ROLE_KEY'),
-  // add others here if needed
+  // add more as needed
+  openaiKey: () => required('OPENAI_API_KEY'),
 };

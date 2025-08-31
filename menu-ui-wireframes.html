@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Menu Management UI Wireframes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .glass-card { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.9); }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .menu-card { transition: all 0.3s ease; transform: translateY(0); }
+        .menu-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .item-card { border-left: 4px solid transparent; transition: all 0.2s ease; }
+        .item-card:hover { border-left-color: #667eea; background: #f8fafc; }
+        .floating-action { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Page 1: Enhanced Menu Overview -->
+<div class="page" id="menu-overview">
+    <!-- Header with breadcrumb and stats -->
+    <div class="gradient-bg text-white">
+        <div class="max-w-7xl mx-auto px-6 py-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <nav class="text-sm opacity-80 mb-2">
+                        <span>Dashboard</span> <i class="fas fa-chevron-right mx-2"></i> <span>Menu Management</span>
+                    </nav>
+                    <h1 class="text-3xl font-bold mb-2">Menu Management</h1>
+                    <p class="opacity-90">Manage your restaurant's menus and items</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-2xl font-bold">3</div>
+                    <div class="text-sm opacity-80">Active Menus</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Bar -->
+    <div class="max-w-7xl mx-auto px-6 -mt-6 relative z-10">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="glass-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-blue-600">47</div>
+                <div class="text-sm text-gray-600">Total Items</div>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-green-600">12</div>
+                <div class="text-sm text-gray-600">Categories</div>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-purple-600">8</div>
+                <div class="text-sm text-gray-600">Variants</div>
+            </div>
+            <div class="glass-card rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-orange-600">95%</div>
+                <div class="text-sm text-gray-600">Available</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Menu Cards -->
+    <div class="max-w-7xl mx-auto px-6 pb-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-semibold text-gray-800">Your Menus</h2>
+            <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                <i class="fas fa-plus"></i> Create New Menu
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Menu Card 1 - Active -->
+            <div class="menu-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="h-32 bg-gradient-to-r from-blue-500 to-purple-600 relative">
+                    <div class="absolute top-4 right-4">
+                        <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-circle text-xs mr-1"></i>Active
+                        </span>
+                    </div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="text-xl font-bold">Lunch Menu</h3>
+                        <p class="text-sm opacity-90">Daily specials & favorites</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4 text-sm text-gray-600">
+                            <span><i class="fas fa-utensils mr-1"></i>18 items</span>
+                            <span><i class="fas fa-tags mr-1"></i>6 sections</span>
+                        </div>
+                        <div class="text-sm text-gray-500">Updated 2h ago</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 px-4 rounded-lg transition-colors">
+                            <i class="fas fa-edit mr-2"></i>Edit Menu
+                        </button>
+                        <button class="bg-gray-50 hover:bg-gray-100 text-gray-700 p-2 rounded-lg transition-colors">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu Card 2 - Draft -->
+            <div class="menu-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="h-32 bg-gradient-to-r from-orange-500 to-red-600 relative">
+                    <div class="absolute top-4 right-4">
+                        <span class="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-clock text-xs mr-1"></i>Draft
+                        </span>
+                    </div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="text-xl font-bold">Dinner Menu</h3>
+                        <p class="text-sm opacity-90">Evening fine dining</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4 text-sm text-gray-600">
+                            <span><i class="fas fa-utensils mr-1"></i>24 items</span>
+                            <span><i class="fas fa-tags mr-1"></i>8 sections</span>
+                        </div>
+                        <div class="text-sm text-gray-500">Updated 1d ago</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-700 py-2 px-4 rounded-lg transition-colors">
+                            <i class="fas fa-edit mr-2"></i>Continue Editing
+                        </button>
+                        <button class="bg-gray-50 hover:bg-gray-100 text-gray-700 p-2 rounded-lg transition-colors">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu Card 3 - Seasonal -->
+            <div class="menu-card bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="h-32 bg-gradient-to-r from-green-500 to-teal-600 relative">
+                    <div class="absolute top-4 right-4">
+                        <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-leaf text-xs mr-1"></i>Seasonal
+                        </span>
+                    </div>
+                    <div class="absolute bottom-4 left-4 text-white">
+                        <h3 class="text-xl font-bold">Spring Specials</h3>
+                        <p class="text-sm opacity-90">Fresh seasonal ingredients</p>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4 text-sm text-gray-600">
+                            <span><i class="fas fa-utensils mr-1"></i>12 items</span>
+                            <span><i class="fas fa-tags mr-1"></i>4 sections</span>
+                        </div>
+                        <div class="text-sm text-gray-500">Updated 3d ago</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2 px-4 rounded-lg transition-colors">
+                            <i class="fas fa-edit mr-2"></i>Edit Menu
+                        </button>
+                        <button class="bg-gray-50 hover:bg-gray-100 text-gray-700 p-2 rounded-lg transition-colors">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-8 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+            <h3 class="text-lg font-semibold mb-4">Quick Actions</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button class="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-medium">Add New Item</div>
+                        <div class="text-sm text-gray-600">Create a new menu item</div>
+                    </div>
+                </button>
+                <button class="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                    <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center text-white">
+                        <i class="fas fa-copy"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-medium">Duplicate Menu</div>
+                        <div class="text-sm text-gray-600">Copy existing menu</div>
+                    </div>
+                </button>
+                <button class="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors">
+                    <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center text-white">
+                        <i class="fas fa-download"></i>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-medium">Import Menu</div>
+                        <div class="text-sm text-gray-600">Upload from CSV/Excel</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Page 2: Enhanced Menu Editor -->
+<div class="page hidden" id="menu-editor">
+    <!-- Header with breadcrumb -->
+    <div class="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <nav class="text-sm text-gray-500 mb-1">
+                        <a href="#" class="hover:text-gray-700">Menus</a> 
+                        <i class="fas fa-chevron-right mx-2"></i> 
+                        <span class="text-gray-900">Lunch Menu</span>
+                    </nav>
+                    <h1 class="text-2xl font-bold text-gray-900">Lunch Menu</h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-eye mr-2"></i>Preview
+                    </button>
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-save mr-2"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 py-6">
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Enhanced Sidebar -->
+            <div class="col-span-12 lg:col-span-3">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 sticky top-24">
+                    <!-- Section Navigation -->
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">Sections</h3>
+                            <button class="text-blue-600 hover:text-blue-700 text-sm">
+                                <i class="fas fa-plus mr-1"></i>Add
+                            </button>
+                        </div>
+                        <div class="space-y-1">
+                            <a href="#appetizers" class="flex items-center justify-between p-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
+                                <span class="flex items-center gap-2">
+                                    <i class="fas fa-utensils text-sm"></i>Appetizers
+                                </span>
+                                <span class="text-xs bg-blue-200 px-2 py-1 rounded-full">8</span>
+                            </a>
+                            <a href="#mains" class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 text-gray-700">
+                                <span class="flex items-center gap-2">
+                                    <i class="fas fa-drumstick-bite text-sm"></i>Main Courses
+                                </span>
+                                <span class="text-xs bg-gray-200 px-2 py-1 rounded-full">12</span>
+                            </a>
+                            <a href="#desserts" class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 text-gray-700">
+                                <span class="flex items-center gap-2">
+                                    <i class="fas fa-ice-cream text-sm"></i>Desserts
+                                </span>
+                                <span class="text-xs bg-gray-200 px-2 py-1 rounded-full">6</span>
+                            </a>
+                            <a href="#beverages" class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 text-gray-700">
+                                <span class="flex items-center gap-2">
+                                    <i class="fas fa-coffee text-sm"></i>Beverages
+                                </span>
+                                <span class="text-xs bg-gray-200 px-2 py-1 rounded-full">4</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="p-4">
+                        <h4 class="font-medium text-gray-900 mb-3">Menu Stats</h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Total Items</span>
+                                <span class="font-medium">30</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Available</span>
+                                <span class="font-medium text-green-600">28</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Out of Stock</span>
+                                <span class="font-medium text-red-600">2</span>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Avg. Price</span>
+                                <span class="font-medium">125 SEK</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Main Content -->
+            <div class="col-span-12 lg:col-span-9">
+                <!-- Section Header -->
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Appetizers</h2>
+                        <p class="text-gray-600 text-sm">Start your meal with these delicious options</p>
+                    </div>
+                    <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                        <i class="fas fa-plus"></i>Add Item
+                    </button>
+                </div>
+
+                <!-- Enhanced Item Cards -->
+                <div class="space-y-4">
+                    <!-- Item 1 -->
+                    <div class="item-card bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                                <img src="https://via.placeholder.com/80x80/667eea/ffffff?text=🥗" alt="Caesar Salad" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900 mb-1">Caesar Salad</h3>
+                                        <p class="text-gray-600 text-sm mb-2">Fresh romaine lettuce with parmesan cheese, croutons, and our signature caesar dressing</p>
+                                        <div class="flex items-center gap-4 text-sm">
+                                            <span class="text-lg font-bold text-gray-900">89 SEK</span>
+                                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                                                <i class="fas fa-leaf mr-1"></i>Vegetarian
+                                            </span>
+                                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                                                <i class="fas fa-check-circle mr-1"></i>Available
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button class="text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                                            <i class="fas fa-grip-vertical"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 2 -->
+                    <div class="item-card bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                                <img src="https://via.placeholder.com/80x80/f59e0b/ffffff?text=🍤" alt="Shrimp Cocktail" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900 mb-1">Shrimp Cocktail</h3>
+                                        <p class="text-gray-600 text-sm mb-2">Fresh jumbo shrimp served with cocktail sauce and lemon wedge</p>
+                                        <div class="flex items-center gap-4 text-sm">
+                                            <span class="text-lg font-bold text-gray-900">145 SEK</span>
+                                            <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>Contains Shellfish
+                                            </span>
+                                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
+                                                <i class="fas fa-times-circle mr-1"></i>Out of Stock
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button class="text-gray-400 hover:text-blue-600 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                                            <i class="fas fa-grip-vertical"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button -->
+<button class="floating-action bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all">
+    <i class="fas fa-plus text-xl"></i>
+</button>
+
+<!-- JavaScript for page switching -->
+<script>
+    // Simple page switching for demo
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+        document.getElementById(pageId).classList.remove('hidden');
+    }
+    
+    // Add click handlers for demo
+    document.addEventListener('DOMContentLoaded', function() {
+        // Show menu editor when clicking edit buttons
+        document.querySelectorAll('[data-action="edit-menu"]').forEach(btn => {
+            btn.addEventListener('click', () => showPage('menu-editor'));
+        });
+    });
+</script>
+
+</body>
+</html>
