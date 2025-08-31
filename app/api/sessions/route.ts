@@ -1,33 +1,53 @@
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes, createHash } from 'crypto';
 import { z } from 'zod';
+import { env } from '@/lib/env';
+import { corsHeaders } from '@/lib/cors';
+import { jsonError } from '@/lib/errors';
 
 const Body = z.object({
   restaurantId: z.string().uuid(),
   locale: z.string().optional(),
 });
 
+const ALLOW = [
+  'https://resturant.vercel.app',
+  'https://*.your-customer.com', // optional wildcard if you must
+];
+
 function supabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const url = env.supabaseUrl();
+  const anon = env.supabaseAnon();
   return createClient(url, anon, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { 'x-client-info': 'api-sessions' } },
   });
 }
 
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { 
+    headers: corsHeaders(req.headers.get('origin') || '', ALLOW) 
+  });
+}
+
 export async function POST(req: NextRequest) {
   const origin = req.headers.get('origin') ?? '';
   const ua = req.headers.get('user-agent') ?? '';
-  const json = await req.json().catch(() => null);
-  const parsed = Body.safeParse(json);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { code: 'BAD_REQUEST', errors: parsed.error.flatten() },
-      { status: 400 }
-    );
-  }
+  
+  try {
+    const json = await req.json().catch(() => null);
+    const parsed = Body.safeParse(json);
+    if (!parsed.success) {
+      const headers = corsHeaders(origin, ALLOW);
+      return NextResponse.json(
+        { code: 'BAD_REQUEST', errors: parsed.error.flatten() },
+        { status: 400, headers }
+      );
+    }
 
   const { restaurantId, locale } = parsed.data;
   const sb = supabase();
@@ -40,14 +60,17 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (rErr || !restaurant) {
-    return NextResponse.json({ code: 'RESTAURANT_NOT_FOUND' }, { status: 404 });
+    const headers = corsHeaders(origin, ALLOW);
+    return NextResponse.json({ code: 'RESTAURANT_NOT_FOUND' }, { status: 404, headers });
   }
   if (!restaurant.is_active) {
-    return NextResponse.json({ code: 'RESTAURANT_INACTIVE' }, { status: 403 });
+    const headers = corsHeaders(origin, ALLOW);
+    return NextResponse.json({ code: 'RESTAURANT_INACTIVE' }, { status: 403, headers });
   }
   if (Array.isArray(restaurant.allowed_origins) && restaurant.allowed_origins.length) {
     if (!origin || !restaurant.allowed_origins.includes(origin)) {
-      return NextResponse.json({ code: 'ORIGIN_NOT_ALLOWED' }, { status: 403 });
+      const headers = corsHeaders(origin, ALLOW);
+      return NextResponse.json({ code: 'ORIGIN_NOT_ALLOWED' }, { status: 403, headers });
     }
   }
 
@@ -70,10 +93,12 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (sErr) {
-    return NextResponse.json({ code: 'DB_ERROR', detail: sErr.message }, { status: 500 });
+    const headers = corsHeaders(origin, ALLOW);
+    return NextResponse.json({ code: 'DB_ERROR', detail: sErr.message }, { status: 500, headers });
   }
 
-  const res = NextResponse.json({ sessionId: session.id, sessionToken: token });
+  const headers = corsHeaders(origin, ALLOW);
+  const res = NextResponse.json({ sessionId: session.id, sessionToken: token }, { headers });
   // Optional convenience cookie (no secrets)
   res.cookies.set('wsess', token, {
     httpOnly: true,
@@ -83,4 +108,9 @@ export async function POST(req: NextRequest) {
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
   return res;
+  } catch (error) {
+    console.error('Session creation error:', error);
+    const headers = corsHeaders(origin, ALLOW);
+    return jsonError('INTERNAL_ERROR', 500);
+  }
 }
