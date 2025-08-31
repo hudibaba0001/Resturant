@@ -84,6 +84,13 @@ export function ItemDetailModal() {
           <button className="flex-1 rounded-xl border" onClick={closeModal}>Cancel</button>
           <button className="flex-1 rounded-xl bg-black text-white disabled:opacity-40" disabled={!valid}
             onClick={() => {
+              // ✅ Sanity guard: ensure item.id is UUID before adding to cart
+              const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+              if (!UUID.test(item.id)) {
+                console.error('Menu item has non-UUID id; fix your menu API mapping:', item);
+                throw new Error('INVALID_MENU_ITEM_ID');
+              }
+
               useWidget.getState().addToCart({
                 itemId: item.id, 
                 name: item.name, 

@@ -40,16 +40,19 @@ export function CheckoutScreen() {
   const place = async () => {
     setSubmitting(true);
     try {
-      // Guard: item ids must be UUIDs
-      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      for (const l of cart) {
-        if (!uuid.test(l.itemId)) {
+      const { restaurantId, sessionId, sessionToken, cart } = useWidget.getState();
+
+      // ✅ Enforce UUID format for item IDs
+      const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      for (const line of cart) {
+        if (!UUID.test(line.itemId)) {
+          console.error('Invalid item id in cart:', line.itemId);
           toast('Invalid item in cart');
-          throw new Error(`INVALID_ITEM_ID ${l.itemId}`);
+          throw new Error('INVALID_ITEM_ID');
         }
       }
 
-      const items = cart.map((l: CartLine) => ({
+      const items = cart.map(l => ({
         itemId: l.itemId,
         qty: l.qty,
         notes: l.notes ?? null,
@@ -64,8 +67,9 @@ export function CheckoutScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           restaurantId,
-          sessionToken,         // preferred; resolver accepts either
-          type: 'pickup',       // or 'dine_in' (underscore!)
+          sessionId,            // optional
+          sessionToken,         // preferred
+          type: 'pickup',       // or 'dine_in' (underscore form)
           items,
         }),
       });

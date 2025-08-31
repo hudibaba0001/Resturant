@@ -18,29 +18,21 @@ export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; 
       setError(null);
       
       try {
-        // If sessionId is provided, use it directly
-        if (sessionId) {
-          setContext(restaurantId, sessionId, sessionToken || '');
-        } else {
-          // Auto-bootstrap a new session
-          const success = await bootstrapSession(restaurantId);
-          if (!success) {
-            setError('Failed to initialize session');
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Ensure we have a valid session token (not a legacy widget-* token)
+        // ✅ Always ensure we have a real session token (not legacy widget-* tokens)
         const currentToken = useWidget.getState().sessionToken;
-        if (!currentToken || currentToken.startsWith('widget-')) {
-          // Re-bootstrap to get a real token
+        if (!currentToken || currentToken.startsWith('widget-') || currentToken.length < 24) {
+          // Bootstrap a new real session
           const success = await bootstrapSession(restaurantId);
           if (!success) {
             setError('Failed to get valid session');
             setLoading(false);
             return;
           }
+        }
+
+        // If sessionId is provided, use it directly
+        if (sessionId) {
+          setContext(restaurantId, sessionId, sessionToken || '');
         }
 
         // Load menu

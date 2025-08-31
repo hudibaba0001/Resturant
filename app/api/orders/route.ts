@@ -36,6 +36,14 @@ export async function POST(req:NextRequest){
     });
     if(items.some(i=>!i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
+    // ✅ Enforce UUID format for item IDs
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const l of items) {
+      if (!UUID.test(l.itemId)) {
+        return NextResponse.json({ code: 'BAD_LINE_ID_FORMAT', itemId: l.itemId }, { status: 400 });
+      }
+    }
+
     // Resolve session using the helper
     let session = await resolveSession(supabase, restaurantId, sessionId, sessionToken);
     if ('code' in session) {
