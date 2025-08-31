@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const { message, sessionId, restaurantId } = body;
+    
+    console.log(`Chat API: Received request with message: "${message}", restaurantId: ${restaurantId}, sessionId: ${sessionId}`);
 
     if (!message) {
       return NextResponse.json({
@@ -142,12 +144,14 @@ Please provide a helpful response based on the available menu items.`;
     const suggestions = ['Popular items', 'Vegan options', 'Spicy dishes', 'Show full menu'];
 
     // ✅ PERSIST MESSAGES (R2 requirement)
-    if (restaurantId && sessionId) {
+    console.log(`Chat API: Attempting to persist messages for restaurantId: ${restaurantId}, sessionId: ${sessionId}`);
+    
+    if (restaurantId) {
       try {
         // Store user message
         await supabase.from('chat_messages').insert({
           restaurant_id: restaurantId,
-          session_id: sessionId,
+          session_id: sessionId || null,
           role: 'user',
           content: message,
           tokens: 0, // User messages don't count against token usage
@@ -158,7 +162,7 @@ Please provide a helpful response based on the available menu items.`;
         // Store assistant response
         await supabase.from('chat_messages').insert({
           restaurant_id: restaurantId,
-          session_id: sessionId,
+          session_id: sessionId || null,
           role: 'assistant',
           content: aiResponse,
           tokens,
@@ -166,11 +170,13 @@ Please provide a helpful response based on the available menu items.`;
           created_at: new Date().toISOString(),
         });
 
-        console.log(`[perf] chat#create ${latency}ms, ${tokens} tokens`);
+        console.log(`[perf] chat#create ${latency}ms, ${tokens} tokens, sessionId: ${sessionId || 'null'}`);
       } catch (error) {
         console.error('Failed to persist chat messages:', error);
         // Don't fail the request - logging is sufficient for MVP
       }
+    } else {
+      console.warn('Chat API: No restaurantId provided, skipping message persistence');
     }
 
     return NextResponse.json({ 

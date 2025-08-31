@@ -36,7 +36,13 @@ export function ChatWidget() {
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!inputValue.trim() || !restaurantId || !sessionId) return;
+    if (!inputValue.trim() || !restaurantId) return;
+    
+    console.log('ChatWidget: Sending message with:', { 
+      message: inputValue.trim(), 
+      restaurantId, 
+      sessionId: sessionId || 'null' 
+    });
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -118,6 +124,10 @@ export function ChatWidget() {
         {/* Header */}
         <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
           <h3 className="font-semibold">Restaurant Assistant</h3>
+          <div className="text-xs opacity-80">
+            {restaurantId ? '✅ Restaurant' : '❌ No Restaurant'} | 
+            {sessionId ? '✅ Session' : '❌ No Session'}
+          </div>
           <Button
             onClick={() => setIsOpen(false)}
             variant="ghost"
