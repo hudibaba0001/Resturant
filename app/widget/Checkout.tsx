@@ -40,31 +40,49 @@ export function CheckoutScreen() {
   const place = async () => {
     setSubmitting(true);
     try {
+      // Guard: item ids must be UUIDs
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      for (const l of cart) {
+        if (!uuid.test(l.itemId)) {
+          toast('Invalid item in cart');
+          throw new Error(`INVALID_ITEM_ID ${l.itemId}`);
+        }
+      }
+
       const items = cart.map((l: CartLine) => ({
         itemId: l.itemId,
         qty: l.qty,
         notes: l.notes ?? null,
-        variant: l.variant ? { groupId: l.variant.groupId, optionId: l.variant.optionId } : undefined,
-        modifiers: l.modifiers?.map((m) => m.optionId) ?? [],
+        // include selections only if you added the column in DB
+        ...(l.variant || (l.modifiers && l.modifiers.length)
+          ? { selections: { variant: l.variant, modifiers: l.modifiers } }
+          : {}),
       }));
 
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ restaurantId, sessionToken, type: 'pickup', items }),
+        body: JSON.stringify({
+          restaurantId,
+          sessionToken,         // preferred; resolver accepts either
+          type: 'pickup',       // or 'dine_in' (underscore!)
+          items,
+        }),
       });
 
-      const json = await res.json().catch(() => ({} as any));
-
       if (!res.ok) {
-        toast(json.code ? `Order failed: ${json.code}` : `Order failed (${res.status})`);
-        return;
+        let msg = 'ORDER_FAILED';
+        try { const j = await res.json(); msg = j.code || msg; } catch {}
+        toast(msg);
+        throw new Error(`HTTP ${res.status} ${msg}`);
       }
 
+      const json = await res.json();
       toast(`Order placed! Code ${json.order.order_code}`);
       clearCart();
       go('menu');
-    } catch {
+    } catch (error) {
+      console.error('Order error:', error);
       toast('Order failed');
     } finally {
       setSubmitting(false);

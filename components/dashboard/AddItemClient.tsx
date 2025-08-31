@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { EditItemDialog } from '@/components/dashboard/EditItemDialog';
 
 export default function AddItemClient({

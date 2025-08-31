@@ -17,12 +17,16 @@ export async function POST(req:NextRequest){
     const restaurantId = body.restaurantId || body.restaurant_id || '';
     const sessionId = body.sessionId || body.session_id;
     const sessionToken = body.sessionToken || body.session_token;
-    const type = String(body.type || 'pickup').toLowerCase().replace(/[\s-]/g,'_');
+    
+    // ✅ your enum is ('pickup','delivery','dine_in')
+    const orderType: 'pickup' | 'dine_in' | 'delivery' =
+      body.type === 'dine_in' ? 'dine_in' : 
+      body.type === 'delivery' ? 'delivery' : 'pickup';
+    
     const itemsRaw:RawItem[] = Array.isArray(body.items)? body.items: [];
 
     if(!UUID_RE.test(restaurantId)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
     if(!sessionId && !sessionToken) return NextResponse.json({code:'BAD_SESSION'},{status:400});
-    if(!['pickup','dine_in','delivery'].includes(type)) return NextResponse.json({code:'BAD_TYPE'},{status:400});
     if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
 
     const items = itemsRaw.map(r=>{
@@ -33,9 +37,35 @@ export async function POST(req:NextRequest){
     if(items.some(i=>!i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
     // Resolve session using the helper
-    const session = await resolveSession(supabase, restaurantId, sessionId, sessionToken);
+    let session = await resolveSession(supabase, restaurantId, sessionId, sessionToken);
     if ('code' in session) {
-      return NextResponse.json({ code: session.code }, { status: 401 });
+      // Auto-mint safety net for legacy widget-* tokens
+      if (session.code === 'SESSION_INVALID' && sessionToken && sessionToken.startsWith('widget-')) {
+        // soft-mint a new session for active restaurants
+        const { data: r } = await supabase.from('restaurants').select('id, is_active').eq('id', restaurantId).maybeSingle();
+        if (r?.is_active) {
+          const { data: sess, error: sErr } = await supabase
+            .from('widget_sessions')
+            .insert({ restaurant_id: restaurantId, session_token: sessionToken, locale: 'sv-SE' })
+            .select('id').single();
+          if (!sErr && sess) {
+            // retry resolve
+            const again = await resolveSession(supabase, restaurantId, undefined, sessionToken);
+            if (!('code' in again)) {
+              // continue with again.sessionId
+              session = again;
+            } else {
+              return NextResponse.json({ code: again.code }, { status: 401 });
+            }
+          } else {
+            return NextResponse.json({ code: session.code }, { status: 401 });
+          }
+        } else {
+          return NextResponse.json({ code: session.code }, { status: 401 });
+        }
+      } else {
+        return NextResponse.json({ code: session.code }, { status: 401 });
+      }
     }
 
     // Price lookup
@@ -52,10 +82,10 @@ export async function POST(req:NextRequest){
 
     const currency = menu?.[0]?.currency || 'SEK';
     const total_cents = (lines as any[]).reduce((s,l)=> s + l.price_cents*l.qty, 0);
-    const order_code = genCode(); const pin = type==='pickup'? genPin(): null;
+    const order_code = genCode(); const pin = orderType==='pickup'? genPin(): null;
 
     const { data: order, error: oErr } = await supabase.from('orders').insert([{
-      restaurant_id: restaurantId, session_id: session.sessionId, type, status:'pending',
+      restaurant_id: restaurantId, session_id: session.sessionId, type: orderType, status:'pending',
       order_code, total_cents, currency, pin, pin_issued_at: pin? new Date().toISOString(): null
     }]).select('id, order_code, status, total_cents, currency, type, created_at').single();
     if(oErr || !order){

@@ -31,6 +31,18 @@ export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; 
           }
         }
 
+        // Ensure we have a valid session token (not a legacy widget-* token)
+        const currentToken = useWidget.getState().sessionToken;
+        if (!currentToken || currentToken.startsWith('widget-')) {
+          // Re-bootstrap to get a real token
+          const success = await bootstrapSession(restaurantId);
+          if (!success) {
+            setError('Failed to get valid session');
+            setLoading(false);
+            return;
+          }
+        }
+
         // Load menu
         const res = await fetch(`/api/menu?restaurantId=${restaurantId}`, { cache: 'no-store' });
         const json = await res.json().catch(() => null);

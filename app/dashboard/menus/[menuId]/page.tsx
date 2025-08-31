@@ -1,8 +1,8 @@
 import { MenuRepository } from '@/lib/menuRepo';
 import { getServerSupabase } from '@/lib/supabase/server';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import { Suspense } from 'react';
 import { revalidatePath } from 'next/cache';
 import { nanoid } from 'nanoid';

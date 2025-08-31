@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/Card';
 import { EditItemDialog } from '@/components/dashboard/EditItemDialog';
 import type { Item } from '@/lib/types/menu';
