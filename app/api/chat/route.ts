@@ -5,6 +5,9 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { MenuRepository } from '@/lib/menuRepo';
+import { jsonError } from '@/lib/errors';
+import { corsHeaders } from '@/lib/cors';
 
 // Initialize OpenAI client
 const openai = process.env.OPENAI_API_KEY
@@ -22,10 +25,20 @@ function getSupabase() {
   });
 }
 
+// CORS allowlist (same as menu API)
+const ALLOWLIST = [
+  'https://resturant.vercel.app',
+  'https://resturant-two-xi.vercel.app',
+];
+
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
+  const origin = req.headers.get('origin') || '';
+  const headers = corsHeaders(origin, ALLOWLIST);
+
   const supabase = getSupabase();
   if (!supabase) {
-    return NextResponse.json({ code: 'ENV_MISSING_SUPABASE' }, { status: 500 });
+    return jsonError('ENV_MISSING_SUPABASE', 500);
   }
 
   try {
@@ -40,7 +53,7 @@ export async function POST(req: NextRequest) {
           locale: 'en'
         },
         cards: []
-      });
+      }, { headers });
     }
 
     // If no OpenAI key, return helpful fallback
@@ -52,41 +65,42 @@ export async function POST(req: NextRequest) {
           locale: 'en'
         },
         cards: []
-      });
+      }, { headers });
     }
 
-    // Get menu items for context
+    // Get menu items for context using MenuRepository (architectural consistency)
     let menuContext = '';
     if (restaurantId) {
-      console.log(`Chat API: Attempting to fetch menu for restaurant ${restaurantId}`);
+      console.log(`Chat API: Fetching menu via MenuRepository for restaurant ${restaurantId}`);
       try {
-        const { data: items, error } = await supabase
-          .from('menu_items')
-          .select('name, description, price_cents, currency, dietary, allergens')
-          .eq('restaurant_id', restaurantId)
-          .eq('is_available', true)
-          .limit(50); // Increased from 20 to 50
+        const repo = new MenuRepository('simple');
+        const menus = await repo.listMenus(restaurantId);
+        
+        if (menus && menus.length > 0) {
+          const chosenMenuId = menus[0]?.id;
+          if (chosenMenuId) {
+            const sections = await repo.listSections(restaurantId, chosenMenuId);
+            
+            // Collect all available items across sections
+            const allItems = [];
+            for (const section of sections) {
+              const items = await repo.listItems(restaurantId, chosenMenuId, (section as any).path || []);
+              const availableItems = items.filter((i: any) => i.is_available !== false);
+              allItems.push(...availableItems);
+            }
 
-        if (error) {
-          console.error('Supabase error fetching menu:', error);
-        }
-
-        if (items && items.length > 0) {
-          console.log(`Chat API: Found ${items.length} menu items for restaurant ${restaurantId}:`, items.map((item: any) => item.name));
-          menuContext = `Available menu items:\n${items.map((item: any) =>
-            `- ${item.name}: ${item.description || 'No description'} (${item.price_cents ? `${item.price_cents/100} ${item.currency}` : 'Price not set'})${item.dietary?.length ? ` [${item.dietary.join(', ')}]` : ''}`
-          ).join('\n')}`;
-        } else {
-          console.log(`Chat API: No menu items found for restaurant ${restaurantId}`);
+            if (allItems.length > 0) {
+              console.log(`Chat API: Found ${allItems.length} menu items via MenuRepository`);
+              menuContext = `Available menu items:\n${allItems.slice(0, 50).map((item: any) =>
+                `- ${item.name}: ${item.description || 'No description'} (${item.price_cents ? `${item.price_cents/100} ${item.currency || 'SEK'}` : 'Price not set'})${item.dietary?.length ? ` [${item.dietary.join(', ')}]` : ''}`
+              ).join('\n')}`;
+            }
+          }
         }
       } catch (error) {
-        console.error('Error fetching menu items:', error);
+        console.error('Error fetching menu via MenuRepository:', error);
       }
-    } else {
-      console.log('Chat API: No restaurantId provided');
     }
-
-    console.log('Chat API: Final menuContext length:', menuContext.length);
 
     // Create AI prompt
     const systemPrompt = `You are a helpful restaurant assistant. You help customers find menu items, answer questions about ingredients, and make recommendations.
@@ -120,9 +134,43 @@ Please provide a helpful response based on the available menu items.`;
     });
 
     const aiResponse = completion.choices[0]?.message?.content || 'I can help you find something on our menu!';
+    const tokens = completion.usage?.total_tokens || 0;
+    const latency = Math.round(performance.now() - startTime);
 
     // Generate follow-up suggestions
     const suggestions = ['Popular items', 'Vegan options', 'Spicy dishes', 'Show full menu'];
+
+    // ✅ PERSIST MESSAGES (R2 requirement)
+    if (restaurantId && sessionId) {
+      try {
+        // Store user message
+        await supabase.from('chat_messages').insert({
+          restaurant_id: restaurantId,
+          session_id: sessionId,
+          role: 'user',
+          content: message,
+          tokens: 0, // User messages don't count against token usage
+          model: null,
+          created_at: new Date().toISOString(),
+        });
+
+        // Store assistant response
+        await supabase.from('chat_messages').insert({
+          restaurant_id: restaurantId,
+          session_id: sessionId,
+          role: 'assistant',
+          content: aiResponse,
+          tokens,
+          model: 'gpt-4o-mini',
+          created_at: new Date().toISOString(),
+        });
+
+        console.log(`[perf] chat#create ${latency}ms, ${tokens} tokens`);
+      } catch (error) {
+        console.error('Failed to persist chat messages:', error);
+        // Don't fail the request - logging is sufficient for MVP
+      }
+    }
 
     return NextResponse.json({ 
       reply: { 
@@ -131,7 +179,7 @@ Please provide a helpful response based on the available menu items.`;
         locale: 'en' 
       }, 
       cards: [] 
-    });
+    }, { headers });
 
   } catch (error: any) {
     console.error('Chat API error:', error);
@@ -144,6 +192,13 @@ Please provide a helpful response based on the available menu items.`;
         locale: 'en' 
       }, 
       cards: [] 
-    });
+    }, { headers });
   }
+}
+
+// ✅ Add OPTIONS support for CORS preflight
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin') || '';
+  const headers = corsHeaders(origin, ALLOWLIST);
+  return new NextResponse(null, { headers });
 }
