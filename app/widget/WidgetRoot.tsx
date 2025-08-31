@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useWidget, type Store } from './store';
 import { ToastHost } from './ui/Toast';
 import { MenuView } from './MenuView';
+import { ChatWidget } from './ChatWidget';
 
 async function mintRealSession(restaurantId: string) {
   const res = await fetch('/api/sessions', {
@@ -64,7 +65,7 @@ export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; 
   }, [restaurantId, sessionId, setContext, bootstrapSession, sessionToken]);
 
   return (
-    <>
+    <div className="widget-root">
       <ToastHost />
       {loading ? (
         <div className="p-4 text-center">Loading menu…</div>
@@ -75,6 +76,11 @@ export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; 
       ) : (
         <div className="p-4">Menu unavailable.</div>
       )}
-    </>
+      
+      {/* Chat Widget - Feature Flagged */}
+      {process.env.NEXT_PUBLIC_WIDGET_CHAT_ENABLED === 'true' && (
+        <ChatWidget />
+      )}
+    </div>
   );
 }
