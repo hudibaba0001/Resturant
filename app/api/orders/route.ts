@@ -30,7 +30,7 @@ export async function POST(req:NextRequest){
       const qty = Number.isInteger(r.qty)? r.qty : Number(r.quantity)||0;
       return {itemId, qty, notes: r.notes ?? null};
     });
-    if(items.some(i=>!UUID_RE.test(i.itemId)||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
+    if(items.some(i=>!i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
     // Resolve session using the helper
     const session = await resolveSession(supabase, restaurantId, sessionId, sessionToken);
