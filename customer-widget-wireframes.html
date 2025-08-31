@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Menu Widget - Enhanced Design</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .menu-item { transition: all 0.3s ease; }
+        .menu-item:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .cart-badge { animation: bounce 0.5s ease-in-out; }
+        .floating-cart { position: fixed; bottom: 1rem; right: 1rem; z-index: 50; }
+        .sticky-header { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.95); }
+        .category-pill { transition: all 0.2s ease; }
+        .category-pill.active { background: #3b82f6; color: white; }
+        .price-highlight { background: linear-gradient(135deg, #10b981, #059669); }
+        .dietary-badge { backdrop-filter: blur(4px); }
+        @keyframes bounce { 0%, 20%, 53%, 80%, 100% { transform: translateY(0); } 40%, 43% { transform: translateY(-8px); } 70% { transform: translateY(-4px); } }
+        .chat-widget { position: fixed; bottom: 5rem; left: 1rem; z-index: 40; }
+        .image-placeholder { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Mobile-First Widget Container -->
+<div class="max-w-md mx-auto bg-white min-h-screen shadow-xl">
+    
+    <!-- Restaurant Header -->
+    <div class="relative h-48 bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 overflow-hidden">
+        <div class="absolute inset-0 bg-black bg-opacity-20"></div>
+        <div class="relative z-10 p-6 text-white">
+            <div class="flex items-start justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold mb-1">Stjarna Restaurant</h1>
+                    <p class="text-blue-100 text-sm mb-2">Swedish Fine Dining</p>
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="bg-green-500 w-2 h-2 rounded-full"></span>
+                        <span>Open until 22:00</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="bg-white bg-opacity-20 rounded-lg p-2 backdrop-blur-sm">
+                        <div class="text-xs text-blue-100">Rating</div>
+                        <div class="flex items-center gap-1">
+                            <i class="fas fa-star text-yellow-300"></i>
+                            <span class="font-bold">4.8</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Decorative wave -->
+        <div class="absolute bottom-0 left-0 right-0">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-8 fill-white">
+                <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Sticky Category Navigation -->
+    <div class="sticky-header sticky top-0 z-30 px-4 py-3 border-b border-gray-100">
+        <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+            <button class="category-pill active px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-blue-600 text-white">
+                <i class="fas fa-utensils mr-1"></i>All Items
+            </button>
+            <button class="category-pill px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200">
+                <i class="fas fa-leaf mr-1"></i>Appetizers
+            </button>
+            <button class="category-pill px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200">
+                <i class="fas fa-drumstick-bite mr-1"></i>Mains
+            </button>
+            <button class="category-pill px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200">
+                <i class="fas fa-ice-cream mr-1"></i>Desserts
+            </button>
+            <button class="category-pill px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-100 text-gray-700 hover:bg-gray-200">
+                <i class="fas fa-coffee mr-1"></i>Drinks
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="px-4 py-3 bg-white">
+        <div class="relative">
+            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <input type="text" placeholder="Search menu items..." 
+                   class="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+        </div>
+    </div>
+
+    <!-- Menu Items -->
+    <div class="px-4 pb-24">
+        <!-- Section Header -->
+        <div class="py-4">
+            <h2 class="text-xl font-bold text-gray-900 mb-1">Appetizers</h2>
+            <p class="text-gray-600 text-sm">Start your meal with these delicious options</p>
+        </div>
+
+        <!-- Menu Item 1 - Premium -->
+        <div class="menu-item bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div class="relative">
+                <div class="h-48 image-placeholder relative overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400&h=200&fit=crop" 
+                         alt="Grilled Salmon" class="w-full h-full object-cover">
+                    <div class="absolute top-3 left-3">
+                        <span class="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-fire mr-1"></i>Popular
+                        </span>
+                    </div>
+                    <div class="absolute top-3 right-3">
+                        <button class="bg-white bg-opacity-90 backdrop-blur-sm w-8 h-8 rounded-full flex items-center justify-center text-gray-600 hover:text-red-500 transition-colors">
+                            <i class="far fa-heart"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-gray-900 text-lg mb-1">Grilled Atlantic Salmon</h3>
+                            <p class="text-gray-600 text-sm leading-relaxed mb-3">
+                                Fresh Norwegian salmon grilled to perfection, served with seasonal vegetables and lemon butter sauce
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Dietary & Allergen Info -->
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <span class="dietary-badge bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-fish mr-1"></i>Pescatarian
+                        </span>
+                        <span class="dietary-badge bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-wheat mr-1"></i>Gluten-Free
+                        </span>
+                        <span class="dietary-badge bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>Contains Fish
+                        </span>
+                    </div>
+
+                    <!-- Price and Add Button -->
+                    <div class="flex items-center justify-between">
+                        <div class="price-highlight text-white px-3 py-2 rounded-xl">
+                            <span class="text-lg font-bold">189 SEK</span>
+                        </div>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium transition-colors flex items-center gap-2">
+                            <i class="fas fa-plus"></i>Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Item 2 - Standard -->
+        <div class="menu-item bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div class="flex">
+                <div class="w-24 h-24 image-placeholder flex-shrink-0 m-4 rounded-xl overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=100&h=100&fit=crop" 
+                         alt="Caesar Salad" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 p-4 pl-0">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-900 mb-1">Classic Caesar Salad</h3>
+                            <p class="text-gray-600 text-sm mb-2">
+                                Crisp romaine lettuce with parmesan and croutons
+                            </p>
+                        </div>
+                        <button class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+                            <i class="far fa-heart"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-1 mb-3">
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                            <i class="fas fa-leaf mr-1"></i>Vegetarian
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-bold text-gray-900">89 SEK</span>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-plus mr-1"></i>Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Item 3 - Out of Stock -->
+        <div class="menu-item bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden opacity-60">
+            <div class="flex">
+                <div class="w-24 h-24 image-placeholder flex-shrink-0 m-4 rounded-xl overflow-hidden relative">
+                    <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=100&h=100&fit=crop" 
+                         alt="Truffle Pasta" class="w-full h-full object-cover grayscale">
+                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                        <span class="text-white text-xs font-bold">SOLD OUT</span>
+                    </div>
+                </div>
+                <div class="flex-1 p-4 pl-0">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-900 mb-1">Truffle Pasta</h3>
+                            <p class="text-gray-600 text-sm mb-2">
+                                Handmade pasta with black truffle and parmesan
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-1 mb-3">
+                        <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
+                            <i class="fas fa-times-circle mr-1"></i>Unavailable
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-bold text-gray-500">245 SEK</span>
+                        <button disabled class="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed">
+                            Sold Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Item 4 - With Variants -->
+        <div class="menu-item bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+            <div class="flex">
+                <div class="w-24 h-24 image-placeholder flex-shrink-0 m-4 rounded-xl overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=100&h=100&fit=crop" 
+                         alt="Burger" class="w-full h-full object-cover">
+                </div>
+                <div class="flex-1 p-4 pl-0">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <h3 class="font-semibold text-gray-900 mb-1">Stjarna Burger</h3>
+                            <p class="text-gray-600 text-sm mb-2">
+                                Premium beef patty with special sauce
+                            </p>
+                        </div>
+                        <button class="text-gray-400 hover:text-red-500 transition-colors ml-2">
+                            <i class="far fa-heart"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Size Options -->
+                    <div class="flex gap-2 mb-3">
+                        <button class="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-xs font-medium border border-blue-200">
+                            Regular
+                        </button>
+                        <button class="bg-gray-100 text-gray-700 px-2 py-1 rounded-lg text-xs font-medium hover:bg-gray-200">
+                            Large (+25 SEK)
+                        </button>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-bold text-gray-900">145 SEK</span>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-plus mr-1"></i>Add
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Cart Button -->
+    <div class="floating-cart">
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-3">
+            <div class="relative">
+                <i class="fas fa-shopping-cart text-lg"></i>
+                <span class="cart-badge absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                    3
+                </span>
+            </div>
+            <div class="text-left">
+                <div class="text-sm font-medium">View Cart</div>
+                <div class="text-xs opacity-90">423 SEK</div>
+            </div>
+        </button>
+    </div>
+
+    <!-- AI Chat Widget -->
+    <div class="chat-widget">
+        <button class="bg-green-500 hover:bg-green-600 text-white w-12 h-12 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center">
+            <i class="fas fa-robot text-lg"></i>
+        </button>
+    </div>
+
+    <!-- Order Type Selection (Modal Overlay) -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" id="order-type-modal">
+        <div class="flex items-end justify-center min-h-screen p-4">
+            <div class="bg-white rounded-t-3xl w-full max-w-md p-6 transform transition-all">
+                <div class="text-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">How would you like to order?</h3>
+                    <p class="text-gray-600">Choose your preferred ordering method</p>
+                </div>
+                
+                <div class="space-y-3">
+                    <button class="w-full bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-xl flex items-center gap-4 transition-colors">
+                        <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-walking text-xl"></i>
+                        </div>
+                        <div class="text-left">
+                            <div class="font-semibold">Pickup</div>
+                            <div class="text-sm opacity-90">Ready in 15-20 minutes</div>
+                        </div>
+                        <i class="fas fa-chevron-right ml-auto"></i>
+                    </button>
+                    
+                    <button class="w-full bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-xl flex items-center gap-4 transition-colors">
+                        <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-utensils text-xl"></i>
+                        </div>
+                        <div class="text-left">
+                            <div class="font-semibold">Dine In</div>
+                            <div class="text-sm opacity-90">Table service available</div>
+                        </div>
+                        <i class="fas fa-chevron-right ml-auto"></i>
+                    </button>
+                </div>
+                
+                <button class="w-full mt-4 text-gray-600 py-3" onclick="document.getElementById('order-type-modal').classList.add('hidden')">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for interactions -->
+<script>
+    // Category switching
+    document.querySelectorAll('.category-pill').forEach(pill => {
+        pill.addEventListener('click', function() {
+            document.querySelectorAll('.category-pill').forEach(p => {
+                p.classList.remove('active', 'bg-blue-600', 'text-white');
+                p.classList.add('bg-gray-100', 'text-gray-700');
+            });
+            this.classList.add('active', 'bg-blue-600', 'text-white');
+            this.classList.remove('bg-gray-100', 'text-gray-700');
+        });
+    });
+
+    // Cart button animation
+    document.querySelectorAll('[data-action="add-to-cart"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const badge = document.querySelector('.cart-badge');
+            badge.classList.add('animate-bounce');
+            setTimeout(() => badge.classList.remove('animate-bounce'), 500);
+        });
+    });
+
+    // Show order type modal when cart is clicked
+    document.querySelector('.floating-cart button').addEventListener('click', function() {
+        document.getElementById('order-type-modal').classList.remove('hidden');
+    });
+
+    // Heart toggle
+    document.querySelectorAll('.fa-heart').forEach(heart => {
+        heart.addEventListener('click', function(e) {
+            e.stopPropagation();
+            this.classList.toggle('far');
+            this.classList.toggle('fas');
+            this.classList.toggle('text-red-500');
+        });
+    });
+</script>
+
+</body>
+</html>

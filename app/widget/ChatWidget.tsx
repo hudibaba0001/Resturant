@@ -195,16 +195,16 @@ export function ChatWidget() {
           {/* Quick action chips */}
           {messages.length === 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {['Popular items', 'Vegan options', 'Spicy dishes', 'Show menu'].map((chip) => (
-                <Badge
-                  key={chip}
-                  variant="secondary"
-                  className="cursor-pointer hover:bg-blue-100"
-                  onClick={() => handleChipClick(chip)}
-                >
-                  {chip}
-                </Badge>
-              ))}
+                             {['Popular items', 'Vegan options', 'Spicy dishes', 'Show menu'].map((chip) => (
+                 <Badge
+                   key={chip}
+                   variant="default"
+                   className="cursor-pointer hover:bg-blue-100"
+                   onClick={() => handleChipClick(chip)}
+                 >
+                   {chip}
+                 </Badge>
+               ))}
             </div>
           )}
         </div>
