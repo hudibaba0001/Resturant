@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { EditItemDialog } from '@/components/dashboard/EditItemDialog';
 import type { Item } from '@/lib/types/menu';
 import { deleteItemAction } from './actions';

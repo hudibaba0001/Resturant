@@ -6,7 +6,7 @@ import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { createTenant } from './actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 export default function SignupClient() {
   const [isPending, startTransition] = useTransition();

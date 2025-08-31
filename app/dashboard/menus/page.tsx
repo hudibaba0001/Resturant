@@ -3,7 +3,7 @@ import { getServerSupabase } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils/slug';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Suspense } from 'react';
 import CreateMenuClient from '@/components/dashboard/CreateMenuClient';
