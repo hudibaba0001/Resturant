@@ -192,21 +192,20 @@ export function ChatWidget() {
             </Button>
           </div>
           
-          {/* Quick action chips */}
-          {messages.length === 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-                             {['Popular items', 'Vegan options', 'Spicy dishes', 'Show menu'].map((chip) => (
-                 <Badge
+                     {/* Quick action chips */}
+           {messages.length === 0 && (
+             <div className="flex flex-wrap gap-2 mt-2">
+               {['Popular items', 'Vegan options', 'Spicy dishes', 'Show menu'].map((chip) => (
+                 <button
                    key={chip}
-                   variant="default"
-                   className="cursor-pointer hover:bg-blue-100"
                    onClick={() => handleChipClick(chip)}
+                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-blue-100 cursor-pointer transition-colors"
                  >
                    {chip}
-                 </Badge>
+                 </button>
                ))}
-            </div>
-          )}
+             </div>
+           )}
         </div>
       </CardContent>
     </Card>
