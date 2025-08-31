@@ -36,6 +36,27 @@ export async function POST(req:NextRequest){
     });
     if(items.some(i=>!i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
+    // ✅ Optional: Server-side valve for legacy numeric IDs (temporary)
+    const numericIds = items.filter(i => /^\d+$/.test(i.itemId)).map(i => i.itemId);
+    if (numericIds.length) {
+      const { data: rows, error } = await supabase
+        .from('menu_items')
+        .select('id, nutritional_info')
+        .eq('restaurant_id', restaurantId);
+      if (!error && rows) {
+        const numMap = new Map<string,string>();
+        for (const r of rows) {
+          const n = r.nutritional_info?.item_number;
+          if (n && /^\d+$/.test(String(n))) numMap.set(String(n), r.id);
+        }
+        items.forEach(i => {
+          if (/^\d+$/.test(i.itemId) && numMap.get(i.itemId)) {
+            i.itemId = numMap.get(i.itemId)!;
+          }
+        });
+      }
+    }
+
     // ✅ Enforce UUID format for item IDs
     const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     for (const l of items) {

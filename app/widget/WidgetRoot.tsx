@@ -4,6 +4,17 @@ import { useWidget, type Store } from './store';
 import { ToastHost } from './ui/Toast';
 import { MenuView } from './MenuView';
 
+async function mintRealSession(restaurantId: string) {
+  const res = await fetch('/api/sessions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ restaurantId, locale: navigator.language }),
+  });
+  const j = await res.json();
+  if (!res.ok) throw new Error(`SESSION_BOOTSTRAP_FAILED ${j.code || ''}`);
+  return j as { sessionId: string; sessionToken: string };
+}
+
 export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; sessionId?: string }) {
   const setContext = useWidget((s: Store) => s.setContext);
   const bootstrapSession = useWidget((s: Store) => s.bootstrapSession);
@@ -20,10 +31,12 @@ export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; 
       try {
         // ✅ Always ensure we have a real session token (not legacy widget-* tokens)
         const currentToken = useWidget.getState().sessionToken;
-        if (!currentToken || currentToken.startsWith('widget-') || currentToken.length < 24) {
-          // Bootstrap a new real session
-          const success = await bootstrapSession(restaurantId);
-          if (!success) {
+        if (!currentToken || currentToken.startsWith('widget-')) {
+          try {
+            const s = await mintRealSession(restaurantId);
+            setContext(restaurantId, s.sessionId, s.sessionToken);
+          } catch (e) {
+            console.error('Session bootstrap failed:', e);
             setError('Failed to get valid session');
             setLoading(false);
             return;

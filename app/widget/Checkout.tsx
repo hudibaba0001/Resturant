@@ -46,8 +46,7 @@ export function CheckoutScreen() {
       const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       for (const line of cart) {
         if (!UUID.test(line.itemId)) {
-          console.error('Invalid item id in cart:', line.itemId);
-          toast('Invalid item in cart');
+          console.error('INVALID_ITEM_ID in cart:', line.itemId);
           throw new Error('INVALID_ITEM_ID');
         }
       }
@@ -56,7 +55,7 @@ export function CheckoutScreen() {
         itemId: l.itemId,
         qty: l.qty,
         notes: l.notes ?? null,
-        // include selections only if you added the column in DB
+        // include selections only if your DB has order_items.selections jsonb
         ...(l.variant || (l.modifiers && l.modifiers.length)
           ? { selections: { variant: l.variant, modifiers: l.modifiers } }
           : {}),
@@ -64,12 +63,12 @@ export function CheckoutScreen() {
 
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           restaurantId,
-          sessionId,            // optional
-          sessionToken,         // preferred
-          type: 'pickup',       // or 'dine_in' (underscore form)
+          sessionId,          // optional
+          sessionToken,       // preferred
+          type: 'pickup',     // or 'dine_in' (underscore form)
           items,
         }),
       });
@@ -77,7 +76,6 @@ export function CheckoutScreen() {
       if (!res.ok) {
         let msg = 'ORDER_FAILED';
         try { const j = await res.json(); msg = j.code || msg; } catch {}
-        toast(msg);
         throw new Error(`HTTP ${res.status} ${msg}`);
       }
 
