@@ -48,8 +48,8 @@ export function WidgetRoot({ restaurantId, sessionId }: { restaurantId: string; 
           setContext(restaurantId, sessionId, sessionToken || '');
         }
 
-        // Load menu
-        const res = await fetch(`/api/menu?restaurantId=${restaurantId}`, { cache: 'no-store' });
+        // Load menu from the new public endpoint
+        const res = await fetch(`/api/public/menu?restaurantId=${restaurantId}`, { cache: 'no-store' });
         const json = await res.json().catch(() => null);
         setMenu(json);
       } catch (err) {
