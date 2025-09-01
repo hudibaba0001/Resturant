@@ -53,7 +53,7 @@ export default async function MenusPage() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Menus</h1>
-          <CreateMenuClient />
+          <CreateMenuClient restaurantId={restaurantId} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {menus.map((m) => (
