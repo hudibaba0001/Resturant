@@ -1,18 +1,21 @@
 'use client';
 
-import { MenuRepository } from '@/lib/menuRepo';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Suspense, useEffect, useState } from 'react';
-import { revalidatePath } from 'next/cache';
-import { nanoid } from 'nanoid';
+import { useEffect, useState } from 'react';
 import type { Item } from '@/lib/types/menu';
 import AddItemClient from '@/components/dashboard/AddItemClient';
 import { ItemRowClient } from './ItemRowClient';
 import SectionManager from '@/components/dashboard/SectionManager';
 import Link from 'next/link';
+
+// Create client-side Supabase instance
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function MenuEditorPage({ params }: { params: { menuId: string } }) {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
@@ -25,7 +28,6 @@ export default function MenuEditorPage({ params }: { params: { menuId: string } 
     async function loadData() {
       try {
         // Get restaurant ID using client-side Supabase
-        const supabase = createClientComponentClient();
         const { data: restaurantData } = await supabase
           .from('restaurants')
           .select('id')
@@ -36,17 +38,45 @@ export default function MenuEditorPage({ params }: { params: { menuId: string } 
         if (restaurantData?.id) {
           setRestaurantId(restaurantData.id);
           
-          // Load sections and items
-          const repo = new MenuRepository('persistent');
-          const sectionsData = await repo.listSections(restaurantData.id, params.menuId);
-          setSections(sectionsData);
+          // Load sections and items directly with Supabase
+          const { data: sectionsData } = await supabase
+            .from('menu_items')
+            .select('id, name, nutritional_info')
+            .eq('restaurant_id', restaurantData.id)
+            .eq('nutritional_info->>menu', params.menuId)
+            .eq('nutritional_info->>is_section', 'true');
           
-          const firstSection = sectionsData.find((s: any) => s.path.length === 1) || 
-                             { id: 'default', menuId: params.menuId, name: 'General', path: [] };
-          setSelectedSection(firstSection.path[0] || '');
-          
-          const itemsData = await repo.listItems(restaurantData.id, params.menuId, firstSection.path);
-          setItems(itemsData);
+          if (sectionsData) {
+            const processedSections = sectionsData.map((item: any) => {
+              const sectionName = item.nutritional_info?.section_path?.[0] || 'Unknown';
+              return {
+                id: sectionName,
+                menuId: params.menuId,
+                name: sectionName,
+                parentId: null,
+                path: [sectionName],
+                sort: 0,
+              };
+            }).sort((a, b) => a.name.localeCompare(b.name));
+            
+            setSections(processedSections);
+            
+            const firstSection = processedSections.find((s: any) => s.path.length === 1) || 
+                               { id: 'default', menuId: params.menuId, name: 'General', path: [] };
+            setSelectedSection(firstSection.path[0] || '');
+            
+            // Load items for the first section
+            const { data: itemsData } = await supabase
+              .from('menu_items')
+              .select('*')
+              .eq('restaurant_id', restaurantData.id)
+              .eq('nutritional_info->>menu', params.menuId)
+              .not('nutritional_info->>is_section', 'eq', 'true');
+            
+            if (itemsData) {
+              setItems(itemsData as Item[]);
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading menu data:', error);
