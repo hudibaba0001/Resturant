@@ -1,3 +1,4 @@
+// Vercel cache bust - force refresh of menus API types
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
