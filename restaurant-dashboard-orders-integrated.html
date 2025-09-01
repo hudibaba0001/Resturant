@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Order Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Left Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .restaurant-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .restaurant-details h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: #1e293b;
+        }
+
+        .status-badges {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .badge {
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.625rem;
+            font-weight: 500;
+        }
+
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge.verified {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-section-title {
+            padding: 0 1.5rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-right: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+
+        .nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-right-color: #2563eb;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.125rem 0.375rem;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Header */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .page-subtitle {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .notification-bell {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .notification-bell:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .notification-dot {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .user-menu:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .stat-icon.orders {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .stat-icon.revenue {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .stat-icon.customers {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .stat-icon.rating {
+            background: #fce7f3;
+            color: #db2777;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-change {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .stat-change.positive {
+            color: #059669;
+        }
+
+        .stat-change.negative {
+            color: #dc2626;
+        }
+
+        .trend-arrow {
+            width: 16px;
+            height: 16px;
+            background: currentColor;
+            border-radius: 2px;
+        }
+
+        /* Orders Management Styles */
+        .sticky-filters {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            position: sticky;
+            top: 80px;
+            z-index: 30;
+            padding: 1rem 0;
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .filter-btn {
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            border: 1px solid #e2e8f0;
+            background: white;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-btn:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .filter-btn.pending {
+            background: #fef3c7;
+            color: #d97706;
+            border-color: #f3d078;
+        }
+
+        .filter-btn.preparing {
+            background: #dbeafe;
+            color: #2563eb;
+            border-color: #93c5fd;
+        }
+
+        .filter-btn.ready {
+            background: #dcfce7;
+            color: #16a34a;
+            border-color: #86efac;
+        }
+
+        .search-controls {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            position: relative;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-input input {
+            width: 100%;
+            padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .search-input input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .orders-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .orders-main {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .order-card.urgent {
+            border-left: 4px solid #ef4444;
+        }
+
+        .order-card.preparing {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .order-card.ready {
+            border-left: 4px solid #10b981;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .order-info h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .order-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .order-type.pickup {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .order-type.delivery {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        .order-meta {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .order-total {
+            text-align: right;
+        }
+
+        .order-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .order-time {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .order-items {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .order-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .item-modifications {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .item-quantity {
+            background: #e2e8f0;
+            color: #475569;
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+
+        .item-price {
+            font-weight: 500;
+            color: #1e293b;
+        }
+
+        .special-instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .instructions-icon {
+            color: #3b82f6;
+            margin-right: 0.5rem;
+        }
+
+        .instructions-text {
+            font-size: 0.875rem;
+            color: #1e40af;
+            font-style: italic;
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .order-btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .order-btn.primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .order-btn.primary:hover {
+            background: #2563eb;
+        }
+
+        .order-btn.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .order-btn.success:hover {
+            background: #059669;
+        }
+
+        .order-btn.secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .order-btn.secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .order-btn.danger {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .order-btn.danger:hover {
+            background: #fee2e2;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.success {
+            background: #10b981;
+        }
+
+        .orders-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .sidebar-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .timeline {
+            position: relative;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e5e7eb;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: 3rem;
+            padding-bottom: 1rem;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: 14px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #d1d5db;
+        }
+
+        .timeline-dot.completed {
+            border-color: #10b981;
+            background: #10b981;
+        }
+
+        .timeline-dot.current {
+            border-color: #3b82f6;
+            background: #3b82f6;
+        }
+
+        .timeline-content h4 {
+            font-weight: 500;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .kitchen-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .kitchen-metric:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .quick-action {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .quick-action:last-child {
+            margin-bottom: 0;
+        }
+
+        .quick-action.blue {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .quick-action.blue:hover {
+            background: #dbeafe;
+        }
+
+        .quick-action.green {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .quick-action.green:hover {
+            background: #dcfce7;
+        }
+
+        .quick-action.purple {
+            background: #faf5ff;
+            color: #7c3aed;
+        }
+
+        .quick-action.purple:hover {
+            background: #f3e8ff;
+        }
+
+        .quick-action.orange {
+            background: #fff7ed;
+            color: #ea580c;
+        }
+
+        .quick-action.orange:hover {
+            background: #fed7aa;
+        }
+
+        .floating-actions {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .floating-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .floating-btn.success {
+            background: #10b981;
+        }
+
+        .floating-btn.primary {
+            background: #3b82f6;
+        }
+
+        /* Live indicator */
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .live-text {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .orders-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <div class="restaurant-info">
+                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-details">
+                        <h1>Mario's Italian Kitchen</h1>
+                        <div class="status-badges">
+                            <span class="badge active">Active</span>
+                            <span class="badge verified">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Main Navigation -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📊</div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                </div>
+
+                <!-- Management -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menu</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👥</div>
+                        <span>Staff</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📈</div>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+
+                <!-- Support -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">❓</div>
+                        <span>Help Center</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📞</div>
+                        <span>Contact Support</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn">☰</button>
+                    <h1 class="page-title">Order Management</h1>
+                    <p class="page-subtitle">Manage and track all restaurant orders in real-time</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notification-bell">
+                        🔔
+                        <div class="notification-dot"></div>
+                    </div>
+                    <div class="user-menu">
+                        <div class="user-avatar">MR</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.875rem;">Mario Rossi</div>
+                            <div style="font-size: 0.75rem; color: #64748b;">Owner</div>
+                        </div>
+                        <span style="color: #64748b;">▼</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Quick Stats Bar -->
+                <div class="stats-grid">
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Pending Orders</div>
+                            <div class="stat-icon orders">⏳</div>
+                        </div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>+2 in last hour</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Preparing</div>
+                            <div class="stat-icon revenue">🔥</div>
+                        </div>
+                        <div class="stat-value">5</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>Avg 12 min</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Ready</div>
+                            <div class="stat-icon customers">✅</div>
+                        </div>
+                        <div class="stat-value">3</div>
+                        <div class="stat-change negative">
+                            <div class="trend-arrow">↗</div>
+                            <span>Pickup waiting</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Completed Today</div>
+                            <div class="stat-icon rating">🎉</div>
+                        </div>
+                        <div class="stat-value">24</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>2,450 SEK total</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filters and Search -->
+                <div class="sticky-filters">
+                    <div class="filter-buttons">
+                        <button class="filter-btn active">
+                            📋 All Orders
+                        </button>
+                        <button class="filter-btn pending">
+                            ⏳ Pending (8)
+                        </button>
+                        <button class="filter-btn preparing">
+                            🔥 Preparing (5)
+                        </button>
+                        <button class="filter-btn ready">
+                            ✅ Ready (3)
+                        </button>
+                    </div>
+                    <div class="search-controls">
+                        <div class="search-input">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" placeholder="Search orders...">
+                        </div>
+                        <select class="filter-btn">
+                            <option>All Types</option>
+                            <option>Pickup</option>
+                            <option>Delivery</option>
+                        </select>
+                        <button class="filter-btn">
+                            🔧 More Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Orders Layout -->
+                <div class="orders-layout">
+                    <!-- Active Orders Column -->
+                    <div class="orders-main">
+                        <div class="live-indicator">
+                            <div class="live-dot"></div>
+                            <span class="live-text">Live updates enabled</span>
+                        </div>
+
+                        <!-- Order Card 1 - Urgent -->
+                        <div class="order-card urgent">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>#ORD-1847</h3>
+                                    <div class="order-type pickup">🚶 Pickup</div>
+                                    <div class="order-meta">Ordered 18 min ago • Customer: Emma L.</div>
+                                    <div class="order-meta">📞 +46 70 123 4567</div>
+                                </div>
+                                <div class="order-total">
+                                    <div class="order-amount">285 SEK</div>
+                                    <div class="order-time">Due: 5 min</div>
+                                </div>
+                            </div>
+
+                            <!-- Order Items -->
+                            <div class="order-items">
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Margherita Pizza</div>
+                                        <div class="item-modifications">Extra cheese, No olives</div>
+                                    </div>
+                                    <div class="item-quantity">2x</div>
+                                    <div class="item-price">240 SEK</div>
+                                </div>
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Garlic Bread</div>
+                                    </div>
+                                    <div class="item-quantity">1x</div>
+                                    <div class="item-price">45 SEK</div>
+                                </div>
+                            </div>
+
+                            <!-- Special Instructions -->
+                            <div class="special-instructions">
+                                <span class="instructions-icon">💬</span>
+                                <span class="instructions-text">"Please make pizza extra crispy - customer request"</span>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="order-actions">
+                                <button class="order-btn primary">🔥 Start Preparing</button>
+                                <button class="order-btn secondary">📞 Call Customer</button>
+                                <button class="order-btn danger">❌ Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Order Card 2 - Preparing -->
+                        <div class="order-card preparing">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>#ORD-1846</h3>
+                                    <div class="order-type delivery">🚗 Delivery</div>
+                                    <div class="order-meta">Ordered 25 min ago • Customer: John D.</div>
+                                    <div class="order-meta">📍 Sveavägen 123, Stockholm</div>
+                                </div>
+                                <div class="order-total">
+                                    <div class="order-amount">420 SEK</div>
+                                    <div class="order-time">Due: 15 min</div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 65%"></div>
+                            </div>
+
+                            <!-- Order Items -->
+                            <div class="order-items">
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Pasta Carbonara + Caesar Salad + Tiramisu</div>
+                                    </div>
+                                    <div class="item-quantity">3 items</div>
+                                    <div class="item-price">420 SEK</div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="order-actions">
+                                <button class="order-btn success">✅ Mark Ready</button>
+                                <button class="order-btn secondary">⏸️ Pause</button>
+                                <button class="order-btn danger">❌ Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Order Card 3 - Ready -->
+                        <div class="order-card ready">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>#ORD-1845</h3>
+                                    <div class="order-type pickup">🚶 Pickup</div>
+                                    <div class="order-meta">Ready 8 min ago • Customer: Sarah K.</div>
+                                    <div class="order-meta">📞 +46 70 987 6543</div>
+                                </div>
+                                <div class="order-total">
+                                    <div class="order-amount">195 SEK</div>
+                                    <div class="order-time">Ready!</div>
+                                </div>
+                            </div>
+
+                            <!-- Order Items -->
+                            <div class="order-items">
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Caprese Salad + Focaccia</div>
+                                    </div>
+                                    <div class="item-quantity">2 items</div>
+                                    <div class="item-price">195 SEK</div>
+                                </div>
+                            </div>
+
+                            <!-- Customer Notification Status -->
+                            <div class="special-instructions">
+                                <span class="instructions-icon">✅</span>
+                                <span class="instructions-text">Customer notified via SMS</span>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="order-actions">
+                                <button class="order-btn success">🎉 Mark Completed</button>
+                                <button class="order-btn secondary">📞 Call Customer</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Sidebar -->
+                    <div class="orders-sidebar">
+                        <!-- Order Timeline -->
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Today's Timeline</h3>
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-dot completed"></div>
+                                    <div class="timeline-content">
+                                        <h4>Order #1847 received</h4>
+                                        <div class="timeline-time">18 min ago</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-dot current"></div>
+                                    <div class="timeline-content">
+                                        <h4>Order #1846 in progress</h4>
+                                        <div class="timeline-time">25 min ago</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-dot completed"></div>
+                                    <div class="timeline-content">
+                                        <h4>Order #1845 ready</h4>
+                                        <div class="timeline-time">35 min ago</div>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-dot completed"></div>
+                                    <div class="timeline-content">
+                                        <h4>Order #1844 completed</h4>
+                                        <div class="timeline-time">1 hour ago</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Kitchen Status -->
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Kitchen Status</h3>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Current Load</span>
+                                <span class="metric-value">5 orders</span>
+                            </div>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Avg Prep Time</span>
+                                <span class="metric-value">12 min</span>
+                            </div>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Queue Wait</span>
+                                <span class="metric-value">3 min</span>
+                            </div>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Staff On Duty</span>
+                                <span class="metric-value">3 chefs</span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Quick Actions</h3>
+                            <button class="quick-action blue">
+                                <span>📞</span>
+                                <span>Call Next Customer</span>
+                            </button>
+                            <button class="quick-action green">
+                                <span>✅</span>
+                                <span>Mark All Ready as Complete</span>
+                            </button>
+                            <button class="quick-action purple">
+                                <span>📊</span>
+                                <span>View Kitchen Report</span>
+                            </button>
+                            <button class="quick-action orange">
+                                <span>⚠️</span>
+                                <span>Report Kitchen Issue</span>
+                            </button>
+                        </div>
+
+                        <!-- Performance Metrics -->
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">Today's Performance</h3>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Orders Completed</span>
+                                <span class="metric-value">24</span>
+                            </div>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Average Rating</span>
+                                <span class="metric-value">4.8/5</span>
+                            </div>
+                            <div class="kitchen-metric">
+                                <span class="metric-label">Revenue</span>
+                                <span class="metric-value">2,450 SEK</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Action Buttons -->
+        <div class="floating-actions">
+            <button class="floating-btn success">
+                ➕
+            </button>
+            <button class="floating-btn primary">
+                🔔
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function () {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Filter buttons functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all filter buttons (except selects)
+                if (this.tagName === 'BUTTON') {
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        if (b.tagName === 'BUTTON') {
+                            b.classList.remove('active');
+                        }
+                    });
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                }
+            });
+        });
+
+        // Order action buttons
+        document.querySelectorAll('.order-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const originalText = this.innerHTML;
+                this.innerHTML = '<span>⏳</span> Processing...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.innerHTML = '<span>✅</span> Updated!';
+                    this.classList.remove('primary', 'secondary', 'danger');
+                    this.classList.add('success');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                        this.classList.remove('success');
+                        if (originalText.includes('Start Preparing')) {
+                            this.classList.add('primary');
+                        } else if (originalText.includes('Call') || originalText.includes('Pause')) {
+                            this.classList.add('secondary');
+                        } else if (originalText.includes('Cancel')) {
+                            this.classList.add('danger');
+                        }
+                    }, 2000);
+                }, 1500);
+            });
+        });
+
+        // Quick actions
+        document.querySelectorAll('.quick-action').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log('Quick action clicked:', this.textContent.trim());
+            });
+        });
+
+        // Floating action buttons
+        document.querySelectorAll('.floating-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log('Floating action clicked');
+            });
+        });
+
+        // Auto-refresh simulation
+        setInterval(() => {
+            console.log('Refreshing orders...');
+            // In real implementation, this would fetch new order data
+        }, 30000);
+
+        // Navigation item clicks
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                // Remove active class from all items
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                // Add active class to clicked item
+                this.classList.add('active');
+                
+                const itemText = this.querySelector('span').textContent;
+                document.querySelector('.page-title').textContent = itemText;
+                
+                const subtitles = {
+                    'Dashboard': 'Welcome back! Here\'s what\'s happening at your restaurant today.',
+                    'Orders': 'Manage and track all restaurant orders in real-time',
+                    'Menu': 'Update your menu items, prices and availability',
+                    'Settings': 'Configure your restaurant settings and preferences',
+                    'Staff': 'Manage your restaurant team and permissions',
+                    'Analytics': 'View detailed reports and insights',
+                    'Help Center': 'Find answers and get support',
+                    'Contact Support': 'Get in touch with our support team'
+                };
+                
+                document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
+            });
+        });
+
+        console.log('🍽️ Restaurant Dashboard - Order Management Loaded');
+        console.log('📊 Features: Real-time updates, Status management, Kitchen timeline, Performance metrics');
+    </script>
+</body>
+
+</html>
