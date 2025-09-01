@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Orders Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .hero-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .order-card { transition: all 0.3s ease; }
+        .order-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .status-badge { transition: all 0.2s ease; }
+        .floating-actions { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; }
+        .sticky-filters { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.95); }
+        .order-timeline { position: relative; }
+        .order-timeline::before { content: ''; position: absolute; left: 20px; top: 0; bottom: 0; width: 2px; background: #e5e7eb; }
+        .timeline-item { position: relative; padding-left: 3rem; }
+        .timeline-dot { position: absolute; left: 14px; width: 12px; height: 12px; border-radius: 50%; background: white; border: 3px solid; }
+        .timeline-dot.completed { border-color: #10b981; background: #10b981; }
+        .timeline-dot.current { border-color: #3b82f6; background: #3b82f6; }
+        .timeline-dot.pending { border-color: #d1d5db; }
+        .order-actions { opacity: 0; transition: opacity 0.2s; }
+        .order-card:hover .order-actions { opacity: 1; }
+        .sound-notification { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Header -->
+<div class="hero-gradient text-white py-6">
+    <div class="max-w-7xl mx-auto px-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <nav class="text-sm text-blue-100 mb-2">
+                    <a href="#" class="hover:text-white">Dashboard</a> 
+                    <i class="fas fa-chevron-right mx-2"></i> 
+                    <span class="text-white">Orders</span>
+                </nav>
+                <h1 class="text-3xl font-bold mb-2">Order Management</h1>
+                <p class="text-blue-100">Manage and track all restaurant orders</p>
+            </div>
+            <div class="text-right">
+                <div class="bg-white bg-opacity-20 rounded-2xl p-4 backdrop-blur-sm">
+                    <div class="text-sm text-blue-100 mb-1">Active Orders</div>
+                    <div class="text-2xl font-bold">12</div>
+                    <div class="text-xs text-blue-100">Needs attention</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Bar -->
+<div class="bg-white border-b border-gray-200 py-4">
+    <div class="max-w-7xl mx-auto px-8">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-yellow-600">8</div>
+                <div class="text-sm text-gray-600">Pending</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">5</div>
+                <div class="text-sm text-gray-600">Preparing</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-purple-600">3</div>
+                <div class="text-sm text-gray-600">Ready</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-green-600">24</div>
+                <div class="text-sm text-gray-600">Completed</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-red-600">2</div>
+                <div class="text-sm text-gray-600">Cancelled</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-gray-600">42</div>
+                <div class="text-sm text-gray-600">Total Today</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Search -->
+<div class="sticky-filters sticky top-0 z-30 py-4 border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-8">
+        <div class="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-3">
+                <button class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium">
+                    <i class="fas fa-list mr-2"></i>All Orders
+                </button>
+                <button class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-medium hover:bg-yellow-200">
+                    <i class="fas fa-clock mr-2"></i>Pending (8)
+                </button>
+                <button class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-medium hover:bg-blue-200">
+                    <i class="fas fa-fire mr-2"></i>Preparing (5)
+                </button>
+                <button class="bg-purple-100 text-purple-800 px-4 py-2 rounded-lg font-medium hover:bg-purple-200">
+                    <i class="fas fa-check-circle mr-2"></i>Ready (3)
+                </button>
+            </div>
+            <div class="flex gap-3 items-center">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" placeholder="Search orders..." 
+                           class="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <select class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+                    <option>All Types</option>
+                    <option>Pickup</option>
+                    <option>Dine-in</option>
+                </select>
+                <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg">
+                    <i class="fas fa-filter mr-2"></i>More Filters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="max-w-7xl mx-auto px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Active Orders Column -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-900">Active Orders</h2>
+                <div class="flex items-center gap-2">
+                    <div class="sound-notification w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span class="text-sm text-gray-600">Live updates enabled</span>
+                </div>
+            </div>
+
+            <!-- Order Card 1 - Urgent -->
+            <div class="order-card bg-white rounded-2xl shadow-sm border-l-4 border-red-500 p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <h3 class="text-lg font-bold text-gray-900">#ORD-2024-001</h3>
+                            <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-exclamation-triangle mr-1"></i>Urgent
+                            </span>
+                            <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-walking mr-1"></i>Pickup
+                            </span>
+                        </div>
+                        <div class="text-gray-600 text-sm mb-2">
+                            <i class="fas fa-user mr-2"></i>John Doe • +46 70 123 4567
+                        </div>
+                        <div class="text-gray-600 text-sm">
+                            <i class="fas fa-clock mr-2"></i>Ordered: 18:15 • Expected: 18:45 (Overdue by 5 min)
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-gray-900 mb-1">370 SEK</div>
+                        <div class="text-sm text-gray-600">2 items</div>
+                    </div>
+                </div>
+
+                <!-- Order Items -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">Margherita Pizza × 2</span>
+                            <span class="text-gray-600">340 SEK</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium">Extra Cheese</span>
+                            <span class="text-gray-600">30 SEK</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Special Instructions -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-sticky-note text-blue-600 mt-1"></i>
+                        <div>
+                            <div class="font-medium text-blue-900 text-sm">Special Instructions:</div>
+                            <div class="text-blue-800 text-sm">"Please make it extra crispy and cut into 8 slices"</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3">
+                    <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors">
+                        <i class="fas fa-fire mr-2"></i>Start Preparing
+                    </button>
+                    <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl transition-colors">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button class="bg-red-100 hover:bg-red-200 text-red-700 py-3 px-4 rounded-xl transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Order Card 2 - Preparing -->
+            <div class="order-card bg-white rounded-2xl shadow-sm border-l-4 border-blue-500 p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <h3 class="text-lg font-bold text-gray-900">#ORD-2024-002</h3>
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-fire mr-1"></i>Preparing
+                            </span>
+                            <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-utensils mr-1"></i>Dine-in • Table 5
+                            </span>
+                        </div>
+                        <div class="text-gray-600 text-sm mb-2">
+                            <i class="fas fa-user mr-2"></i>Jane Smith • Walk-in
+                        </div>
+                        <div class="text-gray-600 text-sm">
+                            <i class="fas fa-clock mr-2"></i>Started: 18:20 • Est. ready: 18:40
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-gray-900 mb-1">125 SEK</div>
+                        <div class="text-sm text-gray-600">1 item</div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-2">
+                        <span>Preparation Progress</span>
+                        <span>60%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: 60%"></div>
+                    </div>
+                </div>
+
+                <!-- Order Items -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Caesar Salad</span>
+                        <span class="text-gray-600">125 SEK</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3">
+                    <button class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl font-medium transition-colors">
+                        <i class="fas fa-check mr-2"></i>Mark Ready
+                    </button>
+                    <button class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 py-3 px-4 rounded-xl transition-colors">
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button class="bg-red-100 hover:bg-red-200 text-red-700 py-3 px-4 rounded-xl transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Order Card 3 - Ready -->
+            <div class="order-card bg-white rounded-2xl shadow-sm border-l-4 border-green-500 p-6">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <h3 class="text-lg font-bold text-gray-900">#ORD-2024-003</h3>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>Ready
+                            </span>
+                            <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                                <i class="fas fa-walking mr-1"></i>Pickup
+                            </span>
+                        </div>
+                        <div class="text-gray-600 text-sm mb-2">
+                            <i class="fas fa-user mr-2"></i>Mike Johnson • +46 70 987 6543
+                        </div>
+                        <div class="text-gray-600 text-sm">
+                            <i class="fas fa-clock mr-2"></i>Ready since: 18:35 • Customer notified
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-bold text-gray-900 mb-1">165 SEK</div>
+                        <div class="text-sm text-gray-600">1 item</div>
+                    </div>
+                </div>
+
+                <!-- Order Items -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium">Pasta Carbonara</span>
+                        <span class="text-gray-600">165 SEK</span>
+                    </div>
+                </div>
+
+                <!-- Customer Notification Status -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                        <span class="text-green-800 text-sm font-medium">Customer notified via SMS</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3">
+                    <button class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-xl font-medium transition-colors">
+                        <i class="fas fa-handshake mr-2"></i>Mark Completed
+                    </button>
+                    <button class="bg-blue-100 hover:bg-blue-200 text-blue-700 py-3 px-4 rounded-xl transition-colors">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="space-y-6">
+            
+            <!-- Order Timeline -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Today's Timeline</h3>
+                <div class="order-timeline">
+                    <div class="timeline-item pb-4">
+                        <div class="timeline-dot completed"></div>
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-900">18:45</div>
+                            <div class="text-gray-600">Order #001 completed</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item pb-4">
+                        <div class="timeline-dot current"></div>
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-900">18:35</div>
+                            <div class="text-gray-600">Order #003 ready for pickup</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item pb-4">
+                        <div class="timeline-dot completed"></div>
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-900">18:20</div>
+                            <div class="text-gray-600">Started preparing #002</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item pb-4">
+                        <div class="timeline-dot completed"></div>
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-900">18:15</div>
+                            <div class="text-gray-600">New order #001 received</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kitchen Status -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Kitchen Status</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Current Load</span>
+                        <span class="font-bold text-yellow-600">Medium</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Avg. Prep Time</span>
+                        <span class="font-bold text-gray-900">18 min</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Staff on Duty</span>
+                        <span class="font-bold text-green-600">3 chefs</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Queue Length</span>
+                        <span class="font-bold text-blue-600">5 orders</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
+                <div class="space-y-3">
+                    <button class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 py-3 px-4 rounded-xl text-left transition-colors">
+                        <i class="fas fa-plus mr-3"></i>Add Manual Order
+                    </button>
+                    <button class="w-full bg-green-50 hover:bg-green-100 text-green-700 py-3 px-4 rounded-xl text-left transition-colors">
+                        <i class="fas fa-download mr-3"></i>Export Today's Orders
+                    </button>
+                    <button class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 py-3 px-4 rounded-xl text-left transition-colors">
+                        <i class="fas fa-chart-bar mr-3"></i>View Analytics
+                    </button>
+                    <button class="w-full bg-orange-50 hover:bg-orange-100 text-orange-700 py-3 px-4 rounded-xl text-left transition-colors">
+                        <i class="fas fa-cog mr-3"></i>Kitchen Settings
+                    </button>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">Today's Performance</h3>
+                <div class="space-y-4">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">Order Accuracy</span>
+                            <span class="font-medium">98%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-500 h-2 rounded-full" style="width: 98%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">On-Time Delivery</span>
+                            <span class="font-medium">85%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-yellow-500 h-2 rounded-full" style="width: 85%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">Customer Satisfaction</span>
+                            <span class="font-medium">4.8/5</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: 96%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Buttons -->
+<div class="floating-actions">
+    <div class="flex flex-col gap-3">
+        <button class="bg-green-600 hover:bg-green-700 text-white w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center">
+            <i class="fas fa-plus text-xl"></i>
+        </button>
+        <button class="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center">
+            <i class="fas fa-bell text-xl"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Order Detail Modal (Hidden by default) -->
+<div class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden" id="order-detail-modal">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-gray-900">Order Details</h2>
+                    <button class="text-gray-400 hover:text-gray-600" onclick="document.getElementById('order-detail-modal').classList.add('hidden')">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="space-y-6">
+                    <!-- Order Info -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-3">Order Information</h3>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-600">Order ID:</span>
+                                <span class="font-medium ml-2">#ORD-2024-001</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Type:</span>
+                                <span class="font-medium ml-2">Pickup</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Status:</span>
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium ml-2">Pending</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Total:</span>
+                                <span class="font-bold ml-2">370 SEK</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Info -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-3">Customer Information</h3>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <div class="text-sm space-y-2">
+                                <div><span class="text-gray-600">Name:</span> <span class="font-medium ml-2">John Doe</span></div>
+                                <div><span class="text-gray-600">Phone:</span> <span class="font-medium ml-2">+46 70 123 4567</span></div>
+                                <div><span class="text-gray-600">Email:</span> <span class="font-medium ml-2">john@example.com</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Order Items -->
+                    <div>
+                        <h3 class="font-bold text-gray-900 mb-3">Order Items</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                    <div class="font-medium">Margherita Pizza</div>
+                                    <div class="text-sm text-gray-600">Large, Extra Cheese</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-medium">340 SEK</div>
+                                    <div class="text-sm text-gray-600">Qty: 2</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-gray-200">
+                <div class="flex gap-3">
+                    <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-medium transition-colors">
+                        Update Status
+                    </button>
+                    <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl transition-colors">
+                        Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-refresh orders every 30 seconds
+    setInterval(() => {
+        console.log('Refreshing orders...');
+        // In real implementation, this would fetch new order data
+    }, 30000);
+
+    // Sound notification for new orders
+    function playNotificationSound() {
+        // In real implementation, this would play a sound
+        console.log('New order notification sound');
+    }
+
+    // Status update handlers
+    document.querySelectorAll('button').forEach(btn => {
+        if (btn.textContent.includes('Start Preparing') || 
+            btn.textContent.includes('Mark Ready') || 
+            btn.textContent.includes('Mark Completed')) {
+            btn.addEventListener('click', function() {
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.innerHTML = '<i class="fas fa-check mr-2"></i>Updated!';
+                    this.classList.remove('bg-blue-600', 'bg-green-600', 'bg-purple-600');
+                    this.classList.add('bg-green-500');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                        this.classList.remove('bg-green-500');
+                        this.classList.add('bg-blue-600');
+                    }, 2000);
+                }, 1500);
+            });
+        }
+    });
+
+    // Filter buttons
+    document.querySelectorAll('button').forEach(btn => {
+        if (btn.textContent.includes('All Orders') || 
+            btn.textContent.includes('Pending') || 
+            btn.textContent.includes('Preparing') || 
+            btn.textContent.includes('Ready')) {
+            btn.addEventListener('click', function() {
+                // Remove active state from all filter buttons
+                document.querySelectorAll('button').forEach(b => {
+                    if (b.textContent.includes('Orders') || b.textContent.includes('Pending') || 
+                        b.textContent.includes('Preparing') || b.textContent.includes('Ready')) {
+                        b.classList.remove('bg-blue-600', 'text-white');
+                        b.classList.add('hover:bg-gray-200');
+                    }
+                });
+                
+                // Add active state to clicked button
+                this.classList.add('bg-blue-600', 'text-white');
+                this.classList.remove('hover:bg-gray-200');
+            });
+        }
+    });
+
+    console.log('🍽️ Restaurant Orders Management Loaded');
+    console.log('📊 Features: Real-time updates, Status management, Kitchen timeline, Performance metrics');
+</script>
+
+</body>
+</html>
