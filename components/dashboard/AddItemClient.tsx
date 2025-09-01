@@ -43,6 +43,7 @@ export default function AddItemClient({
             price_matrix: {},
           }}
           onSave={async (next) => {
+            console.log("🚀 AddItemClient onSave called with:", next);
             try {
               const res = await fetch('/api/dashboard/items', {
                 method: 'POST',
@@ -64,14 +65,20 @@ export default function AddItemClient({
                 }),
               });
               
+              console.log("🚀 API response status:", res.status);
+              
               if (!res.ok) {
                 const error = await res.json().catch(() => ({}));
                 throw new Error(error.code || 'ITEM_CREATE_ERROR');
               }
               
+              const result = await res.json();
+              console.log("🚀 API success:", result);
+              
               setOpen(false);
               router.refresh();
             } catch (error) {
+              console.error("🚀 API error:", error);
               alert(`Could not create item: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           }}

@@ -72,6 +72,9 @@ export function EditItemDialog({
   }, [variantGroups]);
 
   const onSubmit = async (v: z.infer<typeof ItemSchema>) => {
+    console.log("🔍 onSubmit called with:", v);
+    console.log("🔍 Form errors:", errors);
+    
     const next: Item = {
       ...initial,
       name: v.name,
@@ -86,6 +89,8 @@ export function EditItemDialog({
       modifier_groups: modifierGroups,
       price_matrix: priceMatrix,
     };
+    
+    console.log("🔍 Calling onSave with:", next);
     await onSave(next);
     onOpenChange(false);
   };
