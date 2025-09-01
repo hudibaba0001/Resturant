@@ -1,81 +1,59 @@
-// Never prerender this API
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getSupabaseServer } from '@/lib/supabase/server';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { safeRoute, jsonError } from '@/lib/errors';
-import { corsHeaders } from '@/lib/cors';
-// Adjust the import path if your repo uses a different location:
-import { MenuRepository } from '@/lib/menuRepo';
+const Q = z.object({ restaurantId: z.string().uuid(), menu: z.string().optional() });
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const q = Q.parse(Object.fromEntries(url.searchParams));
+  const menu = url.searchParams.get('menu') ?? 'main';
 
-// TODO: Drive this from DB (restaurants.allowed_origins) post-MVP
-const ALLOWLIST = [
-  'https://resturant.vercel.app',
-  'https://resturant-two-xi.vercel.app',
-];
+  const { supabase } = await getSupabaseServer();
 
-export const OPTIONS = (req: NextRequest) =>
-  new NextResponse(null, {
-    headers: corsHeaders(req.headers.get('origin') || '', ALLOWLIST),
-  });
+  // 1) menu
+  const { data: menus, error: mErr } = await supabase
+    .from('menus_v2').select('id')
+    .eq('restaurant_id', q.restaurantId).eq('slug', menu).limit(1);
+  if (mErr) throw mErr;
+  const menuRow = menus?.[0];
+  if (!menuRow) return NextResponse.json({ sections: [] });
 
-export async function GET(req: NextRequest) {
-  try {
-    const origin = req.headers.get('origin') || '';
-    const headers = corsHeaders(origin, ALLOWLIST);
+  // 2) sections
+  const { data: sections, error: sErr } = await supabase
+    .from('menu_sections_v2').select('id, path').eq('menu_id', menuRow.id);
+  if (sErr) throw sErr;
+  const sectionIds = (sections ?? []).map(s => s.id);
+  if (!sectionIds.length) return NextResponse.json({ sections: [] });
 
-    const { searchParams } = new URL(req.url);
-    const restaurantId = searchParams.get('restaurantId') || '';
-    const menuIdParam = searchParams.get('menuId') || '';
-    const includeUnavailable = (searchParams.get('includeUnavailable') || 'false') === 'true';
+  // 3) items
+  const { data: items, error: iErr } = await supabase
+    .from('menu_items_v2')
+    .select('id, name, description, is_available, base_price_cents, section_id, sort_index')
+    .eq('restaurant_id', q.restaurantId)
+    .in('section_id', sectionIds)
+    .order('sort_index', { ascending: true });
+  if (iErr) throw iErr;
 
-    if (!restaurantId) return jsonError('MISSING_RESTAURANT_ID', 400);
-    if (!UUID.test(restaurantId)) return jsonError('INVALID_RESTAURANT_ID', 400);
+  // 4) assemble identical shape the widget expects
+  const pathBySection: Record<string, string[]> =
+    Object.fromEntries((sections ?? []).map(s => [s.id, s.path]));
+  const sectionMap = new Map<string, { name: string; path: string[]; items: any[] }>();
 
-    const repo = new MenuRepository('simple');
-
-    // Pick menu: explicit param or first available
-    const menus = await repo.listMenus(restaurantId);
-    if (!menus || menus.length === 0) {
-      return new NextResponse(JSON.stringify({ sections: [] }), { status: 200, headers });
+  for (const r of items ?? []) {
+    const path = pathBySection[r.section_id] ?? [];
+    const key = JSON.stringify(path);
+    if (!sectionMap.has(key)) {
+      sectionMap.set(key, { name: path.at(-1) ?? 'Menu', path, items: [] });
     }
-    const chosenMenuId = menuIdParam || menus[0]?.slug; // Use slug instead of id
-    if (!chosenMenuId) {
-      return new NextResponse(JSON.stringify({ sections: [] }), { status: 200, headers });
-    }
-
-    // Sections + items (supports nested via section.path)
-    const sections = await repo.listSections(restaurantId, chosenMenuId);
-
-    const sectionPayload = await Promise.all(
-      sections.map(async (section) => {
-        const items = await repo.listItems(restaurantId, chosenMenuId, (section as any).path || []);
-        const filtered = includeUnavailable ? items : items.filter((i: any) => i.is_available !== false);
-
-        return {
-          id: section.id,
-          name: section.name,
-          path: (section as any).path || [],
-          items: filtered.map((i: any) => ({
-            id: i.id, // <- UUID from DB, used by orders API
-            name: i.name,
-            description: i.description ?? null,
-            price_cents: i.price_cents ?? null,
-            currency: i.currency ?? 'SEK',
-            image_url: i.image_url ?? null,
-            allergens: i.allergens ?? [],
-            dietary: i.dietary ?? [],
-            is_available: i.is_available !== false,
-          })),
-        };
-      })
-    );
-
-    return new NextResponse(JSON.stringify({ sections: sectionPayload }), { status: 200, headers });
-  } catch (error) {
-    console.error('Menu lookup error:', error);
-    return jsonError('MENU_LOOKUP_ERROR', 500);
+    sectionMap.get(key)!.items.push({
+      id: r.id,
+      name: r.name?.en ?? '',
+      price: r.base_price_cents,
+      description: r.description?.en ?? null,
+      isActive: r.is_available,
+    });
   }
+
+  return NextResponse.json({ sections: Array.from(sectionMap.values()) });
 }
