@@ -127,32 +127,33 @@ export class MenuRepository {
   // --- Sections ---
   async listSections(restaurantId: UUID, menuId: string): Promise<Section[]> {
     try {
-      // Use the new section management API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/dashboard/sections?restaurantId=${restaurantId}&menu=${menuId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sections: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      if (!data.ok) {
-        throw new Error('Sections API returned error');
-      }
-      
-      // Convert the new section format to the old Section type for backward compatibility
-      return data.data.map((section: any) => ({
-        id: section.name,
-        menuId,
-        name: section.name,
-        parentId: null,
-        path: [section.name],
-        sort: 0,
-      }));
-    } catch (error) {
-      console.error('Error fetching sections from new API, falling back to old logic:', error);
-      
-      // Fallback to old logic
+      // Use direct Supabase calls instead of HTTP fetch for server-side
       const supabase = getServerSupabase();
+      
+      // Get sections from the new system (section placeholder items)
+      const { data: sectionItems, error: sectionError } = await supabase
+        .from('menu_items')
+        .select('id, name, nutritional_info')
+        .eq('restaurant_id', restaurantId)
+        .eq('nutritional_info->>menu', menuId)
+        .eq('nutritional_info->>is_section', 'true');
+
+      if (!sectionError && sectionItems && sectionItems.length > 0) {
+        // Convert section items to Section format
+        return sectionItems.map((item: any) => {
+          const sectionName = item.nutritional_info?.section_path?.[0] || 'Unknown';
+          return {
+            id: sectionName,
+            menuId,
+            name: sectionName,
+            parentId: null,
+            path: [sectionName],
+            sort: 0,
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+      }
+      
+      // Fallback to old logic if no sections found
       const { data, error: dbError } = await supabase
         .from('menu_items')
         .select('nutritional_info')
@@ -186,6 +187,10 @@ export class MenuRepository {
       paths.forEach(push);
       // Sorted by path depth then name
       return Array.from(unique.values()).sort((a, b) => a.path.length - b.path.length || a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Error in listSections:', error);
+      // Return empty array on error
+      return [];
     }
   }
 
