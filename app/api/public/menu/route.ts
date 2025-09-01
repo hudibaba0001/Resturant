@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { getServerSupabase } from '@/lib/supabase/server';
 
 const Q = z.object({ restaurantId: z.string().uuid(), menu: z.string().optional() });
 
@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   const q = Q.parse(Object.fromEntries(url.searchParams));
   const menu = url.searchParams.get('menu') ?? 'main';
 
-  const { supabase } = await getSupabaseServer();
+  const supabase = getServerSupabase();
 
   // 1) menu
   const { data: menus, error: mErr } = await supabase
