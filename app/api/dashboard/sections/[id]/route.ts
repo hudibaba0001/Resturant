@@ -40,19 +40,31 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
 
   // If section name is changing, we need to update all items in that section
   if (parsed.data.name && parsed.data.name !== oldSectionName) {
-    // Update all items in the old section to use the new section name
-    const { error: updateError } = await sb
+    // Get all items in the old section
+    const { data: itemsToUpdate } = await sb
       .from('menu_items')
-      .update({
-        nutritional_info: sb.sql`jsonb_set(nutritional_info, '{section_path}', '["${newSectionName}"]'::jsonb)`
-      })
+      .select('id, nutritional_info')
       .eq('restaurant_id', current.restaurant_id)
       .eq('nutritional_info->>menu', ni.menu)
-      .eq('nutritional_info->>section_path', JSON.stringify([oldSectionName]));
+      .eq('nutritional_info->>section_path', JSON.stringify([oldSectionName]))
+      .neq('nutritional_info->>is_section', 'true');
 
-    if (updateError) {
-      console.log("Section rename error:", updateError);
-      return NextResponse.json({ code: 'SECTION_UPDATE_ERROR' }, { status: 500 });
+    // Update each item individually with new section path
+    if (itemsToUpdate && itemsToUpdate.length > 0) {
+      for (const item of itemsToUpdate) {
+        const newNutritionalInfo = { ...item.nutritional_info };
+        newNutritionalInfo.section_path = [newSectionName];
+        
+        const { error: updateError } = await sb
+          .from('menu_items')
+          .update({ nutritional_info: newNutritionalInfo })
+          .eq('id', item.id);
+
+        if (updateError) {
+          console.log("Section rename error:", updateError);
+          return NextResponse.json({ code: 'SECTION_UPDATE_ERROR' }, { status: 500 });
+        }
+      }
     }
   }
 
@@ -106,19 +118,31 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
 
   // Move all items in this section to "General" (no section)
   if (sectionName) {
-    const { error: moveError } = await sb
+    // Get all items in this section
+    const { data: itemsToMove } = await sb
       .from('menu_items')
-      .update({
-        nutritional_info: sb.sql`jsonb_set(nutritional_info, '{section_path}', '[]'::jsonb)`
-      })
+      .select('id, nutritional_info')
       .eq('restaurant_id', section.restaurant_id)
       .eq('nutritional_info->>menu', ni.menu)
       .eq('nutritional_info->>section_path', JSON.stringify([sectionName]))
       .neq('nutritional_info->>is_section', 'true');
 
-    if (moveError) {
-      console.log("Section deletion error (moving items):", moveError);
-      return NextResponse.json({ code: 'SECTION_DELETE_ERROR' }, { status: 500 });
+    // Update each item individually to remove section
+    if (itemsToMove && itemsToMove.length > 0) {
+      for (const item of itemsToMove) {
+        const newNutritionalInfo = { ...item.nutritional_info };
+        newNutritionalInfo.section_path = [];
+        
+        const { error: moveError } = await sb
+          .from('menu_items')
+          .update({ nutritional_info: newNutritionalInfo })
+          .eq('id', item.id);
+
+        if (moveError) {
+          console.log("Section deletion error (moving items):", moveError);
+          return NextResponse.json({ code: 'SECTION_DELETE_ERROR' }, { status: 500 });
+        }
+      }
     }
   }
 
