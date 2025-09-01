@@ -3,7 +3,13 @@ export const runtime = 'nodejs';
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client for API routes
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const CreateSectionSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -15,7 +21,6 @@ const CreateSectionSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const sb = await getSupabaseServer();
   const body = await req.json().catch(() => null);
   const parsed = CreateSectionSchema.safeParse(body);
   
@@ -27,7 +32,7 @@ export async function POST(req: Request) {
   const { restaurantId, menu, name, description, sortIndex, isActive } = parsed.data;
 
   // Check if section already exists
-  const { data: existing } = await sb
+  const { data: existing } = await supabase
     .from('menu_items')
     .select('id')
     .eq('restaurant_id', restaurantId)
@@ -40,7 +45,7 @@ export async function POST(req: Request) {
   }
 
   // Create a placeholder item to represent the section
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from('menu_items')
     .insert({
       restaurant_id: restaurantId,
@@ -75,7 +80,6 @@ const ListSectionsQuery = z.object({
 });
 
 export async function GET(req: Request) {
-  const sb = await getSupabaseServer();
   const { searchParams } = new URL(req.url);
   const parsed = ListSectionsQuery.safeParse({
     restaurantId: searchParams.get('restaurantId') || '',
@@ -89,7 +93,7 @@ export async function GET(req: Request) {
   const { restaurantId, menu } = parsed.data;
 
   // Get all items for this menu and extract unique sections
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from('menu_items')
     .select('id, name, nutritional_info')
     .eq('restaurant_id', restaurantId);

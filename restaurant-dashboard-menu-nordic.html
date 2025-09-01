@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Menu Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            background: #fafafa;
+            color: #1a1a1a;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Compact Nordic Sidebar */
+        .sidebar {
+            width: 240px;
+            background: white;
+            border-right: 1px solid #e5e5e5;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .restaurant-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .restaurant-details h1 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: #1a1a1a;
+        }
+
+        .status-badges {
+            display: flex;
+            gap: 4px;
+        }
+
+        .badge {
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge.verified {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* Compact Navigation */
+        .sidebar-nav {
+            padding: 8px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 16px;
+        }
+
+        .nav-section-title {
+            padding: 0 16px 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.15s;
+            border-right: 2px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f9fafb;
+            color: #1a1a1a;
+        }
+
+        .nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-right-color: #2563eb;
+        }
+
+        .nav-icon {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 8px;
+            min-width: 14px;
+            text-align: center;
+        }
+
+        /* Compact Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Compact Header */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .page-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 1px;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notification-bell {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .notification-bell:hover {
+            background: #f3f4f6;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .user-menu:hover {
+            background: #f3f4f6;
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        /* Compact Content Area */
+        .content {
+            flex: 1;
+            padding: 16px;
+        }
+
+        /* Minimalist Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            transition: border-color 0.15s;
+        }
+
+        .stat-card:hover {
+            border-color: #d1d5db;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .stat-title {
+            font-size: 10px;
+            font-weight: 500;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .stat-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .stat-icon.total { background: #dbeafe; color: #2563eb; }
+        .stat-icon.categories { background: #dcfce7; color: #16a34a; }
+        .stat-icon.variants { background: #fce7f3; color: #db2777; }
+        .stat-icon.available { background: #fef3c7; color: #d97706; }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .stat-change {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* Compact Menu Management */
+        .menu-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .menu-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .create-menu-btn {
+            background: #2563eb;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 500;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .create-menu-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .menus-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .menu-card {
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            overflow: hidden;
+            transition: border-color 0.15s;
+        }
+
+        .menu-card:hover {
+            border-color: #d1d5db;
+        }
+
+        .menu-header-bg {
+            height: 60px;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 8px 12px;
+        }
+
+        .menu-header-bg.lunch { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); }
+        .menu-header-bg.dinner { background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); }
+        .menu-header-bg.seasonal { background: linear-gradient(135deg, #059669 0%, #0891b2 100%); }
+
+        .menu-status {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .menu-status.active { background: rgba(16, 185, 129, 0.9); color: white; }
+        .menu-status.draft { background: rgba(245, 158, 11, 0.9); color: white; }
+        .menu-status.seasonal { background: rgba(16, 185, 129, 0.9); color: white; }
+
+        .menu-info {
+            color: white;
+        }
+
+        .menu-name {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 1px;
+        }
+
+        .menu-description {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+
+        .menu-body {
+            padding: 12px;
+        }
+
+        .menu-stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .menu-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .menu-updated {
+            font-size: 9px;
+            color: #9ca3af;
+        }
+
+        .menu-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .menu-btn {
+            flex: 1;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 11px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .menu-btn.primary { background: #eff6ff; color: #1d4ed8; }
+        .menu-btn.primary:hover { background: #dbeafe; }
+        .menu-btn.orange { background: #fff7ed; color: #ea580c; }
+        .menu-btn.orange:hover { background: #fed7aa; }
+        .menu-btn.green { background: #f0fdf4; color: #166534; }
+        .menu-btn.green:hover { background: #dcfce7; }
+        .menu-btn.secondary { background: #f9fafb; color: #374151; border: 1px solid #e5e5e5; flex: none; padding: 6px; }
+        .menu-btn.secondary:hover { background: #f3f4f6; }
+
+        /* Compact Quick Actions */
+        .quick-actions-section {
+            background: white;
+            border-radius: 6px;
+            padding: 16px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 6px;
+            transition: background-color 0.15s;
+            cursor: pointer;
+            border: 1px solid #f3f4f6;
+        }
+
+        .quick-action.blue { background: #eff6ff; }
+        .quick-action.blue:hover { background: #dbeafe; }
+        .quick-action.green { background: #f0fdf4; }
+        .quick-action.green:hover { background: #dcfce7; }
+        .quick-action.purple { background: #faf5ff; }
+        .quick-action.purple:hover { background: #f3e8ff; }
+
+        .action-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+        }
+
+        .action-icon.blue { background: #2563eb; }
+        .action-icon.green { background: #059669; }
+        .action-icon.purple { background: #7c3aed; }
+
+        .action-content {
+            flex: 1;
+        }
+
+        .action-title {
+            font-weight: 500;
+            color: #1a1a1a;
+            font-size: 12px;
+            margin-bottom: 1px;
+        }
+
+        .action-description {
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        /* Compact Floating Button */
+        .floating-actions {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            z-index: 50;
+        }
+
+        .floating-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #2563eb;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-btn:hover {
+            background: #1d4ed8;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .menus-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .quick-actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <!-- Compact Sidebar -->
+        <aside class="sidebar">
+            <!-- Compact Header -->
+            <div class="sidebar-header">
+                <div class="restaurant-info">
+                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-details">
+                        <h1>Mario's Italian Kitchen</h1>
+                        <div class="status-badges">
+                            <span class="badge active">Active</span>
+                            <span class="badge verified">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact Navigation -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📊</div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menu</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👥</div>
+                        <span>Staff</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📈</div>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">❓</div>
+                        <span>Help Center</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📞</div>
+                        <span>Contact Support</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Compact Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn">☰</button>
+                    <h1 class="page-title">Menu Management</h1>
+                    <p class="page-subtitle">Manage your restaurant's menus and items</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notification-bell">🔔</div>
+                    <div class="user-menu">
+                        <div class="user-avatar">MR</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 11px;">Mario Rossi</div>
+                            <div style="font-size: 9px; color: #6b7280;">Owner</div>
+                        </div>
+                        <span style="color: #6b7280; font-size: 10px;">▼</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Compact Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Total Items</div>
+                            <div class="stat-icon total">🍽️</div>
+                        </div>
+                        <div class="stat-value">47</div>
+                        <div class="stat-change">+3 this week</div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Categories</div>
+                            <div class="stat-icon categories">📋</div>
+                        </div>
+                        <div class="stat-value">12</div>
+                        <div class="stat-change">Well organized</div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Variants</div>
+                            <div class="stat-icon variants">🔄</div>
+                        </div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-change">Size & options</div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Available</div>
+                            <div class="stat-icon available">✅</div>
+                        </div>
+                        <div class="stat-value">95%</div>
+                        <div class="stat-change">45/47 items</div>
+                    </div>
+                </div>
+
+                <!-- Menu Header -->
+                <div class="menu-header">
+                    <h2 class="menu-title">Your Menus</h2>
+                    <button class="create-menu-btn">
+                        <span>➕</span>
+                        <span>Create New Menu</span>
+                    </button>
+                </div>
+
+                <!-- Compact Menu Cards -->
+                <div class="menus-grid">
+                    <!-- Lunch Menu -->
+                    <div class="menu-card fade-in">
+                        <div class="menu-header-bg lunch">
+                            <div class="menu-status active">
+                                <span>●</span>
+                                <span>Active</span>
+                            </div>
+                            <div class="menu-info">
+                                <div class="menu-name">Lunch Menu</div>
+                                <div class="menu-description">Daily specials & favorites</div>
+                            </div>
+                        </div>
+                        <div class="menu-body">
+                            <div class="menu-stats">
+                                <div class="menu-meta">
+                                    <span>🍽️ 18 items</span>
+                                    <span>📋 6 sections</span>
+                                </div>
+                                <div class="menu-updated">2h ago</div>
+                            </div>
+                            <div class="menu-actions">
+                                <button class="menu-btn primary">
+                                    <span>✏️</span>
+                                    <span>Edit</span>
+                                </button>
+                                <button class="menu-btn secondary">
+                                    <span>⋮</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dinner Menu -->
+                    <div class="menu-card fade-in">
+                        <div class="menu-header-bg dinner">
+                            <div class="menu-status draft">
+                                <span>⏰</span>
+                                <span>Draft</span>
+                            </div>
+                            <div class="menu-info">
+                                <div class="menu-name">Dinner Menu</div>
+                                <div class="menu-description">Evening fine dining</div>
+                            </div>
+                        </div>
+                        <div class="menu-body">
+                            <div class="menu-stats">
+                                <div class="menu-meta">
+                                    <span>🍽️ 24 items</span>
+                                    <span>📋 8 sections</span>
+                                </div>
+                                <div class="menu-updated">1d ago</div>
+                            </div>
+                            <div class="menu-actions">
+                                <button class="menu-btn orange">
+                                    <span>✏️</span>
+                                    <span>Continue</span>
+                                </button>
+                                <button class="menu-btn secondary">
+                                    <span>⋮</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seasonal Menu -->
+                    <div class="menu-card fade-in">
+                        <div class="menu-header-bg seasonal">
+                            <div class="menu-status seasonal">
+                                <span>🍃</span>
+                                <span>Seasonal</span>
+                            </div>
+                            <div class="menu-info">
+                                <div class="menu-name">Spring Specials</div>
+                                <div class="menu-description">Fresh seasonal ingredients</div>
+                            </div>
+                        </div>
+                        <div class="menu-body">
+                            <div class="menu-stats">
+                                <div class="menu-meta">
+                                    <span>🍽️ 12 items</span>
+                                    <span>📋 4 sections</span>
+                                </div>
+                                <div class="menu-updated">3d ago</div>
+                            </div>
+                            <div class="menu-actions">
+                                <button class="menu-btn green">
+                                    <span>✏️</span>
+                                    <span>Edit</span>
+                                </button>
+                                <button class="menu-btn secondary">
+                                    <span>⋮</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compact Quick Actions -->
+                <div class="quick-actions-section">
+                    <h3 class="section-title">Quick Actions</h3>
+                    <div class="quick-actions-grid">
+                        <div class="quick-action blue">
+                            <div class="action-icon blue">➕</div>
+                            <div class="action-content">
+                                <div class="action-title">Add New Item</div>
+                                <div class="action-description">Create a new menu item</div>
+                            </div>
+                        </div>
+                        <div class="quick-action green">
+                            <div class="action-icon green">📋</div>
+                            <div class="action-content">
+                                <div class="action-title">Duplicate Menu</div>
+                                <div class="action-description">Copy existing menu</div>
+                            </div>
+                        </div>
+                        <div class="quick-action purple">
+                            <div class="action-icon purple">📥</div>
+                            <div class="action-content">
+                                <div class="action-title">Import Menu</div>
+                                <div class="action-description">Upload from CSV/Excel</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compact Floating Button -->
+        <div class="floating-actions">
+            <button class="floating-btn">➕</button>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn')?.addEventListener('click', function () {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Menu interactions
+        document.querySelectorAll('.menu-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.textContent.includes('Edit') || this.textContent.includes('Continue')) {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<span>⏳</span> <span>Loading...</span>';
+                    this.disabled = true;
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                    }, 1500);
+                }
+            });
+        });
+
+        // Quick actions
+        document.querySelectorAll('.quick-action').forEach(action => {
+            action.addEventListener('click', function() {
+                const title = this.querySelector('.action-title').textContent;
+                console.log(`Quick action: ${title}`);
+            });
+        });
+
+        // Create menu button
+        document.querySelector('.create-menu-btn').addEventListener('click', function() {
+            const originalText = this.innerHTML;
+            this.innerHTML = '<span>⏳</span> <span>Creating...</span>';
+            this.disabled = true;
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.disabled = false;
+            }, 1500);
+        });
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                this.classList.add('active');
+                
+                const itemText = this.querySelector('span').textContent;
+                document.querySelector('.page-title').textContent = itemText;
+                
+                const subtitles = {
+                    'Dashboard': 'Welcome back! Here\'s what\'s happening today.',
+                    'Orders': 'Manage and track all restaurant orders',
+                    'Menu': 'Manage your restaurant\'s menus and items',
+                    'Settings': 'Configure your restaurant settings',
+                    'Staff': 'Manage your restaurant team',
+                    'Analytics': 'View detailed reports and insights'
+                };
+                
+                document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
+            });
+        });
+
+        console.log('🍽️ Nordic Menu Dashboard Loaded - Pixel Perfect & Space Efficient');
+    </script>
+</body>
+</html>

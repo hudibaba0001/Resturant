@@ -3,17 +3,19 @@ export const runtime = 'nodejs';
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 const UpdateSectionSchema = z.object({
-  name: z.string().min(1).optional(),
+  name: z.string().min(1),
   description: z.string().optional(),
-  isActive: z.boolean().optional(),
   sortIndex: z.number().int().optional(),
+  isActive: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
-  const sb = await getSupabaseServer();
+  const cookieStore = await cookies();
+  const sb = createRouteHandlerClient({ cookies: () => cookieStore });
   const id = ctx.params.id;
   const body = await req.json().catch(() => null);
   const parsed = UpdateSectionSchema.safeParse(body);
@@ -22,70 +24,61 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
   }
 
-  // Get current section data
-  const { data: current } = await sb
+  const { name: newSectionName, description, sortIndex, isActive } = parsed.data;
+
+  // Get current section info
+  const { data: current, error: fetchError } = await sb
     .from('menu_items')
-    .select('nutritional_info, restaurant_id')
+    .select('id, restaurant_id, nutritional_info')
     .eq('id', id)
     .eq('nutritional_info->>is_section', 'true')
     .maybeSingle();
 
-  if (!current) {
+  if (fetchError || !current) {
     return NextResponse.json({ code: 'SECTION_NOT_FOUND' }, { status: 404 });
   }
 
   const ni = current.nutritional_info || {};
   const oldSectionName = ni.section_path?.[0];
-  const newSectionName = parsed.data.name || oldSectionName;
 
-  // If section name is changing, we need to update all items in that section
-  if (parsed.data.name && parsed.data.name !== oldSectionName) {
+  // If section name changed, update all items in that section
+  if (oldSectionName && oldSectionName !== newSectionName) {
     // Get all items in the old section
     const { data: itemsToUpdate } = await sb
       .from('menu_items')
       .select('id, nutritional_info')
       .eq('restaurant_id', current.restaurant_id)
       .eq('nutritional_info->>menu', ni.menu)
-      .eq('nutritional_info->>section_path', JSON.stringify([oldSectionName]))
-      .neq('nutritional_info->>is_section', 'true');
+      .eq('nutritional_info->>section_path', JSON.stringify([oldSectionName]));
 
-    // Update each item individually with new section path
-    if (itemsToUpdate && itemsToUpdate.length > 0) {
+    // Update each item's section_path
+    if (itemsToUpdate) {
       for (const item of itemsToUpdate) {
-        const newNutritionalInfo = { ...item.nutritional_info };
-        newNutritionalInfo.section_path = [newSectionName];
+        const itemNi = { ...item.nutritional_info };
+        itemNi.section_path = [newSectionName];
         
-        const { error: updateError } = await sb
+        await sb
           .from('menu_items')
-          .update({ nutritional_info: newNutritionalInfo })
+          .update({ nutritional_info: itemNi })
           .eq('id', item.id);
-
-        if (updateError) {
-          console.log("Section rename error:", updateError);
-          return NextResponse.json({ code: 'SECTION_UPDATE_ERROR' }, { status: 500 });
-        }
       }
     }
   }
 
   // Update the section placeholder item
-  const updateData: any = {};
-  if (parsed.data.name) updateData.name = `[SECTION] ${parsed.data.name}`;
-  if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
-  if (parsed.data.isActive !== undefined) updateData.is_available = parsed.data.isActive;
-
-  // Update nutritional_info
-  const newNutritionalInfo = { ...ni };
-  if (parsed.data.name) newNutritionalInfo.section_path = [parsed.data.name];
-  if (parsed.data.description !== undefined) newNutritionalInfo.description = parsed.data.description;
-  if (parsed.data.isActive !== undefined) newNutritionalInfo.is_active = parsed.data.isActive;
-  if (parsed.data.sortIndex !== undefined) newNutritionalInfo.sort_index = parsed.data.sortIndex;
-
-  updateData.nutritional_info = newNutritionalInfo;
-
   const { data, error } = await sb
     .from('menu_items')
-    .update(updateData)
+    .update({
+      name: `[SECTION] ${newSectionName}`,
+      description: description || `Section: ${newSectionName}`,
+      is_available: isActive,
+      nutritional_info: {
+        ...ni,
+        section_path: [newSectionName],
+        sort_index: sortIndex,
+        description,
+      },
+    })
     .eq('id', id)
     .select('id, name, nutritional_info')
     .single();
@@ -98,60 +91,50 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
 }
 
 export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
-  const sb = await getSupabaseServer();
+  const cookieStore = await cookies();
+  const sb = createRouteHandlerClient({ cookies: () => cookieStore });
   const id = ctx.params.id;
 
-  // Get section info before deleting
-  const { data: section } = await sb
+  // Get current section info
+  const { data: current, error: fetchError } = await sb
     .from('menu_items')
-    .select('nutritional_info, restaurant_id')
+    .select('id, restaurant_id, nutritional_info')
     .eq('id', id)
     .eq('nutritional_info->>is_section', 'true')
     .maybeSingle();
 
-  if (!section) {
+  if (fetchError || !current) {
     return NextResponse.json({ code: 'SECTION_NOT_FOUND' }, { status: 404 });
   }
 
-  const ni = section.nutritional_info || {};
+  const ni = current.nutritional_info || {};
   const sectionName = ni.section_path?.[0];
 
   // Move all items in this section to "General" (no section)
   if (sectionName) {
-    // Get all items in this section
-    const { data: itemsToMove } = await sb
+    const { data: itemsToUpdate } = await sb
       .from('menu_items')
       .select('id, nutritional_info')
-      .eq('restaurant_id', section.restaurant_id)
+      .eq('restaurant_id', current.restaurant_id)
       .eq('nutritional_info->>menu', ni.menu)
-      .eq('nutritional_info->>section_path', JSON.stringify([sectionName]))
-      .neq('nutritional_info->>is_section', 'true');
+      .eq('nutritional_info->>section_path', JSON.stringify([sectionName]));
 
-    // Update each item individually to remove section
-    if (itemsToMove && itemsToMove.length > 0) {
-      for (const item of itemsToMove) {
-        const newNutritionalInfo = { ...item.nutritional_info };
-        newNutritionalInfo.section_path = [];
+    if (itemsToUpdate) {
+      for (const item of itemsToUpdate) {
+        const itemNi = { ...item.nutritional_info };
+        itemNi.section_path = []; // Move to General
         
-        const { error: moveError } = await sb
+        await sb
           .from('menu_items')
-          .update({ nutritional_info: newNutritionalInfo })
+          .update({ nutritional_info: itemNi })
           .eq('id', item.id);
-
-        if (moveError) {
-          console.log("Section deletion error (moving items):", moveError);
-          return NextResponse.json({ code: 'SECTION_DELETE_ERROR' }, { status: 500 });
-        }
       }
     }
   }
 
   // Delete the section placeholder item
-  const { error } = await sb
-    .from('menu_items')
-    .delete()
-    .eq('id', id);
-
+  const { error } = await sb.from('menu_items').delete().eq('id', id);
+  
   if (error) {
     return NextResponse.json({ code: 'SECTION_DELETE_ERROR' }, { status: 500 });
   }
