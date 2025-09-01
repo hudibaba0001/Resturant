@@ -1,10 +1,10 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-import { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { jsonError, jsonOk, safeRoute } from '@/lib/errors';
-import { getSupabaseWithBearer } from '@/lib/supabaseServer';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 
 const CreateSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -23,8 +23,8 @@ const SlugSchema = z
       .replace(/^-+|-+$/g, '')
   );
 
-export const GET = safeRoute(async (req: NextRequest) => {
-  const sb = await getSupabaseWithBearer(req);
+export const GET = safeRoute(async (req: Request) => {
+  const sb = await getSupabaseServer();
   const { searchParams } = new URL(req.url);
   const restaurantId = searchParams.get('restaurantId') || '';
 
@@ -40,8 +40,8 @@ export const GET = safeRoute(async (req: NextRequest) => {
   return jsonOk({ menus: data ?? [] });
 }, 'MENUS_LIST_ERROR');
 
-export const POST = safeRoute(async (req: NextRequest) => {
-  const sb = await getSupabaseWithBearer(req);
+export const POST = safeRoute(async (req: Request) => {
+  const sb = await getSupabaseServer();
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) return jsonError('BAD_REQUEST', 400);
