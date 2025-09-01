@@ -11,49 +11,35 @@ export class MenuRepository {
   // --- Menus ---
   async listMenus(restaurantId: UUID): Promise<Menu[]> {
     const supabase = getServerSupabase();
-    
-    // Try to get menus from the new persistent menus table first
-    const { data: menuData, error: menuError } = await supabase
+
+    // 1) Try persistent menus
+    const { data: menus, error } = await supabase
       .from('menus')
-      .select('id, name, slug, description, is_active, is_default, sort_order')
+      .select('id, slug, name, sort_index, is_active')
       .eq('restaurant_id', restaurantId)
-      .eq('is_active', true)
-      .order('sort_order, name');
-    
-    if (!menuError && menuData && menuData.length > 0) {
-      // Return persistent menus
-      return menuData.map(menu => ({
-        id: menu.id,
-        name: menu.name,
-        slug: menu.slug,
-        description: menu.description,
-        isDefault: menu.is_default,
-        sortOrder: menu.sort_order
+      .order('sort_index', { ascending: true });
+
+    if (!error && menus && menus.length > 0) {
+      // normalize to your Menu type
+      return menus.map((m: any) => ({
+        id: m.slug, // dashboard routes use slug as id in URL
+        name: m.name,
+        is_active: m.is_active,
       }));
     }
-    
-    // Fallback: legacy discovery via menu_items (for backward compatibility)
-    const { data, error } = await supabase
+
+    // 2) Fallback: derive from items (legacy behavior)
+    const { data: items } = await supabase
       .from('menu_items')
-      .select('id, nutritional_info')
+      .select('nutritional_info')
       .eq('restaurant_id', restaurantId);
-    if (error) throw error;
-    
+
     const map = new Map<string, string>();
-    for (const row of data as any[]) {
-      const menu = row.nutritional_info?.menu;
+    for (const row of items ?? []) {
+      const menu = row?.nutritional_info?.menu;
       if (menu) map.set(menu, menu);
     }
-    
-    // If empty, return a default menu to get started
-    if (map.size === 0) {
-      return [{ id: 'main', name: 'Main' }];
-    }
-    
-    return Array.from(map.keys()).map((slug) => ({ 
-      id: slug, 
-      name: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
-    }));
+    return Array.from(map.values()).map((name) => ({ id: name, name }));
   }
 
   async createMenu(restaurantId: UUID, name: string): Promise<Menu> {
