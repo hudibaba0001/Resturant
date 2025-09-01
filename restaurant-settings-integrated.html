@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Left Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .restaurant-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .restaurant-details h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: #1e293b;
+        }
+        
+        .status-badges {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .badge {
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.625rem;
+            font-weight: 500;
+        }
+        
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .badge.verified {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+        
+        .nav-section-title {
+            padding: 0 1.5rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-right: 3px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-right-color: #2563eb;
+        }
+        
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .nav-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.125rem 0.375rem;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+        
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Header */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        
+        .header-left {
+            flex: 1;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .page-subtitle {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .profile-status {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+            text-align: center;
+        }
+        
+        .profile-status-title {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .profile-status-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #16a34a;
+        }
+        
+        .profile-status-subtitle {
+            font-size: 0.625rem;
+            color: #64748b;
+        }
+        
+        .notification-bell {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .notification-bell:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .notification-dot {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .user-menu:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 2rem;
+        }
+        
+        /* Tab Navigation */
+        .tab-nav {
+            background: white;
+            border-radius: 12px;
+            padding: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+        }
+        
+        .tab-nav-content {
+            display: flex;
+            gap: 0.25rem;
+            overflow-x: auto;
+        }
+        
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: transparent;
+            color: #64748b;
+        }
+        
+        .tab-button:hover {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .tab-button.active {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        /* Settings Cards */
+        .settings-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s;
+        }
+        
+        .settings-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .settings-card h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+        
+        .settings-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+        
+        /* Form Elements */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.875rem;
+        }
+        
+        .form-input {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .form-textarea {
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 80px;
+            transition: border-color 0.2s;
+        }
+        
+        .form-textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        /* Time Picker */
+        .time-picker {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        /* Image Upload */
+        .image-upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .image-upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        .image-upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        /* Floating Save Button */
+        .floating-save {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-success {
+            background: #16a34a;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #15803d;
+            transform: translateY(-1px);
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+        
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Utility Classes */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .text-center { text-align: center; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <div class="restaurant-info">
+                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-details">
+                        <h1>Mario's Italian Kitchen</h1>
+                        <div class="status-badges">
+                            <span class="badge active">Active</span>
+                            <span class="badge verified">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Main Navigation -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📊</div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                </div>
+
+                <!-- Management -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menu</span>
+                    </a>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👥</div>
+                        <span>Staff</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📈</div>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+
+                <!-- Support -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">❓</div>
+                        <span>Help Center</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📞</div>
+                        <span>Contact Support</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn">☰</button>
+                    <h1 class="page-title">Settings</h1>
+                    <p class="page-subtitle">Manage your restaurant information and preferences</p>
+                </div>
+                <div class="header-actions">
+                    <div class="profile-status">
+                        <div class="profile-status-title">Profile Status</div>
+                        <div class="profile-status-value">95% Complete</div>
+                        <div class="profile-status-subtitle">Almost done!</div>
+                    </div>
+                    <div class="notification-bell">
+                        🔔
+                        <div class="notification-dot"></div>
+                    </div>
+                    <div class="user-menu">
+                        <div class="user-avatar">MR</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.875rem;">Mario Rossi</div>
+                            <div style="font-size: 0.75rem; color: #64748b;">Owner</div>
+                        </div>
+                        <span style="color: #64748b;">▼</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <div class="tab-nav-content">
+                        <button class="tab-button active" data-tab="restaurant-info">
+                            <i class="fas fa-store mr-2"></i>Restaurant Info
+                        </button>
+                        <button class="tab-button" data-tab="opening-hours">
+                            <i class="fas fa-clock mr-2"></i>Opening Hours
+                        </button>
+                        <button class="tab-button" data-tab="payment">
+                            <i class="fas fa-credit-card mr-2"></i>Payment
+                        </button>
+                        <button class="tab-button" data-tab="notifications">
+                            <i class="fas fa-bell mr-2"></i>Notifications
+                        </button>
+                        <button class="tab-button" data-tab="security">
+                            <i class="fas fa-shield-alt mr-2"></i>Security
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Restaurant Info Tab -->
+                <div class="tab-content active" id="restaurant-info">
+                    <div class="grid-3">
+                        <!-- Left Column - Forms -->
+                        <div class="space-y-6">
+                            <!-- Basic Information -->
+                            <div class="settings-card">
+                                <h2>Basic Information</h2>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">Restaurant Name</label>
+                                        <input type="text" class="form-input" value="Mario's Italian Kitchen">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Cuisine Type</label>
+                                        <select class="form-input">
+                                            <option>Italian</option>
+                                            <option>Swedish</option>
+                                            <option>International</option>
+                                            <option>Asian</option>
+                                            <option>Mediterranean</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="grid-column: 1 / -1;">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-textarea" placeholder="Tell customers about your restaurant...">Authentic Italian cuisine in the heart of Stockholm. Family recipes passed down through generations.</textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Information -->
+                            <div class="settings-card">
+                                <h2>Contact Information</h2>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-input" value="+46 8 123 4567">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Email Address</label>
+                                        <input type="email" class="form-input" value="mario@italiankit.se">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Website</label>
+                                        <input type="url" class="form-input" placeholder="https://yourrestaurant.com">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Social Media</label>
+                                        <input type="text" class="form-input" placeholder="@yourrestaurant">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Address Information -->
+                            <div class="settings-card">
+                                <h2>Address</h2>
+                                <div class="form-grid">
+                                    <div class="form-group" style="grid-column: 1 / -1;">
+                                        <label class="form-label">Street Address</label>
+                                        <input type="text" class="form-input" value="Kungsgatan 12">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">City</label>
+                                        <input type="text" class="form-input" value="Stockholm">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Postal Code</label>
+                                        <input type="text" class="form-input" value="111 22">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Country</label>
+                                        <select class="form-input">
+                                            <option>Sweden</option>
+                                            <option>Norway</option>
+                                            <option>Denmark</option>
+                                            <option>Finland</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Region/State</label>
+                                        <input type="text" class="form-input" value="Stockholm County">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column - Media & Status -->
+                        <div class="space-y-6">
+                            <!-- Restaurant Logo -->
+                            <div class="settings-card">
+                                <h3>Restaurant Logo</h3>
+                                <div class="text-center">
+                                    <div style="width: 128px; height: 128px; margin: 0 auto 1rem; background: #f3f4f6; border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-utensils" style="font-size: 3rem; color: #9ca3af;"></i>
+                                    </div>
+                                    <div class="image-upload-area">
+                                        <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #9ca3af; margin-bottom: 0.5rem;"></i>
+                                        <p style="font-size: 0.875rem; color: #6b7280;">Click to upload or drag and drop</p>
+                                        <p style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.25rem;">PNG, JPG up to 2MB</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Restaurant Photos -->
+                            <div class="settings-card">
+                                <h3>Restaurant Photos</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;">
+                                    <div style="aspect-ratio: 1; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-image" style="font-size: 2rem; color: #9ca3af;"></i>
+                                    </div>
+                                    <div style="aspect-ratio: 1; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-image" style="font-size: 2rem; color: #9ca3af;"></i>
+                                    </div>
+                                    <div style="aspect-ratio: 1; background: #f3f4f6; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-image" style="font-size: 2rem; color: #9ca3af;"></i>
+                                    </div>
+                                    <div style="aspect-ratio: 1; border: 2px dashed #d1d5db; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                        <i class="fas fa-plus" style="font-size: 1.25rem; color: #9ca3af;"></i>
+                                    </div>
+                                </div>
+                                <p style="font-size: 0.75rem; color: #9ca3af;">Add up to 10 photos of your restaurant</p>
+                            </div>
+
+                            <!-- Status & Verification -->
+                            <div class="settings-card">
+                                <h3>Status</h3>
+                                <div class="space-y-4">
+                                    <div class="flex-between">
+                                        <div>
+                                            <div style="font-weight: 500; color: #1e293b;">Restaurant Active</div>
+                                            <div style="font-size: 0.875rem; color: #64748b;">Visible to customers</div>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="flex-between">
+                                        <div>
+                                            <div style="font-weight: 500; color: #1e293b;">Accept Orders</div>
+                                            <div style="font-size: 0.875rem; color: #64748b;">Allow new orders</div>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                    <div style="padding-top: 1rem; border-top: 1px solid #f1f5f9;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                            <i class="fas fa-check-circle" style="color: #16a34a;"></i>
+                                            <span style="font-weight: 500; color: #16a34a;">Verified Restaurant</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <i class="fas fa-shield-alt" style="color: #2563eb;"></i>
+                                            <span style="font-weight: 500; color: #2563eb;">Security Compliant</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Opening Hours Tab -->
+                <div class="tab-content" id="opening-hours">
+                    <div class="grid-2">
+                        <div class="space-y-6">
+                            <div class="settings-card">
+                                <h2>Weekly Schedule</h2>
+                                <div class="space-y-4">
+                                    <!-- Monday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Monday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1;">
+                                            <input type="time" value="11:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="22:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Tuesday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Tuesday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1;">
+                                            <input type="time" value="11:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="22:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Wednesday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Wednesday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1;">
+                                            <input type="time" value="11:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="22:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Thursday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Thursday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1;">
+                                            <input type="time" value="11:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="23:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Friday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Friday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1;">
+                                            <input type="time" value="11:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="23:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Saturday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Saturday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1;">
+                                            <input type="time" value="12:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="23:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Sunday -->
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <div style="width: 80px; font-size: 0.875rem; font-weight: 500; color: #374151;">Sunday</div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox">
+                                            <span class="slider"></span>
+                                        </label>
+                                        <div class="time-picker" style="flex: 1; opacity: 0.5;">
+                                            <input type="time" value="12:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;" disabled>
+                                            <span style="color: #6b7280;">to</span>
+                                            <input type="time" value="21:00" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem;" disabled>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-6">
+                            <!-- Current Status -->
+                            <div class="settings-card">
+                                <h3>Current Status</h3>
+                                <div class="text-center">
+                                    <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <i class="fas fa-store" style="font-size: 2rem; color: #16a34a;"></i>
+                                    </div>
+                                    <div style="font-size: 1.25rem; font-weight: 700; color: #16a34a; margin-bottom: 0.5rem;">Open Now</div>
+                                    <div style="color: #64748b; margin-bottom: 1rem;">Closes at 22:00 today</div>
+                                    <button class="btn" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">
+                                        <i class="fas fa-pause mr-2"></i>Temporarily Close
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Preparation Times -->
+                            <div class="settings-card">
+                                <h3>Preparation Times</h3>
+                                <div class="space-y-4">
+                                    <div class="form-group">
+                                        <label class="form-label">Average Pickup Time</label>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <input type="number" value="15" min="5" max="60" style="width: 80px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; text-align: center;">
+                                            <span style="color: #64748b;">minutes</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Average Dine-in Service</label>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <input type="number" value="25" min="10" max="90" style="width: 80px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; text-align: center;">
+                                            <span style="color: #64748b;">minutes</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Busy Period Buffer</label>
+                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                            <input type="number" value="10" min="0" max="30" style="width: 80px; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 8px; text-align: center;">
+                                            <span style="color: #64748b;">extra minutes</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other Tabs (Placeholder) -->
+                <div class="tab-content" id="payment">
+                    <div class="settings-card text-center" style="padding: 3rem;">
+                        <i class="fas fa-credit-card" style="font-size: 4rem; color: #9ca3af; margin-bottom: 1rem;"></i>
+                        <h3>Payment Settings</h3>
+                        <p style="color: #64748b;">Manage payment methods, pricing, and billing</p>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="notifications">
+                    <div class="settings-card text-center" style="padding: 3rem;">
+                        <i class="fas fa-bell" style="font-size: 4rem; color: #9ca3af; margin-bottom: 1rem;"></i>
+                        <h3>Notification Settings</h3>
+                        <p style="color: #64748b;">Configure alerts, emails, and SMS notifications</p>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="security">
+                    <div class="settings-card text-center" style="padding: 3rem;">
+                        <i class="fas fa-shield-alt" style="font-size: 4rem; color: #9ca3af; margin-bottom: 1rem;"></i>
+                        <h3>Security Settings</h3>
+                        <p style="color: #64748b;">Manage passwords, two-factor authentication, and security logs</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Save Button -->
+    <div class="floating-save">
+        <button class="btn btn-success">
+            <i class="fas fa-save"></i>
+            <span>Save Changes</span>
+        </button>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Tab switching functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab-button').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                // Hide all tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Show corresponding tab content
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Navigation item clicks
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove active class from all items
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                
+                // Add active class to clicked item
+                this.classList.add('active');
+                
+                // Update page title based on clicked item
+                const itemText = this.querySelector('span').textContent;
+                document.querySelector('.page-title').textContent = itemText;
+                
+                // Update subtitle based on section
+                const subtitles = {
+                    'Dashboard': 'Welcome back! Here\'s what\'s happening at your restaurant today.',
+                    'Orders': 'Manage and track all restaurant orders',
+                    'Menu': 'Manage your restaurant\'s menu items and categories',
+                    'Settings': 'Manage your restaurant information and preferences',
+                    'Staff': 'Manage staff accounts, roles, and permissions',
+                    'Analytics': 'View detailed analytics and performance metrics'
+                };
+                
+                document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
+            });
+        });
+
+        // Toggle switches for opening hours
+        document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const timeInputs = this.closest('div').querySelectorAll('input[type="time"]');
+                timeInputs.forEach(input => {
+                    input.disabled = !this.checked;
+                    input.closest('.time-picker').style.opacity = this.checked ? '1' : '0.5';
+                });
+            });
+        });
+
+        // Image upload functionality
+        document.querySelectorAll('.image-upload-area').forEach(area => {
+            area.addEventListener('click', function() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        console.log('File selected:', file.name);
+                        // In real implementation, this would upload the file
+                    }
+                };
+                input.click();
+            });
+
+            // Drag and drop functionality
+            area.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+
+            area.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+            });
+
+            area.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    console.log('Files dropped:', files[0].name);
+                    // In real implementation, this would upload the files
+                }
+            });
+        });
+
+        // Save button functionality
+        document.querySelector('.floating-save button').addEventListener('click', function() {
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+            this.disabled = true;
+            
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-check mr-2"></i>Saved!';
+                this.classList.remove('btn-success');
+                this.classList.add('btn-primary');
+                
+                setTimeout(() => {
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                    this.classList.remove('btn-primary');
+                    this.classList.add('btn-success');
+                }, 2000);
+            }, 1500);
+        });
+
+        console.log('⚙️ Restaurant Settings with Dashboard Integration Loaded');
+        console.log('📊 Features: Sidebar navigation, Tab interface, Form management, Real-time status');
+    </script>
+</body>
+</html>

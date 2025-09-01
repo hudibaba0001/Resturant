@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid';
 import type { Item } from '@/lib/types/menu';
 import AddItemClient from '@/components/dashboard/AddItemClient';
 import { ItemRowClient } from './ItemRowClient';
+import SectionManager from '@/components/dashboard/SectionManager';
 import Link from 'next/link';
 
 async function getRestaurantId(): Promise<string | null> {
@@ -48,9 +49,10 @@ export default async function MenuEditorPage({ params }: { params: { menuId: str
       );
     }
 
-    const repo = new MenuRepository('simple');
+    // Use the new API to get sections and items
+    const repo = new MenuRepository('persistent');
     const sections = await repo.listSections(restaurantId, params.menuId);
-    const firstSection = sections.find(s => s.path.length === 1) || { id: 'default', menuId: params.menuId, name: 'General', path: ['General'] };
+    const firstSection = sections.find(s => s.path.length === 1) || { id: 'default', menuId: params.menuId, name: 'General', path: [] };
     const items = await repo.listItems(restaurantId, params.menuId, firstSection.path);
 
     return (
@@ -59,21 +61,24 @@ export default async function MenuEditorPage({ params }: { params: { menuId: str
         <div className="col-span-12 md:col-span-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Sections</h2>
-            <AddSectionButton menuId={params.menuId} />
           </div>
-          <div className="space-y-2">
-            {sections.map((s) => (
-              <a key={s.id} href={`#section-${encodeURIComponent(s.id)}`} className="block rounded-lg border p-2 hover:bg-muted">
-                {s.path.join(' / ')}
-              </a>
-            ))}
-          </div>
+          <SectionManager 
+            restaurantId={restaurantId} 
+            currentMenuSlug={params.menuId}
+            selectedSection={firstSection.path[0] || ''}
+            onSectionSelect={(sectionName) => {
+              // This will be handled by the SectionManager component
+              console.log('Section selected:', sectionName);
+            }}
+          />
         </div>
 
         {/* Right: Items */}
         <div className="col-span-12 md:col-span-8 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 id={`section-${encodeURIComponent(firstSection.id)}`} className="text-lg font-semibold">Items in {firstSection.path.join(' / ')}</h2>
+            <h2 id={`section-${encodeURIComponent(firstSection.id)}`} className="text-lg font-semibold">
+              Items in {firstSection.path.length > 0 ? firstSection.path.join(' / ') : 'General'}
+            </h2>
             <AddItemClient restaurantId={restaurantId} menuId={params.menuId} sectionPath={firstSection.path} />
           </div>
           <div className="grid grid-cols-1 gap-3">
@@ -100,30 +105,4 @@ export default async function MenuEditorPage({ params }: { params: { menuId: str
       </div>
     );
   }
-}
-
-function AddSectionButton({ menuId }: { menuId: string }) {
-  return (
-    <form action={async (fd: FormData) => {
-      'use server';
-      try {
-        const name = String(fd.get('name') || 'New Section');
-        const restaurantId = await getRestaurantId();
-        
-        if (!restaurantId) {
-          console.error('No restaurant ID found for section creation');
-          return;
-        }
-        
-        const repo = new MenuRepository('simple');
-        await repo.createSection(restaurantId, menuId, name, null);
-        revalidatePath(`/dashboard/menus/${menuId}`);
-      } catch (error) {
-        console.error('Error creating section:', error);
-      }
-    }} className="flex items-center gap-2">
-      <Input name="name" placeholder="Add section" />
-      <Button type="submit" variant="secondary">+ Add</Button>
-    </form>
-  );
 }
