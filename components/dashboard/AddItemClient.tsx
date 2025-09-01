@@ -43,17 +43,37 @@ export default function AddItemClient({
             price_matrix: {},
           }}
           onSave={async (next) => {
-            const res = await fetch('/dashboard/api/item/save', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(next),
-            });
-            if (!res.ok) {
-              alert('Save failed');
-              return;
+            try {
+              const res = await fetch('/api/dashboard/items', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  restaurantId,
+                  menu: menuId,
+                  sectionPath,
+                  name: next.name,
+                  description: next.description,
+                  price_cents: next.price_cents,
+                  currency: next.currency,
+                  image_url: next.image_url,
+                  is_available: next.is_available,
+                  allergens: next.allergens,
+                  dietary: next.dietary,
+                  variants: next.variant_groups,
+                  modifiers: next.modifier_groups,
+                }),
+              });
+              
+              if (!res.ok) {
+                const error = await res.json().catch(() => ({}));
+                throw new Error(error.code || 'ITEM_CREATE_ERROR');
+              }
+              
+              setOpen(false);
+              router.refresh();
+            } catch (error) {
+              alert(`Could not create item: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
-            setOpen(false);
-            router.refresh();
           }}
         />
       )}

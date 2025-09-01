@@ -20,10 +20,10 @@ const PatchSchema = z.object({
   modifiers: z.any().optional(),
 });
 
-export async function PATCH(_req: Request, ctx: { params: { id: string } }) {
+export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const sb = await getSupabaseServer();
   const id = ctx.params.id;
-  const body = await _req.json().catch(() => null);
+  const body = await req.json().catch(() => null);
   const parsed = PatchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
 
@@ -43,8 +43,8 @@ export async function PATCH(_req: Request, ctx: { params: { id: string } }) {
     'variants' in parsed.data ||
     'modifiers' in parsed.data
   ) {
-    // fetch current to merge nutritional_info
-    const { data: cur } = await sb.from('menu_items')
+    const { data: cur } = await sb
+      .from('menu_items')
       .select('nutritional_info')
       .eq('id', id)
       .maybeSingle();
@@ -63,7 +63,7 @@ export async function PATCH(_req: Request, ctx: { params: { id: string } }) {
     .from('menu_items')
     .update(patch)
     .eq('id', id)
-    .select('id, name, price_cents, currency, image_url, is_available, nutritional_info')
+    .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
     .single();
 
   if (error) return NextResponse.json({ code: 'ITEM_UPDATE_ERROR' }, { status: 500 });

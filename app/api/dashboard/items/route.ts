@@ -17,7 +17,7 @@ const CreateSchema = z.object({
   is_available: z.boolean().optional().default(true),
   dietary: z.array(z.string()).optional().default([]),
   allergens: z.array(z.string()).optional().default([]),
-  variants: z.any().optional(),  // keep flexible for MVP
+  variants: z.any().optional(),
   modifiers: z.any().optional(),
 });
 
@@ -25,18 +25,16 @@ export async function POST(req: Request) {
   const sb = await getSupabaseServer();
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
-  }
+  if (!parsed.success) return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
+
   const {
     restaurantId, menu, sectionPath, name, description,
-    price_cents, currency, image_url, is_available,
-    dietary, allergens, variants, modifiers,
+    price_cents, currency, image_url, is_available, dietary, allergens, variants, modifiers,
   } = parsed.data;
 
   const nutritional_info = {
-    menu,                       // slug or human name, your choice
-    section_path: sectionPath,  // ['Lunch','Burgers'] etc
+    menu,
+    section_path: sectionPath,
     dietary,
     allergens,
     variants,
@@ -49,13 +47,13 @@ export async function POST(req: Request) {
       restaurant_id: restaurantId,
       name,
       description,
-      image_url: image_url ?? null,
-      is_available,
       price_cents: price_cents ?? null,
       currency,
+      image_url: image_url ?? null,
+      is_available,
       nutritional_info,
     })
-    .select('id, name, price_cents, currency, image_url, is_available, nutritional_info')
+    .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
     .single();
 
   if (error) return NextResponse.json({ code: 'ITEM_CREATE_ERROR' }, { status: 500 });
@@ -65,7 +63,7 @@ export async function POST(req: Request) {
 const ListQuery = z.object({
   restaurantId: z.string().uuid(),
   menu: z.string().min(1),
-  section: z.string().optional(), // first-level section filter
+  section: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -80,7 +78,6 @@ export async function GET(req: Request) {
 
   const { restaurantId, menu, section } = parsed.data;
 
-  // fetch and filter in SQL where possible
   const { data, error } = await sb
     .from('menu_items')
     .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
@@ -91,10 +88,7 @@ export async function GET(req: Request) {
   const items = (data ?? []).filter((row: any) => {
     const ni = row.nutritional_info || {};
     if (ni.menu !== menu) return false;
-    if (section) {
-      const sp = ni.section_path || [];
-      return sp[0] === section;
-    }
+    if (section) return (ni.section_path || [])[0] === section;
     return true;
   });
 
