@@ -719,57 +719,6 @@
             margin-bottom: 1rem;
         }
 
-        .timeline {
-            position: relative;
-        }
-
-        .timeline::before {
-            content: '';
-            position: absolute;
-            left: 20px;
-            top: 0;
-            bottom: 0;
-            width: 2px;
-            background: #e5e7eb;
-        }
-
-        .timeline-item {
-            position: relative;
-            padding-left: 3rem;
-            padding-bottom: 1rem;
-        }
-
-        .timeline-dot {
-            position: absolute;
-            left: 14px;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: white;
-            border: 3px solid #d1d5db;
-        }
-
-        .timeline-dot.completed {
-            border-color: #10b981;
-            background: #10b981;
-        }
-
-        .timeline-dot.current {
-            border-color: #3b82f6;
-            background: #3b82f6;
-        }
-
-        .timeline-content h4 {
-            font-weight: 500;
-            color: #1e293b;
-            margin-bottom: 0.25rem;
-        }
-
-        .timeline-time {
-            font-size: 0.75rem;
-            color: #64748b;
-        }
-
         .kitchen-metric {
             display: flex;
             justify-content: space-between;
@@ -791,62 +740,6 @@
         .metric-value {
             font-weight: 600;
             color: #1e293b;
-        }
-
-        .quick-action {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            margin-bottom: 0.75rem;
-            border-radius: 10px;
-            font-weight: 500;
-            font-size: 0.875rem;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: left;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .quick-action:last-child {
-            margin-bottom: 0;
-        }
-
-        .quick-action.blue {
-            background: #eff6ff;
-            color: #1d4ed8;
-        }
-
-        .quick-action.blue:hover {
-            background: #dbeafe;
-        }
-
-        .quick-action.green {
-            background: #f0fdf4;
-            color: #166534;
-        }
-
-        .quick-action.green:hover {
-            background: #dcfce7;
-        }
-
-        .quick-action.purple {
-            background: #faf5ff;
-            color: #7c3aed;
-        }
-
-        .quick-action.purple:hover {
-            background: #f3e8ff;
-        }
-
-        .quick-action.orange {
-            background: #fff7ed;
-            color: #ea580c;
-        }
-
-        .quick-action.orange:hover {
-            background: #fed7aa;
         }
 
         .floating-actions {
@@ -1362,13 +1255,6 @@
                         }
                     }, 2000);
                 }, 1500);
-            });
-        });
-
-        // Quick actions
-        document.querySelectorAll('.quick-action').forEach(btn => {
-            btn.addEventListener('click', function() {
-                console.log('Quick action clicked:', this.textContent.trim());
             });
         });
 

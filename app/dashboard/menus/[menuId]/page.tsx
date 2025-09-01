@@ -1,7 +1,7 @@
 'use client';
 
 import { MenuRepository } from '@/lib/menuRepo';
-import { getServerSupabase } from '@/lib/supabase/server';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -24,8 +24,8 @@ export default function MenuEditorPage({ params }: { params: { menuId: string } 
   useEffect(() => {
     async function loadData() {
       try {
-        // Get restaurant ID
-        const supabase = getServerSupabase();
+        // Get restaurant ID using client-side Supabase
+        const supabase = createClientComponentClient();
         const { data: restaurantData } = await supabase
           .from('restaurants')
           .select('id')
