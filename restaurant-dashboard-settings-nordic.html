@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            background: #fafafa;
+            color: #1a1a1a;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Compact Nordic Sidebar */
+        .sidebar {
+            width: 240px;
+            background: white;
+            border-right: 1px solid #e5e5e5;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .restaurant-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .restaurant-details h1 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: #1a1a1a;
+        }
+
+        .status-badges {
+            display: flex;
+            gap: 4px;
+        }
+
+        .badge {
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge.verified {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* Compact Navigation */
+        .sidebar-nav {
+            padding: 8px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 16px;
+        }
+
+        .nav-section-title {
+            padding: 0 16px 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.15s;
+            border-right: 2px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f9fafb;
+            color: #1a1a1a;
+        }
+
+        .nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-right-color: #2563eb;
+        }
+
+        .nav-icon {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 8px;
+            min-width: 14px;
+            text-align: center;
+        }
+
+        /* Compact Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Compact Header */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .page-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 1px;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notification-bell {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .notification-bell:hover {
+            background: #f3f4f6;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .user-menu:hover {
+            background: #f3f4f6;
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        /* Compact Content Area */
+        .content {
+            flex: 1;
+            padding: 16px;
+        }
+
+        /* Settings Layout */
+        .settings-layout {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 20px;
+            max-width: 1000px;
+        }
+
+        .settings-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .settings-nav-item {
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-nav-item:hover {
+            background: #f9fafb;
+            color: #1a1a1a;
+        }
+
+        .settings-nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .settings-nav-icon {
+            font-size: 12px;
+            width: 14px;
+            text-align: center;
+        }
+
+        /* Settings Content */
+        .settings-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e5;
+            background: #fafafa;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 1px;
+        }
+
+        .section-description {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .section-content {
+            padding: 16px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: border-color 0.15s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 60px;
+            font-family: inherit;
+            transition: border-color 0.15s;
+        }
+
+        .form-textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            transition: border-color 0.15s;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .form-help {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* Grid Layout */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .form-grid-full {
+            grid-column: 1 / -1;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e5e5;
+            transition: 0.15s;
+            border-radius: 20px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: 0.15s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #2563eb;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(16px);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .toggle-group:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .toggle-info {
+            flex: 1;
+        }
+
+        .toggle-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 1px;
+        }
+
+        .toggle-description {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #f9fafb;
+            color: #374151;
+            border: 1px solid #e5e5e5;
+        }
+
+        .btn-secondary:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        /* Image Upload */
+        .image-upload {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .image-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            background: #f3f4f6;
+            border: 2px dashed #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-size: 20px;
+        }
+
+        .upload-btn {
+            padding: 6px 10px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .upload-btn:hover {
+            background: #f3f4f6;
+        }
+
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .status-indicator.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .status-indicator.inactive {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .status-indicator.warning {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .settings-layout {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .settings-nav {
+                flex-direction: row;
+                overflow-x: auto;
+                gap: 8px;
+                padding-bottom: 8px;
+            }
+
+            .settings-nav-item {
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <!-- Compact Sidebar -->
+        <aside class="sidebar">
+            <!-- Compact Header -->
+            <div class="sidebar-header">
+                <div class="restaurant-info">
+                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-details">
+                        <h1>Mario's Italian Kitchen</h1>
+                        <div class="status-badges">
+                            <span class="badge active">Active</span>
+                            <span class="badge verified">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact Navigation -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📊</div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menu</span>
+                    </a>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👥</div>
+                        <span>Staff</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📈</div>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">❓</div>
+                        <span>Help Center</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📞</div>
+                        <span>Contact Support</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Compact Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn">☰</button>
+                    <h1 class="page-title">Settings</h1>
+                    <p class="page-subtitle">Configure your restaurant settings and preferences</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notification-bell">🔔</div>
+                    <div class="user-menu">
+                        <div class="user-avatar">MR</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 11px;">Mario Rossi</div>
+                            <div style="font-size: 9px; color: #6b7280;">Owner</div>
+                        </div>
+                        <span style="color: #6b7280; font-size: 10px;">▼</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <div class="settings-layout">
+                    <!-- Settings Navigation -->
+                    <div class="settings-nav">
+                        <a href="#" class="settings-nav-item active">
+                            <span class="settings-nav-icon">🏪</span>
+                            Restaurant
+                        </a>
+                        <a href="#" class="settings-nav-item">
+                            <span class="settings-nav-icon">💳</span>
+                            Payments
+                        </a>
+                        <a href="#" class="settings-nav-item">
+                            <span class="settings-nav-icon">🚚</span>
+                            Delivery
+                        </a>
+                        <a href="#" class="settings-nav-item">
+                            <span class="settings-nav-icon">🔔</span>
+                            Notifications
+                        </a>
+                        <a href="#" class="settings-nav-item">
+                            <span class="settings-nav-icon">🔐</span>
+                            Security
+                        </a>
+                        <a href="#" class="settings-nav-item">
+                            <span class="settings-nav-icon">📊</span>
+                            Analytics
+                        </a>
+                        <a href="#" class="settings-nav-item">
+                            <span class="settings-nav-icon">🎨</span>
+                            Appearance
+                        </a>
+                    </div>
+
+                    <!-- Settings Content -->
+                    <div class="settings-content">
+                        <!-- Restaurant Information -->
+                        <div class="settings-section fade-in">
+                            <div class="section-header">
+                                <h3 class="section-title">Restaurant Information</h3>
+                                <p class="section-description">Basic information about your restaurant</p>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label">Restaurant Name</label>
+                                        <input type="text" class="form-input" value="Mario's Italian Kitchen">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Cuisine Type</label>
+                                        <select class="form-select">
+                                            <option>Italian</option>
+                                            <option>Swedish</option>
+                                            <option>International</option>
+                                            <option>Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group form-grid-full">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-textarea" placeholder="Authentic Italian cuisine in the heart of Stockholm...">Authentic Italian cuisine in the heart of Stockholm. Family-owned restaurant serving traditional dishes with fresh, local ingredients.</textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Phone Number</label>
+                                        <input type="tel" class="form-input" value="+46 8 123 456 78">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-input" value="info@marios.se">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Restaurant Logo</label>
+                                    <div class="image-upload">
+                                        <div class="image-preview">🍕</div>
+                                        <div>
+                                            <button class="upload-btn">Upload Logo</button>
+                                            <p class="form-help">JPG, PNG up to 2MB. Recommended 200x200px</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button class="btn btn-primary">💾 Save Changes</button>
+                                    <button class="btn btn-secondary">↩️ Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Address & Hours -->
+                        <div class="settings-section fade-in">
+                            <div class="section-header">
+                                <h3 class="section-title">Address & Opening Hours</h3>
+                                <p class="section-description">Location and operating hours</p>
+                            </div>
+                            <div class="section-content">
+                                <div class="form-grid">
+                                    <div class="form-group form-grid-full">
+                                        <label class="form-label">Street Address</label>
+                                        <input type="text" class="form-input" value="Sveavägen 123">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">City</label>
+                                        <input type="text" class="form-input" value="Stockholm">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Postal Code</label>
+                                        <input type="text" class="form-input" value="111 57">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Opening Hours</label>
+                                    <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 8px; align-items: center;">
+                                        <div style="font-size: 11px; font-weight: 500; color: #6b7280;">Monday</div>
+                                        <input type="time" class="form-input" value="11:00">
+                                        <input type="time" class="form-input" value="22:00">
+                                        
+                                        <div style="font-size: 11px; font-weight: 500; color: #6b7280;">Tuesday</div>
+                                        <input type="time" class="form-input" value="11:00">
+                                        <input type="time" class="form-input" value="22:00">
+                                        
+                                        <div style="font-size: 11px; font-weight: 500; color: #6b7280;">Wednesday</div>
+                                        <input type="time" class="form-input" value="11:00">
+                                        <input type="time" class="form-input" value="22:00">
+                                    </div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button class="btn btn-primary">💾 Save Hours</button>
+                                    <button class="btn btn-secondary">📋 Copy All Days</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Order Settings -->
+                        <div class="settings-section fade-in">
+                            <div class="section-header">
+                                <h3 class="section-title">Order Management</h3>
+                                <p class="section-description">Configure order handling and automation</p>
+                            </div>
+                            <div class="section-content">
+                                <div class="toggle-group">
+                                    <div class="toggle-info">
+                                        <div class="toggle-title">Auto-accept orders</div>
+                                        <div class="toggle-description">Automatically accept new orders without manual confirmation</div>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="toggle-group">
+                                    <div class="toggle-info">
+                                        <div class="toggle-title">SMS notifications</div>
+                                        <div class="toggle-description">Send SMS updates to customers about order status</div>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="toggle-group">
+                                    <div class="toggle-info">
+                                        <div class="toggle-title">Email receipts</div>
+                                        <div class="toggle-description">Send email receipts to customers after payment</div>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="form-grid" style="margin-top: 16px;">
+                                    <div class="form-group">
+                                        <label class="form-label">Preparation Time (minutes)</label>
+                                        <input type="number" class="form-input" value="15" min="5" max="60">
+                                        <p class="form-help">Average time to prepare orders</p>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Max Orders per Hour</label>
+                                        <input type="number" class="form-input" value="20" min="1" max="100">
+                                        <p class="form-help">Maximum orders your kitchen can handle</p>
+                                    </div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button class="btn btn-primary">💾 Save Settings</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Account Status -->
+                        <div class="settings-section fade-in">
+                            <div class="section-header">
+                                <h3 class="section-title">Account Status</h3>
+                                <p class="section-description">Current account status and subscription</p>
+                            </div>
+                            <div class="section-content">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                                    <div>
+                                        <div style="font-weight: 500; margin-bottom: 2px;">Professional Plan</div>
+                                        <div style="font-size: 11px; color: #6b7280;">Active until September 1, 2026</div>
+                                    </div>
+                                    <span class="status-indicator active">⭐ Active</span>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+                                    <div style="text-align: center; padding: 12px; background: #f9fafb; border-radius: 6px;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #1a1a1a;">∞</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Orders</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 12px; background: #f9fafb; border-radius: 6px;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #1a1a1a;">24/7</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Support</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 12px; background: #f9fafb; border-radius: 6px;">
+                                        <div style="font-size: 16px; font-weight: 600; color: #1a1a1a;">✓</div>
+                                        <div style="font-size: 10px; color: #6b7280;">Analytics</div>
+                                    </div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button class="btn btn-secondary">📄 View Invoice</button>
+                                    <button class="btn btn-secondary">⬆️ Upgrade Plan</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Danger Zone -->
+                        <div class="settings-section fade-in">
+                            <div class="section-header">
+                                <h3 class="section-title" style="color: #dc2626;">Danger Zone</h3>
+                                <p class="section-description">Irreversible and destructive actions</p>
+                            </div>
+                            <div class="section-content">
+                                <div style="padding: 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; margin-bottom: 12px;">
+                                    <div style="font-weight: 500; font-size: 12px; color: #dc2626; margin-bottom: 4px;">⚠️ Warning</div>
+                                    <div style="font-size: 11px; color: #b91c1c;">These actions cannot be undone. Please be certain before proceeding.</div>
+                                </div>
+
+                                <div class="btn-group">
+                                    <button class="btn btn-danger">🗑️ Delete Account</button>
+                                    <button class="btn btn-secondary">📥 Export Data</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn')?.addEventListener('click', function () {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Settings navigation
+        document.querySelectorAll('.settings-nav-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.settings-nav-item').forEach(nav => nav.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Smooth scroll to top of content
+                document.querySelector('.settings-content').scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+
+        // Main navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                this.classList.add('active');
+                
+                const itemText = this.querySelector('span').textContent;
+                document.querySelector('.page-title').textContent = itemText;
+                
+                const subtitles = {
+                    'Dashboard': 'Welcome back! Here\'s what\'s happening today.',
+                    'Orders': 'Manage and track all restaurant orders in real-time',
+                    'Menu': 'Manage your restaurant\'s menus and items',
+                    'Settings': 'Configure your restaurant settings and preferences',
+                    'Staff': 'Manage your restaurant team',
+                    'Analytics': 'View detailed reports and insights'
+                };
+                
+                document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
+            });
+        });
+
+        // Form handling
+        document.querySelectorAll('.btn-primary').forEach(btn => {
+            if (btn.textContent.includes('Save')) {
+                btn.addEventListener('click', function() {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '⏳ Saving...';
+                    this.disabled = true;
+                    
+                    setTimeout(() => {
+                        this.innerHTML = '✅ Saved!';
+                        setTimeout(() => {
+                            this.innerHTML = originalText;
+                            this.disabled = false;
+                        }, 1500);
+                    }, 1000);
+                });
+            }
+        });
+
+        // Toggle switches
+        document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                console.log('Setting changed:', this.checked);
+            });
+        });
+
+        console.log('🍽️ Nordic Settings Dashboard Loaded - Pixel Perfect & Space Efficient');
+    </script>
+</body>
+
+</html>

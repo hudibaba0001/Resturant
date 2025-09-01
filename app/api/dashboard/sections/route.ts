@@ -3,6 +3,13 @@ export const runtime = 'nodejs';
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client for API routes using anon key
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const CreateSectionSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -24,20 +31,47 @@ export async function POST(req: Request) {
 
   const { restaurantId, menu, name, description, sortIndex, isActive } = parsed.data;
 
-  // For now, just return success without creating a database record
-  // This allows the UI to work while we fix the RLS policies
-  const sectionData = {
-    id: `section-${Date.now()}`,
-    name,
-    menuId: menu,
-    parentId: null,
-    path: [name],
-    sort: sortIndex || 0,
-    description: description || `Section: ${name}`,
-    isActive: isActive !== false,
-  };
+  // Check if section already exists
+  const { data: existing } = await supabase
+    .from('menu_items')
+    .select('id')
+    .eq('restaurant_id', restaurantId)
+    .eq('nutritional_info->>menu', menu)
+    .eq('nutritional_info->>section_path', JSON.stringify([name]))
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({ code: 'SECTION_EXISTS' }, { status: 409 });
+  }
+
+  // Create a placeholder item to represent the section
+  const { data, error } = await supabase
+    .from('menu_items')
+    .insert({
+      restaurant_id: restaurantId,
+      name: `[SECTION] ${name}`,
+      description: description || `Section: ${name}`,
+      price_cents: null,
+      currency: 'SEK',
+      image_url: null,
+      is_available: isActive,
+      nutritional_info: {
+        menu,
+        section_path: [name],
+        is_section: true,
+        sort_index: sortIndex,
+        description,
+      },
+    })
+    .select('id, name, nutritional_info')
+    .single();
+
+  if (error) {
+    console.log("Section creation error:", error);
+    return NextResponse.json({ code: 'SECTION_CREATE_ERROR' }, { status: 500 });
+  }
   
-  return NextResponse.json({ ok: true, data: sectionData });
+  return NextResponse.json({ ok: true, data });
 }
 
 const ListSectionsQuery = z.object({
@@ -58,15 +92,37 @@ export async function GET(req: Request) {
 
   const { restaurantId, menu } = parsed.data;
 
-  // For now, return a mock section list
-  // This allows the UI to work while we fix the database access
-  const mockSections = [
-    {
-      name: 'General',
-      itemCount: 0,
-      isActive: true,
+  // Get all items for this menu and extract unique sections
+  const { data, error } = await supabase
+    .from('menu_items')
+    .select('id, name, nutritional_info')
+    .eq('restaurant_id', restaurantId);
+
+  if (error) {
+    return NextResponse.json({ code: 'SECTIONS_LIST_ERROR' }, { status: 500 });
+  }
+
+  // Extract unique sections from nutritional_info
+  const sections = new Map();
+  (data || []).forEach(item => {
+    const ni = item.nutritional_info || {};
+    if (ni.menu === menu && ni.section_path && ni.section_path.length > 0) {
+      const sectionName = ni.section_path[0];
+      if (!sections.has(sectionName)) {
+        sections.set(sectionName, {
+          name: sectionName,
+          itemCount: 0,
+          isActive: true,
+        });
+      }
+      // Count items in this section (excluding section placeholders)
+      if (!ni.is_section) {
+        sections.get(sectionName).itemCount++;
+      }
     }
-  ];
+  });
+
+  const sectionsList = Array.from(sections.values()).sort((a, b) => a.name.localeCompare(b.name));
   
-  return NextResponse.json({ ok: true, data: mockSections });
+  return NextResponse.json({ ok: true, data: sectionsList });
 }
