@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     if (!menus || menus.length === 0) {
       return new NextResponse(JSON.stringify({ sections: [] }), { status: 200, headers });
     }
-    const chosenMenuId = menuIdParam || menus[0]?.id;
+    const chosenMenuId = menuIdParam || menus[0]?.slug; // Use slug instead of id
     if (!chosenMenuId) {
       return new NextResponse(JSON.stringify({ sections: [] }), { status: 200, headers });
     }
