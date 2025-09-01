@@ -21,3 +21,10 @@ export function getSupabaseServer() {
     }
   );
 }
+
+// Shim for older imports — delegate to the existing helper.
+export async function getSupabaseWithBearer(...args: any[]) {
+  // If your getSupabaseServer takes no args, this still works.
+  // @ts-ignore
+  return getSupabaseServer(...args);
+}

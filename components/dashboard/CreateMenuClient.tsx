@@ -63,3 +63,5 @@ export function CreateMenuClient({ restaurantId }: { restaurantId: string }) {
     </>
   );
 }
+
+export default CreateMenuClient;
