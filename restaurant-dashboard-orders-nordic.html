@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Order Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+            background: #fafafa;
+            color: #1a1a1a;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Compact Nordic Sidebar */
+        .sidebar {
+            width: 240px;
+            background: white;
+            border-right: 1px solid #e5e5e5;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .restaurant-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .restaurant-details h1 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            color: #1a1a1a;
+        }
+
+        .status-badges {
+            display: flex;
+            gap: 4px;
+        }
+
+        .badge {
+            padding: 1px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge.verified {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        /* Compact Navigation */
+        .sidebar-nav {
+            padding: 8px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 16px;
+        }
+
+        .nav-section-title {
+            padding: 0 16px 4px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            color: #6b7280;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.15s;
+            border-right: 2px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #f9fafb;
+            color: #1a1a1a;
+        }
+
+        .nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-right-color: #2563eb;
+        }
+
+        .nav-icon {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 9px;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 8px;
+            min-width: 14px;
+            text-align: center;
+        }
+
+        /* Compact Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Compact Header */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .page-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 1px;
+        }
+
+        .page-subtitle {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notification-bell {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .notification-bell:hover {
+            background: #f3f4f6;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .user-menu:hover {
+            background: #f3f4f6;
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        /* Compact Content Area */
+        .content {
+            flex: 1;
+            padding: 16px;
+        }
+
+        /* Minimalist Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            transition: border-color 0.15s;
+        }
+
+        .stat-card:hover {
+            border-color: #d1d5db;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .stat-title {
+            font-size: 10px;
+            font-weight: 500;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .stat-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .stat-icon.pending { background: #fef3c7; color: #d97706; }
+        .stat-icon.preparing { background: #dbeafe; color: #2563eb; }
+        .stat-icon.ready { background: #dcfce7; color: #16a34a; }
+        .stat-icon.completed { background: #fce7f3; color: #db2777; }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .stat-change {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* Compact Filters */
+        .sticky-filters {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 68px;
+            z-index: 30;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e5e5;
+            margin-bottom: 16px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .filter-btn {
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 11px;
+            border: 1px solid #e5e5e5;
+            background: white;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .filter-btn:hover {
+            background: #f9fafb;
+        }
+
+        .filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .filter-btn.pending { background: #fef3c7; color: #d97706; border-color: #f3d078; }
+        .filter-btn.preparing { background: #dbeafe; color: #2563eb; border-color: #93c5fd; }
+        .filter-btn.ready { background: #dcfce7; color: #16a34a; border-color: #86efac; }
+
+        .search-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-input input {
+            width: 100%;
+            padding: 6px 6px 6px 24px;
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            font-size: 12px;
+            transition: border-color 0.15s;
+        }
+
+        .search-input input:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+            font-size: 10px;
+        }
+
+        /* Compact Orders Layout */
+        .orders-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .orders-main {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .live-text {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* Compact Order Cards */
+        .order-card {
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e5e5;
+            padding: 12px;
+            transition: border-color 0.15s;
+            position: relative;
+        }
+
+        .order-card:hover {
+            border-color: #d1d5db;
+        }
+
+        .order-card.urgent { border-left: 3px solid #ef4444; }
+        .order-card.preparing { border-left: 3px solid #2563eb; }
+        .order-card.ready { border-left: 3px solid #16a34a; }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .order-info h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .order-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .order-type.pickup { background: #fef3c7; color: #d97706; }
+        .order-type.delivery { background: #dbeafe; color: #2563eb; }
+
+        .order-meta {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .order-total {
+            text-align: right;
+        }
+
+        .order-amount {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+
+        .order-time {
+            font-size: 9px;
+            color: #6b7280;
+        }
+
+        .order-items {
+            background: #f9fafb;
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .order-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 1px;
+            font-size: 12px;
+        }
+
+        .item-modifications {
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .item-quantity {
+            background: #e5e5e5;
+            color: #374151;
+            padding: 1px 4px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 500;
+            margin-right: 6px;
+        }
+
+        .item-price {
+            font-weight: 500;
+            color: #1a1a1a;
+            font-size: 11px;
+        }
+
+        .special-instructions {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 6px;
+            padding: 6px;
+            margin-bottom: 10px;
+        }
+
+        .instructions-icon {
+            color: #2563eb;
+            margin-right: 4px;
+            font-size: 10px;
+        }
+
+        .instructions-text {
+            font-size: 11px;
+            color: #1d4ed8;
+            font-style: italic;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e5e5e5;
+            border-radius: 2px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #2563eb;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-fill.success { background: #16a34a; }
+
+        .order-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .order-btn {
+            flex: 1;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            font-size: 10px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .order-btn.primary { background: #2563eb; color: white; }
+        .order-btn.primary:hover { background: #1d4ed8; }
+        .order-btn.success { background: #16a34a; color: white; }
+        .order-btn.success:hover { background: #15803d; }
+        .order-btn.secondary { background: #f9fafb; color: #374151; border: 1px solid #e5e5e5; }
+        .order-btn.secondary:hover { background: #f3f4f6; }
+        .order-btn.danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .order-btn.danger:hover { background: #fee2e2; }
+
+        /* Compact Floating Button */
+        .floating-actions {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .floating-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-btn:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .floating-btn.success { background: #16a34a; }
+        .floating-btn.success:hover { background: #15803d; }
+        .floating-btn.primary { background: #2563eb; }
+        .floating-btn.primary:hover { background: #1d4ed8; }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filter-buttons {
+                flex-direction: column;
+            }
+
+            .search-controls {
+                flex-direction: column;
+            }
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            background: #f9fafb;
+            border: 1px solid #e5e5e5;
+            border-radius: 4px;
+            padding: 4px;
+            cursor: pointer;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <!-- Compact Sidebar -->
+        <aside class="sidebar">
+            <!-- Compact Header -->
+            <div class="sidebar-header">
+                <div class="restaurant-info">
+                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-details">
+                        <h1>Mario's Italian Kitchen</h1>
+                        <div class="status-badges">
+                            <span class="badge active">Active</span>
+                            <span class="badge verified">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact Navigation -->
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📊</div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menu</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👥</div>
+                        <span>Staff</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📈</div>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">❓</div>
+                        <span>Help Center</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📞</div>
+                        <span>Contact Support</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Compact Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn">☰</button>
+                    <h1 class="page-title">Order Management</h1>
+                    <p class="page-subtitle">Manage and track all restaurant orders in real-time</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notification-bell">🔔</div>
+                    <div class="user-menu">
+                        <div class="user-avatar">MR</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 11px;">Mario Rossi</div>
+                            <div style="font-size: 9px; color: #6b7280;">Owner</div>
+                        </div>
+                        <span style="color: #6b7280; font-size: 10px;">▼</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Compact Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Pending Orders</div>
+                            <div class="stat-icon pending">⏳</div>
+                        </div>
+                        <div class="stat-value">8</div>
+                        <div class="stat-change">+2 in last hour</div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Preparing</div>
+                            <div class="stat-icon preparing">🔥</div>
+                        </div>
+                        <div class="stat-value">5</div>
+                        <div class="stat-change">Avg 12 min</div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Ready</div>
+                            <div class="stat-icon ready">✅</div>
+                        </div>
+                        <div class="stat-value">3</div>
+                        <div class="stat-change">Pickup waiting</div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Completed Today</div>
+                            <div class="stat-icon completed">🎉</div>
+                        </div>
+                        <div class="stat-value">24</div>
+                        <div class="stat-change">2,450 SEK total</div>
+                    </div>
+                </div>
+
+                <!-- Compact Filters -->
+                <div class="sticky-filters">
+                    <div class="filter-buttons">
+                        <button class="filter-btn active">📋 All Orders</button>
+                        <button class="filter-btn pending">⏳ Pending (8)</button>
+                        <button class="filter-btn preparing">🔥 Preparing (5)</button>
+                        <button class="filter-btn ready">✅ Ready (3)</button>
+                    </div>
+                    <div class="search-controls">
+                        <div class="search-input">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" placeholder="Search orders...">
+                        </div>
+                        <select class="filter-btn">
+                            <option>All Types</option>
+                            <option>Pickup</option>
+                            <option>Delivery</option>
+                        </select>
+                        <button class="filter-btn">🔧 Filters</button>
+                    </div>
+                </div>
+
+                <!-- Orders Layout -->
+                <div class="orders-layout">
+                    <div class="orders-main">
+                        <div class="live-indicator">
+                            <div class="live-dot"></div>
+                            <span class="live-text">Live updates enabled</span>
+                        </div>
+
+                        <!-- Order Card 1 - Urgent -->
+                        <div class="order-card urgent">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>#ORD-1847</h3>
+                                    <div class="order-type pickup">🚶 Pickup</div>
+                                    <div class="order-meta">Ordered 18 min ago • Emma L.</div>
+                                    <div class="order-meta">📞 +46 70 123 4567</div>
+                                </div>
+                                <div class="order-total">
+                                    <div class="order-amount">285 SEK</div>
+                                    <div class="order-time">Due: 5 min</div>
+                                </div>
+                            </div>
+
+                            <div class="order-items">
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Margherita Pizza</div>
+                                        <div class="item-modifications">Extra cheese, No olives</div>
+                                    </div>
+                                    <div class="item-quantity">2x</div>
+                                    <div class="item-price">240 SEK</div>
+                                </div>
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Garlic Bread</div>
+                                    </div>
+                                    <div class="item-quantity">1x</div>
+                                    <div class="item-price">45 SEK</div>
+                                </div>
+                            </div>
+
+                            <div class="special-instructions">
+                                <span class="instructions-icon">💬</span>
+                                <span class="instructions-text">"Please make pizza extra crispy"</span>
+                            </div>
+
+                            <div class="order-actions">
+                                <button class="order-btn primary">🔥 Start</button>
+                                <button class="order-btn secondary">📞 Call</button>
+                                <button class="order-btn danger">❌ Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Order Card 2 - Preparing -->
+                        <div class="order-card preparing">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>#ORD-1846</h3>
+                                    <div class="order-type delivery">🚗 Delivery</div>
+                                    <div class="order-meta">Ordered 25 min ago • John D.</div>
+                                    <div class="order-meta">📍 Sveavägen 123, Stockholm</div>
+                                </div>
+                                <div class="order-total">
+                                    <div class="order-amount">420 SEK</div>
+                                    <div class="order-time">Due: 15 min</div>
+                                </div>
+                            </div>
+
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 65%"></div>
+                            </div>
+
+                            <div class="order-items">
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Pasta Carbonara + Caesar Salad + Tiramisu</div>
+                                    </div>
+                                    <div class="item-quantity">3</div>
+                                    <div class="item-price">420 SEK</div>
+                                </div>
+                            </div>
+
+                            <div class="order-actions">
+                                <button class="order-btn success">✅ Ready</button>
+                                <button class="order-btn secondary">⏸️ Pause</button>
+                                <button class="order-btn danger">❌ Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- Order Card 3 - Ready -->
+                        <div class="order-card ready">
+                            <div class="order-header">
+                                <div class="order-info">
+                                    <h3>#ORD-1845</h3>
+                                    <div class="order-type pickup">🚶 Pickup</div>
+                                    <div class="order-meta">Ready 8 min ago • Sarah K.</div>
+                                    <div class="order-meta">📞 +46 70 987 6543</div>
+                                </div>
+                                <div class="order-total">
+                                    <div class="order-amount">195 SEK</div>
+                                    <div class="order-time">Ready!</div>
+                                </div>
+                            </div>
+
+                            <div class="order-items">
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">Caprese Salad + Focaccia</div>
+                                    </div>
+                                    <div class="item-quantity">2</div>
+                                    <div class="item-price">195 SEK</div>
+                                </div>
+                            </div>
+
+                            <div class="special-instructions">
+                                <span class="instructions-icon">✅</span>
+                                <span class="instructions-text">Customer notified via SMS</span>
+                            </div>
+
+                            <div class="order-actions">
+                                <button class="order-btn success">🎉 Complete</button>
+                                <button class="order-btn secondary">📞 Call</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compact Floating Buttons -->
+        <div class="floating-actions">
+            <button class="floating-btn success">➕</button>
+            <button class="floating-btn primary">🔔</button>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn')?.addEventListener('click', function () {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Filter buttons functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.tagName === 'BUTTON') {
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        if (b.tagName === 'BUTTON') {
+                            b.classList.remove('active');
+                        }
+                    });
+                    this.classList.add('active');
+                }
+            });
+        });
+
+        // Order action buttons
+        document.querySelectorAll('.order-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const originalText = this.innerHTML;
+                this.innerHTML = '<span>⏳</span> Processing...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.innerHTML = '<span>✅</span> Updated!';
+                    this.classList.remove('primary', 'secondary', 'danger');
+                    this.classList.add('success');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                        this.classList.remove('success');
+                        if (originalText.includes('Start')) {
+                            this.classList.add('primary');
+                        } else if (originalText.includes('Call') || originalText.includes('Pause')) {
+                            this.classList.add('secondary');
+                        } else if (originalText.includes('Cancel')) {
+                            this.classList.add('danger');
+                        }
+                    }, 1500);
+                }, 1000);
+            });
+        });
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                this.classList.add('active');
+                
+                const itemText = this.querySelector('span').textContent;
+                document.querySelector('.page-title').textContent = itemText;
+                
+                const subtitles = {
+                    'Dashboard': 'Welcome back! Here\'s what\'s happening today.',
+                    'Orders': 'Manage and track all restaurant orders in real-time',
+                    'Menu': 'Manage your restaurant\'s menus and items',
+                    'Settings': 'Configure your restaurant settings',
+                    'Staff': 'Manage your restaurant team',
+                    'Analytics': 'View detailed reports and insights'
+                };
+                
+                document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
+            });
+        });
+
+        console.log('🍽️ Nordic Orders Dashboard Loaded - Pixel Perfect & Space Efficient');
+    </script>
+</body>
+
+</html>
