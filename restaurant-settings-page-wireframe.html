@@ -61,9 +61,7 @@
             <button class="tab-button px-6 py-4 font-medium text-sm whitespace-nowrap rounded-t-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50">
                 <i class="fas fa-clock mr-2"></i>Opening Hours
             </button>
-            <button class="tab-button px-6 py-4 font-medium text-sm whitespace-nowrap rounded-t-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                <i class="fas fa-utensils mr-2"></i>Menu Settings
-            </button>
+
             <button class="tab-button px-6 py-4 font-medium text-sm whitespace-nowrap rounded-t-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50">
                 <i class="fas fa-credit-card mr-2"></i>Payment
             </button>
@@ -467,13 +465,6 @@
     </div>
 
     <!-- Other tabs would be implemented similarly -->
-    <div class="tab-content hidden" id="menu-settings">
-        <div class="text-center py-12">
-            <i class="fas fa-utensils text-4xl text-gray-400 mb-4"></i>
-            <h3 class="text-xl font-bold text-gray-900 mb-2">Menu Settings</h3>
-            <p class="text-gray-600">Configure menu display, categories, and item settings</p>
-        </div>
-    </div>
 
     <div class="tab-content hidden" id="payment">
         <div class="text-center py-12">
@@ -540,7 +531,7 @@
             let targetId;
             if (tabName.includes('restaurant')) targetId = 'restaurant-info';
             else if (tabName.includes('opening')) targetId = 'opening-hours';
-            else if (tabName.includes('menu')) targetId = 'menu-settings';
+
             else if (tabName.includes('payment')) targetId = 'payment';
             else if (tabName.includes('notifications')) targetId = 'notifications';
             else if (tabName.includes('staff')) targetId = 'staff';
