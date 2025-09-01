@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Home, Menu, ShoppingCart, Settings, LogOut } from 'lucide-react';
 import { initSentry } from '@/lib/sentry';
 import { getSupabaseServer } from '@/lib/supabaseServer';
+import { RestaurantProvider } from './RestaurantContext';
 
 // Initialize Sentry for error tracking
 initSentry();
@@ -125,7 +126,11 @@ export default async function DashboardLayout({
       </nav>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">{children}</main>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <RestaurantProvider restaurant={restaurant}>
+          {children}
+        </RestaurantProvider>
+      </main>
     </div>
   );
 }

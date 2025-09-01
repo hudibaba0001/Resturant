@@ -6,33 +6,107 @@ import type { Item, Menu, Section, OptionGroup, ModifierGroup, PriceMatrix, UUID
 export type RepoMode = 'simple'; // future: 'extended'
 
 export class MenuRepository {
-  constructor(private mode: RepoMode = 'simple') {}
+  constructor(private mode: 'simple' | 'persistent' = 'persistent') {}
 
   // --- Menus ---
   async listMenus(restaurantId: UUID): Promise<Menu[]> {
     const supabase = getServerSupabase();
-    // In SIMPLE mode, menus are discovered via menu_items.nutritional_info.menu
+    
+    // Try to get menus from the new persistent menus table first
+    const { data: menuData, error: menuError } = await supabase
+      .from('menus')
+      .select('id, name, slug, description, is_active, is_default, sort_order')
+      .eq('restaurant_id', restaurantId)
+      .eq('is_active', true)
+      .order('sort_order, name');
+    
+    if (!menuError && menuData && menuData.length > 0) {
+      // Return persistent menus
+      return menuData.map(menu => ({
+        id: menu.id,
+        name: menu.name,
+        slug: menu.slug,
+        description: menu.description,
+        isDefault: menu.is_default,
+        sortOrder: menu.sort_order
+      }));
+    }
+    
+    // Fallback: legacy discovery via menu_items (for backward compatibility)
     const { data, error } = await supabase
       .from('menu_items')
       .select('id, nutritional_info')
       .eq('restaurant_id', restaurantId);
     if (error) throw error;
+    
     const map = new Map<string, string>();
     for (const row of data as any[]) {
       const menu = row.nutritional_info?.menu;
       if (menu) map.set(menu, menu);
     }
+    
     // If empty, return a default menu to get started
     if (map.size === 0) {
       return [{ id: 'main', name: 'Main' }];
     }
-    return Array.from(map.keys()).map((slug) => ({ id: slug, name: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }));
+    
+    return Array.from(map.keys()).map((slug) => ({ 
+      id: slug, 
+      name: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) 
+    }));
   }
 
   async createMenu(restaurantId: UUID, name: string): Promise<Menu> {
-    // In SIMPLE mode, we "create" a menu lazily: we return a slug; it appears once items/sections use it
+    const supabase = getServerSupabase();
     const slug = slugify(name || 'menu');
-    return { id: slug, name };
+    
+    // Check if menu already exists
+    const { data: existing } = await supabase
+      .from('menus')
+      .select('id, name, slug')
+      .eq('restaurant_id', restaurantId)
+      .eq('slug', slug)
+      .maybeSingle();
+    
+    if (existing) {
+      // Return existing menu
+      return {
+        id: existing.id,
+        name: existing.name,
+        slug: existing.slug
+      };
+    }
+    
+    // Create new persistent menu
+    const { data, error } = await supabase
+      .from('menus')
+      .insert({
+        restaurant_id: restaurantId,
+        name: name,
+        slug: slug,
+        description: `Menu: ${name}`,
+        is_active: true,
+        is_default: false,
+        sort_order: 0
+      })
+      .select('id, name, slug, description, is_active, is_default, sort_order')
+      .single();
+    
+    if (error) {
+      console.error('Failed to create menu:', error);
+      // Fallback to legacy behavior
+      return { id: slug, name };
+    }
+    
+    // Return the newly created persistent menu
+    return {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      description: data.description,
+      isDefault: data.is_default,
+      sortOrder: data.sort_order
+    };
   }
 
   async renameMenu(_restaurantId: UUID, oldId: string, newName: string): Promise<Menu> {

@@ -1,8 +1,12 @@
 export type UUID = string;
 
 export type Menu = {
-  id: string;       // slug
+  id: string;       // UUID for persistent menus, slug for legacy
   name: string;     // display name
+  slug?: string;    // URL-friendly identifier
+  description?: string; // optional description
+  isDefault?: boolean; // whether this is the default menu
+  sortOrder?: number;  // display order
 };
 
 export type Section = {
