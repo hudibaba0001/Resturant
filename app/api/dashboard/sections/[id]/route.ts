@@ -3,8 +3,13 @@ export const runtime = 'nodejs';
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client for API routes
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const UpdateSectionSchema = z.object({
   name: z.string().min(1),
@@ -14,8 +19,6 @@ const UpdateSectionSchema = z.object({
 });
 
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
-  const cookieStore = await cookies();
-  const sb = createRouteHandlerClient({ cookies: () => cookieStore });
   const id = ctx.params.id;
   const body = await req.json().catch(() => null);
   const parsed = UpdateSectionSchema.safeParse(body);
@@ -27,7 +30,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const { name: newSectionName, description, sortIndex, isActive } = parsed.data;
 
   // Get current section info
-  const { data: current, error: fetchError } = await sb
+  const { data: current, error: fetchError } = await supabase
     .from('menu_items')
     .select('id, restaurant_id, nutritional_info')
     .eq('id', id)
@@ -44,7 +47,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   // If section name changed, update all items in that section
   if (oldSectionName && oldSectionName !== newSectionName) {
     // Get all items in the old section
-    const { data: itemsToUpdate } = await sb
+    const { data: itemsToUpdate } = await supabase
       .from('menu_items')
       .select('id, nutritional_info')
       .eq('restaurant_id', current.restaurant_id)
@@ -57,7 +60,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
         const itemNi = { ...item.nutritional_info };
         itemNi.section_path = [newSectionName];
         
-        await sb
+        await supabase
           .from('menu_items')
           .update({ nutritional_info: itemNi })
           .eq('id', item.id);
@@ -66,7 +69,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   }
 
   // Update the section placeholder item
-  const { data, error } = await sb
+  const { data, error } = await supabase
     .from('menu_items')
     .update({
       name: `[SECTION] ${newSectionName}`,
@@ -91,12 +94,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
 }
 
 export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
-  const cookieStore = await cookies();
-  const sb = createRouteHandlerClient({ cookies: () => cookieStore });
   const id = ctx.params.id;
 
   // Get current section info
-  const { data: current, error: fetchError } = await sb
+  const { data: current, error: fetchError } = await supabase
     .from('menu_items')
     .select('id, restaurant_id, nutritional_info')
     .eq('id', id)
@@ -112,7 +113,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
 
   // Move all items in this section to "General" (no section)
   if (sectionName) {
-    const { data: itemsToUpdate } = await sb
+    const { data: itemsToUpdate } = await supabase
       .from('menu_items')
       .select('id, nutritional_info')
       .eq('restaurant_id', current.restaurant_id)
@@ -124,7 +125,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
         const itemNi = { ...item.nutritional_info };
         itemNi.section_path = []; // Move to General
         
-        await sb
+        await supabase
           .from('menu_items')
           .update({ nutritional_info: itemNi })
           .eq('id', item.id);
@@ -133,7 +134,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
   }
 
   // Delete the section placeholder item
-  const { error } = await sb.from('menu_items').delete().eq('id', id);
+  const { error } = await supabase.from('menu_items').delete().eq('id', id);
   
   if (error) {
     return NextResponse.json({ code: 'SECTION_DELETE_ERROR' }, { status: 500 });
