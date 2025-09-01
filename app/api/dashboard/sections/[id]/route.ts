@@ -44,7 +44,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     const { error: updateError } = await sb
       .from('menu_items')
       .update({
-        nutritional_info: sb.raw(`jsonb_set(nutritional_info, '{section_path}', '["${newSectionName}"]'::jsonb)`)
+        nutritional_info: sb.sql`jsonb_set(nutritional_info, '{section_path}', '["${newSectionName}"]'::jsonb)`
       })
       .eq('restaurant_id', current.restaurant_id)
       .eq('nutritional_info->>menu', ni.menu)
@@ -109,7 +109,7 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
     const { error: moveError } = await sb
       .from('menu_items')
       .update({
-        nutritional_info: sb.raw(`jsonb_set(nutritional_info, '{section_path}', '[]'::jsonb)`)
+        nutritional_info: sb.sql`jsonb_set(nutritional_info, '{section_path}', '[]'::jsonb)`
       })
       .eq('restaurant_id', section.restaurant_id)
       .eq('nutritional_info->>menu', ni.menu)

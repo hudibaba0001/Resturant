@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Dashboard - Sidebar Navigation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Left Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .restaurant-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .restaurant-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .restaurant-details h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: #1e293b;
+        }
+        
+        .status-badges {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .badge {
+            padding: 0.125rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.625rem;
+            font-weight: 500;
+        }
+        
+        .badge.active {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .badge.verified {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+        
+        .nav-section-title {
+            padding: 0 1.5rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1.5rem;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-right: 3px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+        
+        .nav-item.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-right-color: #2563eb;
+        }
+        
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .nav-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 600;
+            padding: 0.125rem 0.375rem;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+        
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Header */
+        .top-header {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        
+        .header-left {
+            flex: 1;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .page-subtitle {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .notification-bell {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .notification-bell:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .notification-dot {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: #ef4444;
+            border-radius: 50%;
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .user-menu:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        /* Content Area */
+        .content {
+            flex: 1;
+            padding: 2rem;
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+        
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            transition: all 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .stat-icon.orders {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .stat-icon.revenue {
+            background: #d1fae5;
+            color: #059669;
+        }
+        
+        .stat-icon.customers {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .stat-icon.rating {
+            background: #fce7f3;
+            color: #db2777;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-change {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .stat-change.positive {
+            color: #059669;
+        }
+        
+        .stat-change.negative {
+            color: #dc2626;
+        }
+        
+        .trend-arrow {
+            width: 16px;
+            height: 16px;
+            background: currentColor;
+            border-radius: 2px;
+        }
+        
+        /* Content Sections */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .section-action {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        
+        .section-content {
+            padding: 1.5rem;
+        }
+        
+        /* Recent Orders */
+        .order-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+        
+        .order-item:hover {
+            background: #f1f5f9;
+        }
+        
+        .order-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .order-id {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .order-details {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .order-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .order-status.pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .order-status.preparing {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .order-status.ready {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        /* Activity Feed */
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            align-items: start;
+        }
+        
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .activity-icon.order {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .activity-icon.menu {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .activity-icon.customer {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .activity-content {
+            flex: 1;
+        }
+        
+        .activity-text {
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .activity-time {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        
+        /* Full Width Sections */
+        .full-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f1f5f9;
+            margin-bottom: 2rem;
+        }
+        
+        /* Menu Items Quick View */
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .menu-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .menu-item:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+        }
+        
+        .menu-item-image {
+            width: 60px;
+            height: 60px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            margin: 0 auto 0.75rem;
+        }
+        
+        .menu-item-name {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .menu-item-price {
+            color: #059669;
+            font-weight: 500;
+        }
+        
+        /* Analytics Charts */
+        .chart-container {
+            height: 300px;
+            background: #f8fafc;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-style: italic;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            cursor: pointer;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <!-- Sidebar Header -->
+            <div class="sidebar-header">
+                <div class="restaurant-info">
+                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-details">
+                        <h1>Mario's Italian Kitchen</h1>
+                        <div class="status-badges">
+                            <span class="badge active">Active</span>
+                            <span class="badge verified">Verified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar-nav">
+                <!-- Main Navigation -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item active">
+                        <div class="nav-icon">📊</div>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
+                        <span class="nav-badge">12</span>
+                    </a>
+                </div>
+
+                <!-- Management -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menu</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Settings</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👥</div>
+                        <span>Staff</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📈</div>
+                        <span>Analytics</span>
+                    </a>
+                </div>
+
+                <!-- Tools -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Tools</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">👤</div>
+                        <span>Customers</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">🔗</div>
+                        <span>Embed Widget</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">💬</div>
+                        <span>Reviews</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📱</div>
+                        <span>Mobile App</span>
+                    </a>
+                </div>
+
+                <!-- Support -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Support</div>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">❓</div>
+                        <span>Help Center</span>
+                    </a>
+                    <a href="#" class="nav-item">
+                        <div class="nav-icon">📞</div>
+                        <span>Contact Support</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="mobile-menu-btn">☰</button>
+                    <h1 class="page-title">Dashboard Overview</h1>
+                    <p class="page-subtitle">Welcome back! Here's what's happening at your restaurant today.</p>
+                </div>
+                <div class="header-actions">
+                    <div class="notification-bell">
+                        🔔
+                        <div class="notification-dot"></div>
+                    </div>
+                    <div class="user-menu">
+                        <div class="user-avatar">MR</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 0.875rem;">Mario Rossi</div>
+                            <div style="font-size: 0.75rem; color: #64748b;">Owner</div>
+                        </div>
+                        <span style="color: #64748b;">▼</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <a href="#" class="btn btn-primary">
+                        ➕ Add Menu Item
+                    </a>
+                    <a href="#" class="btn btn-secondary">
+                        📊 View Reports
+                    </a>
+                    <a href="#" class="btn btn-secondary">
+                        📦 Manage Orders
+                    </a>
+                    <a href="#" class="btn btn-secondary">
+                        ⚙️ Settings
+                    </a>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Today's Orders</div>
+                            <div class="stat-icon orders">📦</div>
+                        </div>
+                        <div class="stat-value">24</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>+12% from yesterday</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Revenue Today</div>
+                            <div class="stat-icon revenue">💰</div>
+                        </div>
+                        <div class="stat-value">2,450 SEK</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>+8% from yesterday</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Active Customers</div>
+                            <div class="stat-icon customers">👥</div>
+                        </div>
+                        <div class="stat-value">156</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>+5% this week</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card fade-in">
+                        <div class="stat-header">
+                            <div class="stat-title">Average Rating</div>
+                            <div class="stat-icon rating">⭐</div>
+                        </div>
+                        <div class="stat-value">4.8</div>
+                        <div class="stat-change positive">
+                            <div class="trend-arrow">↗</div>
+                            <span>+0.2 this month</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Grid -->
+                <div class="content-grid">
+                    <!-- Recent Orders -->
+                    <div class="section">
+                        <div class="section-header">
+                            <h2 class="section-title">Recent Orders</h2>
+                            <a href="#" class="section-action">View All →</a>
+                        </div>
+                        <div class="section-content">
+                            <div class="order-list">
+                                <div class="order-item">
+                                    <div class="order-info">
+                                        <div class="order-id">#ORD-2024-001</div>
+                                        <div class="order-details">Margherita Pizza × 2, Pickup • 15:30</div>
+                                    </div>
+                                    <div class="order-status preparing">Preparing</div>
+                                </div>
+                                <div class="order-item">
+                                    <div class="order-info">
+                                        <div class="order-id">#ORD-2024-002</div>
+                                        <div class="order-details">Caesar Salad × 1, Dine-in • Table 5</div>
+                                    </div>
+                                    <div class="order-status ready">Ready</div>
+                                </div>
+                                <div class="order-item">
+                                    <div class="order-info">
+                                        <div class="order-id">#ORD-2024-003</div>
+                                        <div class="order-details">Pasta Carbonara × 1, Pickup • 16:00</div>
+                                    </div>
+                                    <div class="order-status pending">Pending</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Activity Feed -->
+                    <div class="section">
+                        <div class="section-header">
+                            <h2 class="section-title">Recent Activity</h2>
+                        </div>
+                        <div class="section-content">
+                            <div class="activity-list">
+                                <div class="activity-item">
+                                    <div class="activity-icon order">📦</div>
+                                    <div class="activity-content">
+                                        <div class="activity-text">New order #ORD-2024-001 received</div>
+                                        <div class="activity-time">2 minutes ago</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon menu">🍕</div>
+                                    <div class="activity-content">
+                                        <div class="activity-text">Menu item "Truffle Pizza" updated</div>
+                                        <div class="activity-time">15 minutes ago</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon customer">👤</div>
+                                    <div class="activity-content">
+                                        <div class="activity-text">New customer review: 5 stars</div>
+                                        <div class="activity-time">1 hour ago</div>
+                                    </div>
+                                </div>
+                                <div class="activity-item">
+                                    <div class="activity-icon order">📦</div>
+                                    <div class="activity-content">
+                                        <div class="activity-text">Order #ORD-2024-000 completed</div>
+                                        <div class="activity-time">2 hours ago</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Popular Menu Items -->
+                <div class="full-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Popular Menu Items</h2>
+                        <a href="#" class="section-action">Manage Menu →</a>
+                    </div>
+                    <div class="section-content">
+                        <div class="menu-grid">
+                            <div class="menu-item">
+                                <div class="menu-item-image"></div>
+                                <div class="menu-item-name">Margherita Pizza</div>
+                                <div class="menu-item-price">185 SEK</div>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-item-image"></div>
+                                <div class="menu-item-name">Caesar Salad</div>
+                                <div class="menu-item-price">125 SEK</div>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-item-image"></div>
+                                <div class="menu-item-name">Pasta Carbonara</div>
+                                <div class="menu-item-price">165 SEK</div>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-item-image"></div>
+                                <div class="menu-item-name">Tiramisu</div>
+                                <div class="menu-item-price">85 SEK</div>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-item-image"></div>
+                                <div class="menu-item-name">Bruschetta</div>
+                                <div class="menu-item-price">95 SEK</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Chart -->
+                <div class="full-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Revenue Analytics</h2>
+                        <div class="quick-actions">
+                            <button class="btn btn-secondary">Last 7 days</button>
+                            <button class="btn btn-secondary">Last 30 days</button>
+                            <button class="btn btn-secondary">Last 3 months</button>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div class="chart-container">
+                            📈 Revenue chart would be displayed here
+                            <br>
+                            (Integration with Chart.js or similar library)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu toggle
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('open');
+        });
+
+        // Navigation item clicks
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove active class from all items
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                
+                // Add active class to clicked item
+                this.classList.add('active');
+                
+                // Update page title based on clicked item
+                const itemText = this.querySelector('span').textContent;
+                document.querySelector('.page-title').textContent = itemText;
+                
+                // Update subtitle based on section
+                const subtitles = {
+                    'Dashboard': 'Welcome back! Here\'s what\'s happening at your restaurant today.',
+                    'Orders': 'Manage and track all restaurant orders',
+                    'Menu': 'Manage your restaurant\'s menu items and categories',
+                    'Settings': 'Configure your restaurant settings and preferences',
+                    'Staff': 'Manage staff accounts, roles, and permissions',
+                    'Analytics': 'View detailed analytics and performance metrics',
+                    'Customers': 'Manage customer relationships and feedback',
+                    'Embed Widget': 'Configure and manage your website widget',
+                    'Reviews': 'Monitor and respond to customer reviews',
+                    'Mobile App': 'Manage your mobile app presence'
+                };
+                
+                document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
+            });
+        });
+
+        // Add click handlers for quick action buttons
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Button clicked:', this.textContent.trim());
+            });
+        });
+
+        console.log('🍽️ Restaurant Dashboard with Sidebar Loaded');
+        console.log('📊 Navigation Order: Dashboard → Orders → Menu → Settings → Staff → Analytics');
+    </script>
+</body>
+</html>

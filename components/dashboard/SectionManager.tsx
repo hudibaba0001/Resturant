@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,11 +28,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   const router = useRouter();
 
   // Load sections
-  useEffect(() => {
-    loadSections();
-  }, [restaurantId, currentMenuSlug]);
-
-  async function loadSections() {
+  const loadSections = useCallback(async () => {
     try {
       const res = await fetch(`/api/dashboard/sections?restaurantId=${restaurantId}&menu=${currentMenuSlug}`);
       if (!res.ok) throw new Error('Failed to load sections');
@@ -44,7 +40,11 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     } catch (err) {
       console.error('Failed to load sections:', err);
     }
-  }
+  }, [restaurantId, currentMenuSlug]);
+
+  useEffect(() => {
+    loadSections();
+  }, [loadSections]);
 
   async function addSection() {
     if (!newSectionName.trim()) return;
