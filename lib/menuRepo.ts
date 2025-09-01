@@ -126,38 +126,67 @@ export class MenuRepository {
 
   // --- Sections ---
   async listSections(restaurantId: UUID, menuId: string): Promise<Section[]> {
-    const supabase = getServerSupabase();
-    const { data, error } = await supabase
-      .from('menu_items')
-      .select('nutritional_info')
-      .eq('restaurant_id', restaurantId)
-      .contains('nutritional_info', { menu: menuId });
-    if (error) throw error;
-    // Build tree from section_path arrays
-    const paths: string[][] = (data as any[])
-      .map((r) => (r.nutritional_info?.section_path as string[]) || [])
-      .filter((p) => p.length > 0);
-
-    const unique = new Map<string, Section>();
-    const push = (path: string[]) => {
-      for (let i = 0; i < path.length; i++) {
-        const sub = path.slice(0, i + 1);
-        const id = sub.join(':');
-        if (!unique.has(id)) {
-          unique.set(id, {
-            id,
-            menuId,
-            name: sub[sub.length - 1] || 'Unknown',
-            parentId: i > 0 ? sub.slice(0, i).join(':') : null,
-            path: sub,
-            sort: i,
-          });
-        }
+    try {
+      // Use the new section management API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/dashboard/sections?restaurantId=${restaurantId}&menu=${menuId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sections: ${response.status}`);
       }
-    };
-    paths.forEach(push);
-    // Sorted by path depth then name
-    return Array.from(unique.values()).sort((a, b) => a.path.length - b.path.length || a.name.localeCompare(b.name));
+      
+      const data = await response.json();
+      if (!data.ok) {
+        throw new Error('Sections API returned error');
+      }
+      
+      // Convert the new section format to the old Section type for backward compatibility
+      return data.data.map((section: any) => ({
+        id: section.name,
+        menuId,
+        name: section.name,
+        parentId: null,
+        path: [section.name],
+        sort: 0,
+      }));
+    } catch (error) {
+      console.error('Error fetching sections from new API, falling back to old logic:', error);
+      
+      // Fallback to old logic
+      const supabase = getServerSupabase();
+      const { data, error: dbError } = await supabase
+        .from('menu_items')
+        .select('nutritional_info')
+        .eq('restaurant_id', restaurantId)
+        .contains('nutritional_info', { menu: menuId });
+      
+      if (dbError) throw dbError;
+      
+      // Build tree from section_path arrays
+      const paths: string[][] = (data as any[])
+        .map((r) => (r.nutritional_info?.section_path as string[]) || [])
+        .filter((p) => p.length > 0);
+
+      const unique = new Map<string, Section>();
+      const push = (path: string[]) => {
+        for (let i = 0; i < path.length; i++) {
+          const sub = path.slice(0, i + 1);
+          const id = sub.join(':');
+          if (!unique.has(id)) {
+            unique.set(id, {
+              id,
+              menuId,
+              name: sub[sub.length - 1] || 'Unknown',
+              parentId: i > 0 ? sub.slice(0, i).join(':') : null,
+              path: sub,
+              sort: i,
+            });
+          }
+        }
+      };
+      paths.forEach(push);
+      // Sorted by path depth then name
+      return Array.from(unique.values()).sort((a, b) => a.path.length - b.path.length || a.name.localeCompare(b.name));
+    }
   }
 
   async createSection(_restaurantId: UUID, menuId: string, name: string, parentId?: string | null): Promise<Section> {
