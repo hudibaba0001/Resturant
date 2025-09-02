@@ -46,50 +46,30 @@ async function parseBodyOrQuery(req: Request) {
   return null;
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const url = new URL(req.url);
-    const debugWhy = url.searchParams.get('why') === '1';
+export async function POST(req: Request) {
+  const url = new URL(req.url);
+  const debugWhy = url.searchParams.get('why') === '1';
 
-    const body = await parseBodyOrQuery(req);
+  const body = await parseBodyOrQuery(req);
   if (!body) {
-    // show why when debugging
-    return NextResponse.json(
-      { code: 'BAD_REQUEST', reason: 'NO_BODY', ct: req.headers.get('content-type') || null },
-      { status: 400 }
-    );
+    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'NO_BODY', ct: req.headers.get('content-type') || null }, { status: 400 });
   }
 
   const rid   = body.restaurantId as string;
   const tok   = body.sessionToken as string;
-  const itemsRaw = Array.isArray(body.items) ? body.items : [];
-
-  // ✅ your enum is ('pickup','delivery','dine_in')
-  const orderType: 'pickup' | 'dine_in' | 'delivery' =
-    body.type === 'dine_in' ? 'dine_in' : 
-    body.type === 'delivery' ? 'delivery' : 'pickup';
-
-  // Basic validation
-  if(!UUID_RE.test(rid)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
-  if(!tok) return NextResponse.json({code:'BAD_SESSION'},{status:400});
-  if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
-
+  const type  = (typeof body.type === 'string' && body.type) || 'pickup';
+  const items = Array.isArray(body.items) ? body.items : [];
   const cands = candidatesFromHeaders(req);
 
-  // ⬇️ Inline, explicit client (service role):
+  // --- service role client (server-only envs required) ---
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   if (!supabaseUrl || !supabaseKey) {
-    // keep your standard error contract
-    return NextResponse.json(
-      { code: 'SERVER_MISCONFIG', missing: { supabaseUrl: !supabaseUrl, supabaseKey: !supabaseKey } },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 'SERVER_MISCONFIG', missing: { supabaseUrl: !supabaseUrl, supabaseKey: !supabaseKey } }, { status: 500 });
   }
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
+  // === read tenant + session (data-driven, not brittle headers) ===
   const { data: r } = await supabase
     .from('restaurants')
     .select('id, is_active, is_verified, allowed_origins')
@@ -98,51 +78,41 @@ export async function POST(req: NextRequest) {
 
   const { data: s } = await supabase
     .from('widget_sessions')
-    .select('session_token, restaurant_id, origin')
+    .select('id, session_token, restaurant_id, origin')
     .eq('session_token', tok)
     .maybeSingle();
 
-  let i: { id: string; restaurant_id: string } | null = null;
-  if (itemsRaw[0]?.itemId) {
+  // Optional first item sanity
+  let firstItem: { id: string; restaurant_id: string } | null = null;
+  if (items[0]?.itemId) {
     const res = await supabase
       .from('menu_items_v2')
       .select('id, restaurant_id')
-      .eq('id', itemsRaw[0].itemId)
+      .eq('id', items[0].itemId)
       .maybeSingle();
-    i = res.data as any;
+    firstItem = res.data as any;
   }
 
-  // Core, data-driven checks (don't hard-fail on header quirks)
   const checks = {
     restaurantOk:   !!r && r.id === rid,
     restaurantLive: !!r && (r.is_active ?? true) && (r.is_verified ?? false),
     sessionOk:      !!s && s.restaurant_id === rid,
-    itemOk:         i ? i.restaurant_id === rid : true,
-    originAllowed:  !!r && (r.allowed_origins ?? []).some((o: string) => cands.includes(o)),
-    sessionOriginOk:!!s && s.origin ? cands.includes(s.origin) : true,
+    itemOk:         firstItem ? firstItem.restaurant_id === rid : true,
   };
 
-  if (debugWhy && (!checks.restaurantOk || !checks.restaurantLive || !checks.sessionOk || !checks.itemOk)) {
+  if (debugWhy && Object.values(checks).some(v => !v)) {
     return NextResponse.json({ code: 'BAD_RESTAURANT', checks }, { status: 400 });
   }
-
   if (!checks.restaurantOk || !checks.restaurantLive || !checks.sessionOk || !checks.itemOk) {
     return NextResponse.json({ code: 'BAD_RESTAURANT' }, { status: 400 });
   }
 
-  // Header checks become advisory (log-only)
-  if (!checks.originAllowed || !checks.sessionOriginOk) {
-    console.warn('Origin mismatch (continuing):', { candidates: cands, allowed: r?.allowed_origins, sessionOrigin: s?.origin });
-  }
-
   // ===== PRICE & LINES =====
-  const reqItems: Array<{ itemId: string; qty: number; notes?: string; selections?: any }> =
-    Array.isArray(itemsRaw) ? itemsRaw : [];
+  const reqItems: Array<{ itemId: string; qty: number; notes?: string; selections?: any }> = items;
   if (!reqItems.length) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'NO_ITEMS' }, { status: 400 });
   }
 
-  // Fetch item prices
   const ids = Array.from(new Set(reqItems.map(x => x.itemId)));
   const { data: dbItems, error: diErr } = await supabase
     .from('menu_items_v2')
@@ -151,6 +121,7 @@ export async function POST(req: NextRequest) {
   if (diErr) {
     return NextResponse.json({ code: 'ITEM_LOOKUP_FAILED', details: diErr.message }, { status: 500 });
   }
+
   const priceById = new Map<string, number>();
   for (const row of dbItems ?? []) {
     if (row.restaurant_id !== rid) {
@@ -172,34 +143,29 @@ export async function POST(req: NextRequest) {
       qty,
       price_cents: price,
       notes: it.notes ?? null,
-      selections: it.selections ?? {}, // jsonb
+      selections: it.selections ?? {}, // jsonb NOT NULL default {}
       line_total: price * qty,
     };
   });
   const total_cents = lines.reduce((s, l) => s + l.line_total, 0);
 
-  // ===== SESSION ID (uuid) from token =====
-  const { data: sessionRow, error: sIdErr } = await supabase
-    .from('widget_sessions')
-    .select('id')
-    .eq('session_token', tok)
-    .maybeSingle();
-  if (sIdErr || !sessionRow) {
-    return NextResponse.json({ code: 'INVALID_SESSION', details: sIdErr?.message ?? 'not found' }, { status: 400 });
+  // ===== SESSION ROW (uuid id) =====
+  if (!s?.id) {
+    return NextResponse.json({ code: 'INVALID_SESSION', details: 'session not found' }, { status: 400 });
   }
 
   // ===== INSERT ORDER =====
   const orderInsert = {
     restaurant_id: rid,
-    session_id: sessionRow.id,
-    type: (typeof body.type === 'string' && body.type) || 'pickup',
+    session_id: s.id,
+    type,
     status: 'pending',
     order_code: genCode(),
     total_cents,
     currency: 'SEK',
     customer_name: body.customer?.name ?? null,
-    phone_e164:   body.customer?.phone ?? null,
-    email:        body.customer?.email ?? null,
+    phone_e164:    body.customer?.phone ?? null,
+    email:         body.customer?.email ?? null,
   };
 
   const { data: createdOrder, error: oErr } = await supabase
@@ -234,14 +200,14 @@ export async function POST(req: NextRequest) {
     items: orderItemsInsert.map(x => ({ itemId: x.item_id, qty: x.qty, price_cents: x.price_cents })),
     createdAt: createdOrder.created_at,
   });
-
-  } catch(e:any){
-    return NextResponse.json({code:'ROUTE_THROW', error:String(e?.message||e)},{status:500});
-  }
 }
 
 function genCode(len=6){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<len;i++)s+=a[(Math.random()*a.length)|0];return s;}
 function genPin(){return String((Math.random()*9000+1000)|0);}
+
+function genOrderCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
 
 // --- DEBUG: read-only GET to inspect header → restaurant matching ---
 import { getServerSupabase } from '@/lib/supabase/server'; // must return a service-role client
