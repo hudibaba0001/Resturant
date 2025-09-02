@@ -42,28 +42,46 @@ function genOrderCode() {
 }
 
 export async function POST(req: Request) {
-  // Parse JSON body first, then fall back to query parameters
   const url = new URL(req.url);
   const q = url.searchParams;
   const ct = req.headers.get('content-type') || '';
 
+  // 1) Try to read JSON body if provided
   let body: any = null;
   if (ct.includes('application/json')) {
-    try { body = await req.json(); } catch { /* ignore */ }
+    try {
+      body = await req.json();
+    } catch {
+      // ignore; we'll fall back to query params
+    }
   }
 
-  const restaurantId = body?.restaurantId ?? q.get('restaurantId');
-  const sessionToken = body?.sessionToken ?? q.get('sessionToken');
-  const type         = body?.type         ?? q.get('type') ?? 'pickup';
-  const itemsRaw     = body?.items        ?? q.get('items');
-  const items = Array.isArray(itemsRaw) ? itemsRaw
-    : (typeof itemsRaw === 'string' ? JSON.parse(itemsRaw) : null);
+  // 2) Prefer JSON body, fall back to query params (and header for restaurantId)
+  const restaurantId =
+    body?.restaurantId ??
+    q.get('restaurantId') ??
+    req.headers.get('x-restaurant-id');
 
+  const sessionToken = body?.sessionToken ?? q.get('sessionToken');
+  const type         = body?.type ?? q.get('type') ?? 'pickup';
+
+  // 3) items can be an array (JSON body) or a stringified array (query)
+  const itemsRaw = body?.items ?? q.get('items');
+  let items: any = null;
+  if (Array.isArray(itemsRaw)) {
+    items = itemsRaw;
+  } else if (typeof itemsRaw === 'string') {
+    try { items = JSON.parse(itemsRaw); } catch { /* leave null */ }
+  }
+
+  // 4) TEMP DEBUG – remove after verification
+  if (q.get('debug') === 'echo') {
+    return NextResponse.json({ ct, bodySeen: body ?? null, restaurantId, sessionToken, type, items }, { status: 200 });
+  }
+
+  // 5) Validate
   if (!restaurantId || !sessionToken || !type || !Array.isArray(items) || items.length === 0) {
-    return NextResponse.json(
-      { code: 'BAD_REQUEST', reason: 'INVALID_INPUT' },
-      { status: 400 },
-    );
+    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'INVALID_INPUT' }, { status: 400 });
   }
 
   const rid   = restaurantId as string;
