@@ -5,11 +5,13 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Create Supabase client for API routes using anon key
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Helper function to create Supabase client
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 const CreateSectionSchema = z.object({
   restaurantId: z.string().uuid(),
@@ -21,6 +23,7 @@ const CreateSectionSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const supabase = getSupabase();
   const body = await req.json().catch(() => null);
   const parsed = CreateSectionSchema.safeParse(body);
   
@@ -80,6 +83,7 @@ const ListSectionsQuery = z.object({
 });
 
 export async function GET(req: Request) {
+  const supabase = getSupabase();
   const { searchParams } = new URL(req.url);
   const parsed = ListSectionsQuery.safeParse({
     restaurantId: searchParams.get('restaurantId') || '',
