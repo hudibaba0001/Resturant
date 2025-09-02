@@ -2,6 +2,20 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
+
+// Validation schemas
+const OrderItemSchema = z.object({
+  itemId: z.string().uuid(),
+  qty: z.number().int().positive().max(99),
+});
+
+const OrderInputSchema = z.object({
+  restaurantId: z.string().uuid(),
+  sessionToken: z.string().uuid(),
+  type: z.enum(['pickup', 'delivery']),
+  items: z.array(OrderItemSchema).min(1),
+});
 
 // Build a stable list of header candidates (advisory only)
 function candidatesFromHeaders(req: Request) {
@@ -12,29 +26,6 @@ function candidatesFromHeaders(req: Request) {
   return Array.from(new Set(
     [origin, referer, host, origin?.replace(/\/$/, ''), referer?.replace(/\/$/, '')].filter(Boolean)
   ));
-}
-
-// Robust input parser: JSON first, then query fallback (so curl/PowerShell can test)
-async function parseBodyOrQuery(req: Request) {
-  const ct = req.headers.get('content-type') || '';
-  try {
-    if (ct.includes('application/json')) {
-      const raw = await req.text();             // safer than req.json() if upstream read the stream
-      if (raw) {
-        const body = JSON.parse(raw);
-        if (body && typeof body === 'object') return body;
-      }
-    }
-  } catch {}
-  const url = new URL(req.url);
-  const restaurantId = url.searchParams.get('restaurantId');
-  const sessionToken = url.searchParams.get('sessionToken');
-  const type = url.searchParams.get('type') ?? 'pickup';
-  const itemsQP = url.searchParams.get('items'); // JSON-encoded
-  let items: any[] = [];
-  try { if (itemsQP) items = JSON.parse(itemsQP); } catch {}
-  if (restaurantId && sessionToken) return { restaurantId, sessionToken, type, items };
-  return null;
 }
 
 function genOrderCode() {
@@ -71,18 +62,13 @@ export async function POST(req: Request) {
     try { items = JSON.parse(itemsRaw); } catch { /* leave null */ }
   }
 
-  // TEMP DEBUG: echo what we see (remove after test)
-  if (q.get('debug') === 'raw') {
-    return NextResponse.json({
-      rawLen: raw.length,
-      rawSample: raw.substring(0, 200),
-      parsed: body,
-      restaurantId, sessionToken, type, items,
-    });
-  }
-
-  if (!restaurantId || !sessionToken || !type || !Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'INVALID_INPUT' }, { status: 400 });
+  // Validate input with Zod
+  const parsed = OrderInputSchema.safeParse({ restaurantId, sessionToken, type, items });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { code: 'BAD_REQUEST', reason: 'INVALID_INPUT', issues: parsed.error.issues },
+      { status: 400 }
+    );
   }
 
   const rid   = restaurantId as string;
