@@ -80,6 +80,11 @@ export async function POST(req: Request) {
     .eq('session_token', tok)
     .maybeSingle();
 
+  // TEMP DEBUG: confirm which session id the route is using
+  if (new URL(req.url).searchParams.get('debug') === 'sid') {
+    return NextResponse.json({ token: tok, sessionId: s?.id ?? null }, { status: 200 });
+  }
+
   // Optional sanity: first item belongs to same restaurant
   let firstItem: { id: string; restaurant_id: string } | null = null;
   if (items[0]?.itemId) {
