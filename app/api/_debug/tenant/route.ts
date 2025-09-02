@@ -36,24 +36,40 @@ export async function GET(req: Request) {
   const supabase = getServerSupabase();
 
   // Try matching by allowed_origins @> ANY(candidates)
-  const { data: byOrigin, error: e1 } = await supabase.rpc('debug_match_restaurant_by_origins', {
-    _rid: rid || null,
-    _candidates: candidates
-  }).catch(async () => {
-    // Fallback if RPC not present: do it inline with SQL via REST
+  let byOrigin = null;
+  let rpcError = null;
+  
+  try {
+    const { data, error } = await supabase.rpc('debug_match_restaurant_by_origins', {
+      _rid: rid || null,
+      _candidates: candidates
+    });
+    
+    if (error) {
+      rpcError = error.message;
+    } else {
+      byOrigin = data;
+    }
+  } catch (e) {
+    // RPC function doesn't exist, fallback to inline SQL
     const { data, error } = await supabase
       .from('restaurants')
       .select('id, slug, allowed_origins, is_active, is_verified')
       .or(candidates.map(c => `allowed_origins.cs.{${c}}`).join(','))
       .limit(5);
-    return { data, error };
-  });
+    
+    if (error) {
+      rpcError = error.message;
+    } else {
+      byOrigin = data;
+    }
+  }
 
   return NextResponse.json({
     headers,
     candidates,
     rid_query: rid || null,
     byOrigin: byOrigin ?? null,
-    error: e1?.message ?? null
+    error: rpcError
   });
 }
