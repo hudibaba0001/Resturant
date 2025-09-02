@@ -619,12 +619,11 @@
             <!-- Compact Header -->
             <div class="sidebar-header">
                 <div class="restaurant-info">
-                    <div class="restaurant-avatar">🍕</div>
+                    <div class="restaurant-avatar">🍽️</div>
                     <div class="restaurant-details">
-                        <h1>Mario's Italian Kitchen</h1>
+                        <h1>Restaurant Dashboard</h1>
                         <div class="status-badges">
                             <span class="badge active">Active</span>
-                            <span class="badge verified">Verified</span>
                         </div>
                     </div>
                 </div>
@@ -634,46 +633,53 @@
             <nav class="sidebar-nav">
                 <div class="nav-section">
                     <div class="nav-section-title">Main</div>
-                    <a href="#" class="nav-item active">
+                    <a href="/dashboard" class="nav-item active">
                         <div class="nav-icon">📊</div>
                         <span>Dashboard</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">📦</div>
-                        <span>Orders</span>
-                        <span class="nav-badge">12</span>
+                    <a href="/dashboard/menus" class="nav-item">
+                        <div class="nav-icon">🍽️</div>
+                        <span>Menus</span>
                     </a>
                 </div>
 
                 <div class="nav-section">
                     <div class="nav-section-title">Management</div>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">🍽️</div>
-                        <span>Menu</span>
+                    <a href="/dashboard/orders" class="nav-item">
+                        <div class="nav-icon">📦</div>
+                        <span>Orders</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">⚙️</div>
-                        <span>Settings</span>
+                    <a href="/dashboard/items" class="nav-item">
+                        <div class="nav-icon">🍕</div>
+                        <span>Menu Items</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">👥</div>
-                        <span>Staff</span>
-                    </a>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">📈</div>
-                        <span>Analytics</span>
+                    <a href="/dashboard/sections" class="nav-item">
+                        <div class="nav-icon">📋</div>
+                        <span>Menu Sections</span>
                     </a>
                 </div>
 
                 <div class="nav-section">
-                    <div class="nav-section-title">Support</div>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">❓</div>
-                        <span>Help Center</span>
+                    <div class="nav-section-title">Settings</div>
+                    <a href="/dashboard/settings" class="nav-item">
+                        <div class="nav-icon">⚙️</div>
+                        <span>Restaurant Settings</span>
                     </a>
-                    <a href="#" class="nav-item">
-                        <div class="nav-icon">📞</div>
-                        <span>Contact Support</span>
+                    <a href="/dashboard/widget" class="nav-item">
+                        <div class="nav-icon">🔗</div>
+                        <span>Widget Setup</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <a href="/dashboard/profile" class="nav-item">
+                        <div class="nav-icon">👤</div>
+                        <span>Profile</span>
+                    </a>
+                    <a href="/onboard" class="nav-item">
+                        <div class="nav-icon">🚀</div>
+                        <span>Onboarding</span>
                     </a>
                 </div>
             </nav>
@@ -912,11 +918,14 @@
                 
                 const subtitles = {
                     'Dashboard': 'Welcome back! Here\'s what\'s happening today.',
-                    'Orders': 'Manage and track all restaurant orders in real-time',
-                    'Menu': 'Manage your restaurant\'s menus and items',
-                    'Settings': 'Configure your restaurant settings',
-                    'Staff': 'Manage your restaurant team',
-                    'Analytics': 'View detailed reports and insights'
+                    'Menus': 'Manage your restaurant\'s menus and sections',
+                    'Orders': 'Track and manage all restaurant orders',
+                    'Menu Items': 'Add, edit, and organize your menu items',
+                    'Menu Sections': 'Organize your menu into logical sections',
+                    'Restaurant Settings': 'Configure your restaurant preferences',
+                    'Widget Setup': 'Configure your embedded ordering widget',
+                    'Profile': 'Manage your account settings',
+                    'Onboarding': 'Complete your restaurant setup'
                 };
                 
                 document.querySelector('.page-subtitle').textContent = subtitles[itemText] || 'Manage your restaurant operations';
