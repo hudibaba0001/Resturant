@@ -141,7 +141,7 @@ function genCode(len=6){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(
 function genPin(){return String((Math.random()*9000+1000)|0);}
 
 // --- DEBUG: read-only GET to inspect header → restaurant matching ---
-import { getSupabaseServer } from '@/lib/supabase/server'; // must return a service-role client
+import { getServerSupabase } from '@/lib/supabase/server'; // must return a service-role client
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -168,7 +168,7 @@ export async function GET(req: Request) {
       .filter(Boolean)
   ));
 
-  const { supabase } = await getSupabaseServer(); // should use SERVICE ROLE on server
+  const supabase = getServerSupabase(); // should use SERVICE ROLE on server
   const { data: r, error } = await supabase
     .from('restaurants')
     .select('id, slug, is_active, is_verified, allowed_origins')
