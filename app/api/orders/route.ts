@@ -44,19 +44,17 @@ function genOrderCode() {
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const q = url.searchParams;
-  const ct = req.headers.get('content-type') || '';
 
-  // 1) Try to read JSON body if provided
+  // --- Read raw body exactly once; do NOT call req.json() elsewhere.
+  let raw = '';
+  try { raw = await req.text(); } catch { /* ignore */ }
+
   let body: any = null;
-  if (ct.includes('application/json')) {
-    try {
-      body = await req.json();
-    } catch {
-      // ignore; we'll fall back to query params
-    }
+  if (raw && raw.trim().length > 0) {
+    try { body = JSON.parse(raw); } catch { /* not JSON; leave null */ }
   }
 
-  // 2) Prefer JSON body, fall back to query params (and header for restaurantId)
+  // Prefer JSON body; fall back to query string or header
   const restaurantId =
     body?.restaurantId ??
     q.get('restaurantId') ??
@@ -65,7 +63,6 @@ export async function POST(req: Request) {
   const sessionToken = body?.sessionToken ?? q.get('sessionToken');
   const type         = body?.type ?? q.get('type') ?? 'pickup';
 
-  // 3) items can be an array (JSON body) or a stringified array (query)
   const itemsRaw = body?.items ?? q.get('items');
   let items: any = null;
   if (Array.isArray(itemsRaw)) {
@@ -74,12 +71,16 @@ export async function POST(req: Request) {
     try { items = JSON.parse(itemsRaw); } catch { /* leave null */ }
   }
 
-  // 4) TEMP DEBUG – remove after verification
-  if (q.get('debug') === 'echo') {
-    return NextResponse.json({ ct, bodySeen: body ?? null, restaurantId, sessionToken, type, items }, { status: 200 });
+  // TEMP DEBUG: echo what we see (remove after test)
+  if (q.get('debug') === 'raw') {
+    return NextResponse.json({
+      rawLen: raw.length,
+      rawSample: raw.substring(0, 200),
+      parsed: body,
+      restaurantId, sessionToken, type, items,
+    });
   }
 
-  // 5) Validate
   if (!restaurantId || !sessionToken || !type || !Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'INVALID_INPUT' }, { status: 400 });
   }
