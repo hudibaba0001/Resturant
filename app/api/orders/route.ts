@@ -139,3 +139,54 @@ export async function POST(req:NextRequest){
 
 function genCode(len=6){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<len;i++)s+=a[(Math.random()*a.length)|0];return s;}
 function genPin(){return String((Math.random()*9000+1000)|0);}
+
+// --- DEBUG: read-only GET to inspect header → restaurant matching ---
+import { getSupabaseServer } from '@/lib/supabase/server'; // must return a service-role client
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const rid = url.searchParams.get('restaurantId') ?? '';
+
+  const headerNames = [
+    'host',
+    'origin',
+    'referer',
+    'x-forwarded-host',
+    'x-forwarded-proto',
+    'x-vercel-id',
+  ];
+  const headers: Record<string, string | null> = {};
+  for (const h of headerNames) headers[h] = req.headers.get(h);
+
+  const host    = headers['x-forwarded-host'] ?? headers['host'] ?? '';
+  const origin  = headers['origin']  ?? '';
+  const referer = headers['referer'] ?? '';
+
+  // Build the same candidate list tenant guards usually try
+  const candidates = Array.from(new Set(
+    [origin, referer, host, origin.replace(/\/$/, ''), referer.replace(/\/$/, '')]
+      .filter(Boolean)
+  ));
+
+  const { supabase } = await getSupabaseServer(); // should use SERVICE ROLE on server
+  const { data: r, error } = await supabase
+    .from('restaurants')
+    .select('id, slug, is_active, is_verified, allowed_origins')
+    .eq('id', rid)
+    .maybeSingle();
+
+  const matches =
+    r?.allowed_origins?.length
+      ? candidates.map(c => ({ candidate: c, match: r.allowed_origins.includes(c) }))
+      : [];
+
+  return NextResponse.json({
+    rid,
+    headers,
+    candidates,
+    restaurant: r ?? null,
+    matches,
+    anyMatch: matches.some(m => m.match),
+    error: error?.message ?? null,
+  });
+}
