@@ -42,6 +42,7 @@ function genOrderCode() {
 }
 
 export async function POST(req: Request) {
+  // Parse JSON body first, then fall back to query parameters
   const url = new URL(req.url);
   const q = url.searchParams;
   const ct = req.headers.get('content-type') || '';
