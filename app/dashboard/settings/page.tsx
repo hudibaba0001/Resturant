@@ -139,7 +139,7 @@ export default function SettingsPage() {
         [day]: {
           ...prev.openingHours[day],
           [field]: value
-        }
+        } as { open: string; close: string; closed: boolean }
       }
     }));
     setHasChanges(true);
