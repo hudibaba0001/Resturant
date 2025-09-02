@@ -5,11 +5,13 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Create Supabase client for API routes using anon key
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Helper function to create Supabase client
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 const UpdateSectionSchema = z.object({
   name: z.string().min(1),
@@ -19,6 +21,8 @@ const UpdateSectionSchema = z.object({
 });
 
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
+  const supabase = getSupabase();
+  
   const id = ctx.params.id;
   const body = await req.json().catch(() => null);
   const parsed = UpdateSectionSchema.safeParse(body);
@@ -94,6 +98,8 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
 }
 
 export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
+  const supabase = getSupabase();
+  
   const id = ctx.params.id;
 
   // Get current section info
