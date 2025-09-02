@@ -149,7 +149,7 @@ export async function POST(req:NextRequest){
     let session = await resolveSession(supabase, rid, undefined, tok);
     if ('code' in session) {
       // Auto-mint safety net for legacy widget-* tokens
-      if (session.code === 'SESSION_INVALID' && sessionToken && sessionToken.startsWith('widget-')) {
+      if (session.code === 'SESSION_INVALID' && tok && tok.startsWith('widget-')) {
         // soft-mint a new session for active restaurants
         const { data: r } = await supabase.from('restaurants').select('id, is_active').eq('id', rid).maybeSingle();
         if (r?.is_active) {
@@ -178,19 +178,19 @@ export async function POST(req:NextRequest){
     }
 
     // Price lookup
-    const ids = Array.from(new Set(items.map(i=>i.itemId)));
+    const ids = Array.from(new Set(items.map((i: any) => i.itemId)));
     const { data: menu, error: mErr } = await supabase.from('menu_items').select('id, price_cents, currency').in('id', ids);
     if(mErr) return NextResponse.json({code:'MENU_LOOKUP_ERROR', error:mErr.message},{status:500});
-    const map = new Map(menu!.map(m=>[m.id,m]));
-    const lines = items.map(i=>{
+    const map = new Map(menu!.map((m: any) => [m.id,m]));
+    const lines = items.map((i: any) => {
       const mi = map.get(i.itemId);
       if(!mi) return null;
       return { order_id:'', item_id:i.itemId, qty:i.qty, price_cents: mi.price_cents, notes:i.notes, selections:{} };
     });
-    if(lines.some(l=>l===null)) return NextResponse.json({code:'BAD_LINE', why:'unknown item or unavailable'},{status:400});
+    if(lines.some((l: any) => l===null)) return NextResponse.json({code:'BAD_LINE', why:'unknown item or unavailable'},{status:400});
 
     const currency = menu?.[0]?.currency || 'SEK';
-    const total_cents = (lines as any[]).reduce((s,l)=> s + l.price_cents*l.qty, 0);
+    const total_cents = (lines as any[]).reduce((s: any, l: any) => s + l.price_cents*l.qty, 0);
     const order_code = genCode(); const pin = orderType==='pickup'? genPin(): null;
 
     const { data: order, error: oErr } = await supabase.from('orders').insert([{
