@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Clock, 
@@ -129,6 +129,30 @@ export default function OrdersPage() {
     console.log(`Order ${orderId}: ${action}`);
     // TODO: Implement actual order actions
   };
+
+  // Update dashboard header and navigation when component mounts
+  useEffect(() => {
+    const pageTitle = document.getElementById('page-title');
+    const pageSubtitle = document.getElementById('page-subtitle');
+    const ordersNav = document.getElementById('nav-orders');
+    
+    if (pageTitle) pageTitle.textContent = 'Order Management';
+    if (pageSubtitle) pageSubtitle.textContent = 'Manage and track all restaurant orders in real-time';
+    
+    // Highlight orders navigation
+    if (ordersNav) {
+      ordersNav.classList.add('bg-blue-50', 'text-blue-700');
+      ordersNav.classList.remove('text-gray-600');
+    }
+    
+    // Cleanup function to remove highlighting when component unmounts
+    return () => {
+      if (ordersNav) {
+        ordersNav.classList.remove('bg-blue-50', 'text-blue-700');
+        ordersNav.classList.add('text-gray-600');
+      }
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -441,25 +465,26 @@ export default function OrdersPage() {
         </Link>
       </div>
 
-      {/* Empty State */}
-      {filteredOrders.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">📦</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
-          <p className="text-gray-600 mb-4">
-            {searchQuery || activeFilter !== 'all' || orderTypeFilter !== 'all'
-              ? 'Try adjusting your filters or search terms'
-              : 'Orders will appear here when customers place them'}
-          </p>
-          <Link
-            href="/dashboard/orders/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Create Test Order
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
+             {/* Empty State */}
+       {filteredOrders.length === 0 && (
+         <div className="text-center py-12">
+           <div className="text-gray-400 text-6xl mb-4">📦</div>
+           <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
+           <p className="text-gray-600 mb-4">
+             {searchQuery || activeFilter !== 'all' || orderTypeFilter !== 'all'
+               ? 'Try adjusting your filters or search terms'
+               : 'Orders will appear here when customers place them'}
+           </p>
+           <Link
+             href="/dashboard/orders/new"
+             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+           >
+             <Plus className="h-4 w-4" />
+             Create Test Order
+           </Link>
+         </div>
+       )}
+
+     </div>
+   );
+ }

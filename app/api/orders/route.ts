@@ -14,6 +14,21 @@ export async function POST(req:NextRequest){
     const { supabase } = getSupabaseWithBearer(req);
     const body = await req.json().catch(()=> ({} as any));
 
+    // Debug path for ?why=1
+    const url = new URL(req.url);
+    const debugWhy = url.searchParams.get('why') === '1';
+
+    // headers seen by the server
+    const h = (n: string) => req.headers.get(n) ?? '';
+    const host    = h('x-forwarded-host') || h('host');
+    const origin  = h('origin');
+    const referer = h('referer');
+
+    const candidates = Array.from(new Set(
+      [origin, referer, host, origin?.replace(/\/$/, ''), referer?.replace(/\/$/, '')]
+        .filter(Boolean) as string[]
+    ));
+
     const restaurantId = body.restaurantId || body.restaurant_id || '';
     const sessionId = body.sessionId || body.session_id;
     const sessionToken = body.sessionToken || body.session_token;
@@ -28,6 +43,61 @@ export async function POST(req:NextRequest){
     if(!UUID_RE.test(restaurantId)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
     if(!sessionId && !sessionToken) return NextResponse.json({code:'BAD_SESSION'},{status:400});
     if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
+
+    // Debug path: run guard checks and return details if ?why=1
+    if (debugWhy) {
+      const rid = restaurantId;
+      const tok = sessionToken;
+      const item = itemsRaw[0]?.itemId;
+
+      // read restaurant
+      const { data: r } = await supabase
+        .from('restaurants')
+        .select('id, slug, is_active, is_verified, allowed_origins')
+        .eq('id', rid)
+        .maybeSingle();
+
+      // read session
+      const { data: s } = await supabase
+        .from('widget_sessions')
+        .select('session_token, restaurant_id, origin')
+        .eq('session_token', tok)
+        .maybeSingle();
+
+      // read item (optional)
+      let i: any = null;
+      if (item) {
+        const res = await supabase
+          .from('menu_items_v2')
+          .select('id, restaurant_id')
+          .eq('id', item)
+          .maybeSingle();
+        i = res.data;
+      }
+
+      // guards similar to your BAD_RESTAURANT logic
+      const checks = {
+        restaurantOk:   !!r && r.id === rid,
+        restaurantLive: !!r && (r.is_active ?? true) && (r.is_verified ?? false),
+        originMatch:    !!r && (r.allowed_origins ?? []).some((o: string) => candidates.includes(o)),
+        sessionOk:      !!s && s.restaurant_id === rid,
+        sessionOriginOk:!!s && !!s.origin && candidates.includes(s.origin),
+        itemOk:         item ? (!!i && i.restaurant_id === rid) : true,
+      };
+
+      // if any check fails and ?why=1, return details instead of generic BAD_RESTAURANT
+      if (Object.values(checks).some(v => !v)) {
+        return NextResponse.json({
+          code: 'BAD_RESTAURANT',
+          headers: { host, origin, referer },
+          candidates,
+          checks,
+          restaurant: r ?? null,
+          session: s ?? null,
+          item: i ?? null,
+        }, { status: 400 });
+      }
+    }
 
     const items = itemsRaw.map(r=>{
       const itemId = r.itemId || r.id || '';

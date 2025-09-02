@@ -109,13 +109,14 @@ export default async function DashboardLayout({
             <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Management
             </div>
-            <Link
-              href="/dashboard/orders"
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              Orders
-            </Link>
+                         <Link
+               href="/dashboard/orders"
+               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
+               id="nav-orders"
+             >
+               <ShoppingCart className="h-4 w-4" />
+               Orders
+             </Link>
             <Link
               href="/dashboard/items"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
