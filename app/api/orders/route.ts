@@ -109,15 +109,15 @@ export async function POST(req:NextRequest){
       });
     }
 
-    const items = itemsRaw.map(r=>{
+    const items = itemsRaw.map((r: RawItem) => {
       const itemId = r.itemId || r.id || '';
       const qty = Number.isInteger(r.qty)? r.qty : Number(r.quantity)||0;
       return {itemId, qty, notes: r.notes ?? null};
     });
-    if(items.some(i=>!i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
+    if(items.some((i: any) => !i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
 
     // ✅ Optional: Server-side valve for legacy numeric IDs (temporary)
-    const numericIds = items.filter(i => /^\d+$/.test(i.itemId)).map(i => i.itemId);
+    const numericIds = items.filter((i: any) => /^\d+$/.test(i.itemId)).map((i: any) => i.itemId);
     if (numericIds.length) {
       const { data: rows, error } = await supabase
         .from('menu_items')
@@ -129,7 +129,7 @@ export async function POST(req:NextRequest){
           const n = r.nutritional_info?.item_number;
           if (n && /^\d+$/.test(String(n))) numMap.set(String(n), r.id);
         }
-        items.forEach(i => {
+        items.forEach((i: any) => {
           if (/^\d+$/.test(i.itemId) && numMap.get(i.itemId)) {
             i.itemId = numMap.get(i.itemId)!;
           }
