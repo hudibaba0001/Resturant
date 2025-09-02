@@ -43,18 +43,30 @@ function genOrderCode() {
 
 export async function POST(req: Request) {
   const url = new URL(req.url);
-  const debugWhy = url.searchParams.get('why') === '1';
+  const q = url.searchParams;
+  const ct = req.headers.get('content-type') || '';
 
-  // 1) Parse body (or query fallback)
-  const body = await parseBodyOrQuery(req);
-  if (!body) {
-    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'NO_BODY', ct: req.headers.get('content-type') || null }, { status: 400 });
+  let body: any = null;
+  if (ct.includes('application/json')) {
+    try { body = await req.json(); } catch { /* ignore */ }
   }
 
-  const rid   = body.restaurantId as string;
-  const tok   = body.sessionToken as string;
-  const type  = (typeof body.type === 'string' && body.type) || 'pickup';
-  const items = Array.isArray(body.items) ? body.items : [];
+  const restaurantId = body?.restaurantId ?? q.get('restaurantId');
+  const sessionToken = body?.sessionToken ?? q.get('sessionToken');
+  const type         = body?.type         ?? q.get('type') ?? 'pickup';
+  const itemsRaw     = body?.items        ?? q.get('items');
+  const items = Array.isArray(itemsRaw) ? itemsRaw
+    : (typeof itemsRaw === 'string' ? JSON.parse(itemsRaw) : null);
+
+  if (!restaurantId || !sessionToken || !type || !Array.isArray(items) || items.length === 0) {
+    return NextResponse.json(
+      { code: 'BAD_REQUEST', reason: 'INVALID_INPUT' },
+      { status: 400 },
+    );
+  }
+
+  const rid   = restaurantId as string;
+  const tok   = sessionToken as string;
   const cands = candidatesFromHeaders(req);
 
   // 2) Service-role Supabase client (server-only envs)
@@ -98,9 +110,6 @@ export async function POST(req: Request) {
     itemOk:         firstItem ? firstItem.restaurant_id === rid : true,
   };
 
-  if (debugWhy && Object.values(checks).some(v => !v)) {
-    return NextResponse.json({ code: 'BAD_RESTAURANT', checks, _src: 'orders-v1' }, { status: 400 });
-  }
   if (!checks.restaurantOk || !checks.restaurantLive || !checks.sessionOk || !checks.itemOk) {
     return NextResponse.json({ code: 'BAD_RESTAURANT', _src: 'orders-v1' }, { status: 400 });
   }
