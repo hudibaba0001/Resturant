@@ -168,9 +168,9 @@ export async function POST(req: Request) {
     order_code: genOrderCode(),
     total_cents,
     currency: 'SEK',
-    customer_name: body.customer?.name ?? null,
-    phone_e164:    body.customer?.phone ?? null,
-    email:         body.customer?.email ?? null,
+    customer_name: body?.customer?.name ?? null,
+    phone_e164:    body?.customer?.phone ?? null,
+    email:         body?.customer?.email ?? null,
   };
   const { data: createdOrder, error: oErr } = await supabase
     .from('orders')
