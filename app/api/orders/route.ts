@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
 import { resolveSession } from '@/app/api/_lib/resolveSession';
+import { getSupabaseServer } from '@/lib/supabase/server';
 
 const UUID_RE=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -11,92 +12,101 @@ type RawItem={itemId?:string;id?:string;qty?:number;quantity?:number;notes?:stri
 
 export async function POST(req:NextRequest){
   try{
-    const { supabase } = getSupabaseWithBearer(req);
-    const body = await req.json().catch(()=> ({} as any));
+    // Parse body
+    const body = await req.json().catch(() => null);
+    if (!body) return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
+
+    const rid   = body.restaurantId || body.restaurant_id || '';
+    const tok   = body.sessionToken || body.session_token || '';
+    const itemsRaw = Array.isArray(body.items) ? body.items : [];
+
+    // ✅ your enum is ('pickup','delivery','dine_in')
+    const orderType: 'pickup' | 'dine_in' | 'delivery' =
+      body.type === 'dine_in' ? 'dine_in' : 
+      body.type === 'delivery' ? 'delivery' : 'pickup';
+
+    // Basic validation
+    if(!UUID_RE.test(rid)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
+    if(!tok) return NextResponse.json({code:'BAD_SESSION'},{status:400});
+    if(!items.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
+
+    // Normalize headers (advisory only)
+    const h = (n: string) => req.headers.get(n) ?? '';
+    const host    = h('x-forwarded-host') || h('host');
+    const origin  = h('origin');
+    const referer = h('referer');
+    const candidates = Array.from(new Set(
+      [origin, referer, host, origin.replace(/\/$/, ''), referer.replace(/\/$/, '')].filter(Boolean)
+    ));
 
     // Debug path for ?why=1
     const url = new URL(req.url);
     const debugWhy = url.searchParams.get('why') === '1';
 
-    // headers seen by the server
-    const h = (n: string) => req.headers.get(n) ?? '';
-    const host    = h('x-forwarded-host') || h('host');
-    const origin  = h('origin');
-    const referer = h('referer');
+    // Use service role client for guard checks
+    const { supabase } = await getSupabaseServer(); // SERVICE ROLE
 
-    const candidates = Array.from(new Set(
-      [origin, referer, host, origin?.replace(/\/$/, ''), referer?.replace(/\/$/, '')]
-        .filter(Boolean) as string[]
-    ));
+    // Read restaurant/session/item from DB
+    const { data: r } = await supabase
+      .from('restaurants')
+      .select('id, is_active, is_verified, allowed_origins')
+      .eq('id', rid)
+      .maybeSingle();
 
-    const restaurantId = body.restaurantId || body.restaurant_id || '';
-    const sessionId = body.sessionId || body.session_id;
-    const sessionToken = body.sessionToken || body.session_token;
-    
-    // ✅ your enum is ('pickup','delivery','dine_in')
-    const orderType: 'pickup' | 'dine_in' | 'delivery' =
-      body.type === 'dine_in' ? 'dine_in' : 
-      body.type === 'delivery' ? 'delivery' : 'pickup';
-    
-    const itemsRaw:RawItem[] = Array.isArray(body.items)? body.items: [];
+    const { data: s } = await supabase
+      .from('widget_sessions')
+      .select('session_token, restaurant_id, origin')
+      .eq('session_token', tok)
+      .maybeSingle();
 
-    if(!UUID_RE.test(restaurantId)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
-    if(!sessionId && !sessionToken) return NextResponse.json({code:'BAD_SESSION'},{status:400});
-    if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
+    // Optional: validate first item belongs to the same restaurant
+    let i: { id: string; restaurant_id: string } | null = null;
+    if (itemsRaw[0]?.itemId) {
+      const res = await supabase
+        .from('menu_items_v2')
+        .select('id, restaurant_id')
+        .eq('id', itemsRaw[0].itemId)
+        .maybeSingle();
+      i = res.data as any;
+    }
 
-    // Debug path: run guard checks and return details if ?why=1
+    // Core, data-driven checks
+    const restaurantOk   = !!r && r.id === rid;
+    const restaurantLive = !!r && (r.is_active ?? true) && (r.is_verified ?? false);
+    const sessionOk      = !!s && s.restaurant_id === rid;
+    const itemOk         = i ? i.restaurant_id === rid : true;
+
+    if (!restaurantOk || !restaurantLive || !sessionOk || !itemOk) {
+      return NextResponse.json({ code: 'BAD_RESTAURANT' }, { status: 400 });
+    }
+
+    // Header checks become advisory (log-only)
+    const originAllowed   = !!r && (r.allowed_origins ?? []).some((o) => candidates.includes(o));
+    const sessionOriginOk = !!s && s.origin ? candidates.includes(s.origin) : true;
+    if (!originAllowed || !sessionOriginOk) {
+      console.warn('Origin mismatch (continuing):', { candidates, allowed: r?.allowed_origins, sessionOrigin: s?.origin });
+    }
+
+    // Debug path: return detailed checks if ?why=1
     if (debugWhy) {
-      const rid = restaurantId;
-      const tok = sessionToken;
-      const item = itemsRaw[0]?.itemId;
-
-      // read restaurant
-      const { data: r } = await supabase
-        .from('restaurants')
-        .select('id, slug, is_active, is_verified, allowed_origins')
-        .eq('id', rid)
-        .maybeSingle();
-
-      // read session
-      const { data: s } = await supabase
-        .from('widget_sessions')
-        .select('session_token, restaurant_id, origin')
-        .eq('session_token', tok)
-        .maybeSingle();
-
-      // read item (optional)
-      let i: any = null;
-      if (item) {
-        const res = await supabase
-          .from('menu_items_v2')
-          .select('id, restaurant_id')
-          .eq('id', item)
-          .maybeSingle();
-        i = res.data;
-      }
-
-      // guards similar to your BAD_RESTAURANT logic
       const checks = {
-        restaurantOk:   !!r && r.id === rid,
-        restaurantLive: !!r && (r.is_active ?? true) && (r.is_verified ?? false),
-        originMatch:    !!r && (r.allowed_origins ?? []).some((o: string) => candidates.includes(o)),
-        sessionOk:      !!s && s.restaurant_id === rid,
-        sessionOriginOk:!!s && !!s.origin && candidates.includes(s.origin),
-        itemOk:         item ? (!!i && i.restaurant_id === rid) : true,
+        restaurantOk,
+        restaurantLive,
+        sessionOk,
+        itemOk,
+        originAllowed,
+        sessionOriginOk
       };
-
-      // if any check fails and ?why=1, return details instead of generic BAD_RESTAURANT
-      if (Object.values(checks).some(v => !v)) {
-        return NextResponse.json({
-          code: 'BAD_RESTAURANT',
-          headers: { host, origin, referer },
-          candidates,
-          checks,
-          restaurant: r ?? null,
-          session: s ?? null,
-          item: i ?? null,
-        }, { status: 400 });
-      }
+      
+      return NextResponse.json({
+        code: 'GUARD_PASSED',
+        headers: { host, origin, referer },
+        candidates,
+        checks,
+        restaurant: r ?? null,
+        session: s ?? null,
+        item: i ?? null,
+      });
     }
 
     const items = itemsRaw.map(r=>{
@@ -112,7 +122,7 @@ export async function POST(req:NextRequest){
       const { data: rows, error } = await supabase
         .from('menu_items')
         .select('id, nutritional_info')
-        .eq('restaurant_id', restaurantId);
+        .eq('restaurant_id', rid);
       if (!error && rows) {
         const numMap = new Map<string,string>();
         for (const r of rows) {
@@ -136,20 +146,20 @@ export async function POST(req:NextRequest){
     }
 
     // Resolve session using the helper
-    let session = await resolveSession(supabase, restaurantId, sessionId, sessionToken);
+    let session = await resolveSession(supabase, rid, undefined, tok);
     if ('code' in session) {
       // Auto-mint safety net for legacy widget-* tokens
       if (session.code === 'SESSION_INVALID' && sessionToken && sessionToken.startsWith('widget-')) {
         // soft-mint a new session for active restaurants
-        const { data: r } = await supabase.from('restaurants').select('id, is_active').eq('id', restaurantId).maybeSingle();
+        const { data: r } = await supabase.from('restaurants').select('id, is_active').eq('id', rid).maybeSingle();
         if (r?.is_active) {
           const { data: sess, error: sErr } = await supabase
             .from('widget_sessions')
-            .insert({ restaurant_id: restaurantId, session_token: sessionToken, locale: 'sv-SE' })
+            .insert({ restaurant_id: rid, session_token: tok, locale: 'sv-SE' })
             .select('id').single();
           if (!sErr && sess) {
             // retry resolve
-            const again = await resolveSession(supabase, restaurantId, undefined, sessionToken);
+            const again = await resolveSession(supabase, rid, undefined, tok);
             if (!('code' in again)) {
               // continue with again.sessionId
               session = again;
@@ -184,7 +194,7 @@ export async function POST(req:NextRequest){
     const order_code = genCode(); const pin = orderType==='pickup'? genPin(): null;
 
     const { data: order, error: oErr } = await supabase.from('orders').insert([{
-      restaurant_id: restaurantId, session_id: session.sessionId, type: orderType, status:'pending',
+      restaurant_id: rid, session_id: session.sessionId, type: orderType, status:'pending',
       order_code, total_cents, currency, pin, pin_issued_at: pin? new Date().toISOString(): null
     }]).select('id, order_code, status, total_cents, currency, type, created_at').single();
     if(oErr || !order){
