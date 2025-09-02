@@ -137,13 +137,14 @@ export default async function DashboardLayout({
             <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">
               Settings
             </div>
-            <Link
-              href="/dashboard/settings"
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
-            >
-              <Settings className="h-4 w-4" />
-              Restaurant Settings
-            </Link>
+                         <Link
+               href="/dashboard/settings"
+               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
+               id="nav-settings"
+             >
+               <Settings className="h-4 w-4" />
+               Restaurant Settings
+             </Link>
             <Link
               href="/dashboard/widget"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"

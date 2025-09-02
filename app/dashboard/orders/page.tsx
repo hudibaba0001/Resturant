@@ -371,9 +371,9 @@ export default function OrdersPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                   <div className="flex items-start gap-2">
                     <MessageSquare className="h-4 w-4 text-blue-600 mt-0.5" />
-                    <div className="text-sm text-blue-800 italic">
-                      "{order.specialInstructions}"
-                    </div>
+                                         <div className="text-sm text-blue-800 italic">
+                       &quot;{order.specialInstructions}&quot;
+                     </div>
                   </div>
                 </div>
               )}
