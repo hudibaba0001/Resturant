@@ -193,8 +193,8 @@ export default async function DashboardLayout({
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
-              <p className="text-sm text-gray-600">Welcome back! Here&apos;s what&apos;s happening today.</p>
+              <h1 className="text-lg font-semibold text-gray-900" id="page-title">Dashboard</h1>
+              <p className="text-sm text-gray-600" id="page-subtitle">Welcome back! Here&apos;s what&apos;s happening today.</p>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gray-100 border border-gray-200 rounded-md flex items-center justify-center cursor-pointer hover:bg-gray-200 transition-colors">
