@@ -28,7 +28,7 @@ export async function POST(req:NextRequest){
     // Basic validation
     if(!UUID_RE.test(rid)) return NextResponse.json({code:'BAD_RESTAURANT'},{status:400});
     if(!tok) return NextResponse.json({code:'BAD_SESSION'},{status:400});
-    if(!items.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
+    if(!itemsRaw.length) return NextResponse.json({code:'NO_ITEMS'},{status:400});
 
     // Normalize headers (advisory only)
     const h = (n: string) => req.headers.get(n) ?? '';
@@ -81,7 +81,7 @@ export async function POST(req:NextRequest){
     }
 
     // Header checks become advisory (log-only)
-    const originAllowed   = !!r && (r.allowed_origins ?? []).some((o) => candidates.includes(o));
+    const originAllowed   = !!r && (r.allowed_origins ?? []).some((o: string) => candidates.includes(o));
     const sessionOriginOk = !!s && s.origin ? candidates.includes(s.origin) : true;
     if (!originAllowed || !sessionOriginOk) {
       console.warn('Origin mismatch (continuing):', { candidates, allowed: r?.allowed_origins, sessionOrigin: s?.origin });
