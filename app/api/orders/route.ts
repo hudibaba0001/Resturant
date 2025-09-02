@@ -136,14 +136,13 @@ export async function POST(req: NextRequest) {
   }
 
   // ===== PRICE & LINES =====
-  // Build unique item list
   const reqItems: Array<{ itemId: string; qty: number; notes?: string; selections?: any }> =
     Array.isArray(itemsRaw) ? itemsRaw : [];
   if (!reqItems.length) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'NO_ITEMS' }, { status: 400 });
   }
 
-  // Fetch prices from menu_items_v2
+  // Fetch item prices
   const ids = Array.from(new Set(reqItems.map(x => x.itemId)));
   const { data: dbItems, error: diErr } = await supabase
     .from('menu_items_v2')
@@ -152,7 +151,6 @@ export async function POST(req: NextRequest) {
   if (diErr) {
     return NextResponse.json({ code: 'ITEM_LOOKUP_FAILED', details: diErr.message }, { status: 500 });
   }
-  // Map by id
   const priceById = new Map<string, number>();
   for (const row of dbItems ?? []) {
     if (row.restaurant_id !== rid) {
@@ -160,17 +158,15 @@ export async function POST(req: NextRequest) {
     }
     priceById.set(row.id, row.base_price_cents ?? 0);
   }
-  // Validate all requested ids exist
   for (const it of reqItems) {
     if (!priceById.has(it.itemId)) {
       return NextResponse.json({ code: 'INVALID_ITEM_ID', itemId: it.itemId }, { status: 400 });
     }
   }
 
-  // Compute totals + line payloads
   const lines = reqItems.map(it => {
-    const price = priceById.get(it.itemId)!; // cents
     const qty = Math.max(1, Number(it.qty) || 1);
+    const price = priceById.get(it.itemId)!; // cents each
     return {
       item_id: it.itemId,
       qty,
@@ -182,7 +178,7 @@ export async function POST(req: NextRequest) {
   });
   const total_cents = lines.reduce((s, l) => s + l.line_total, 0);
 
-  // ===== SESSION ID (uuid) =====
+  // ===== SESSION ID (uuid) from token =====
   const { data: sessionRow, error: sIdErr } = await supabase
     .from('widget_sessions')
     .select('id')
@@ -193,32 +189,30 @@ export async function POST(req: NextRequest) {
   }
 
   // ===== INSERT ORDER =====
-  const order = {
+  const orderInsert = {
     restaurant_id: rid,
     session_id: sessionRow.id,
-    type: orderType,
+    type: (typeof body.type === 'string' && body.type) || 'pickup',
     status: 'pending',
     order_code: genCode(),
     total_cents,
     currency: 'SEK',
-    // optional customer fields if present in body:
-    customer_name: (body.customer?.name ?? null) as any,
-    phone_e164:   (body.customer?.phone ?? null) as any,
-    email:        (body.customer?.email ?? null) as any,
+    customer_name: body.customer?.name ?? null,
+    phone_e164:   body.customer?.phone ?? null,
+    email:        body.customer?.email ?? null,
   };
 
   const { data: createdOrder, error: oErr } = await supabase
     .from('orders')
-    .insert(order)
+    .insert(orderInsert)
     .select('id, order_code, total_cents, created_at')
     .single();
-
   if (oErr) {
     return NextResponse.json({ code: 'ORDER_INSERT_FAILED', details: oErr.message }, { status: 500 });
   }
 
   // ===== INSERT ORDER ITEMS =====
-  const orderItems = lines.map(l => ({
+  const orderItemsInsert = lines.map(l => ({
     order_id: createdOrder.id,
     item_id: l.item_id,
     qty: l.qty,
@@ -226,19 +220,18 @@ export async function POST(req: NextRequest) {
     notes: l.notes,
     selections: l.selections,
   }));
-
-  const { error: oiErr } = await supabase.from('order_items').insert(orderItems);
+  const { error: oiErr } = await supabase.from('order_items').insert(orderItemsInsert);
   if (oiErr) {
     return NextResponse.json({ code: 'ORDER_ITEMS_INSERT_FAILED', details: oiErr.message }, { status: 500 });
   }
 
-  // ===== SUCCESS RESPONSE =====
+  // ===== SUCCESS =====
   return NextResponse.json({
     orderId: createdOrder.id,
     orderCode: createdOrder.order_code,
     totalCents: createdOrder.total_cents,
     currency: 'SEK',
-    items: orderItems.map(x => ({ itemId: x.item_id, qty: x.qty, price_cents: x.price_cents })),
+    items: orderItemsInsert.map(x => ({ itemId: x.item_id, qty: x.qty, price_cents: x.price_cents })),
     createdAt: createdOrder.created_at,
   });
 
