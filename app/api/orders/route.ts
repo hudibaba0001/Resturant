@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseWithBearer } from '@/app/api/_lib/supabase-bearer';
 import { resolveSession } from '@/app/api/_lib/resolveSession';
-import { getSupabaseServer } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 const UUID_RE=/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -76,7 +76,19 @@ export async function POST(req: NextRequest) {
 
   const cands = candidatesFromHeaders(req);
 
-  const { supabase } = await getSupabaseServer(); // must be SERVICE ROLE
+  // ⬇️ Inline, explicit client (service role):
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  if (!supabaseUrl || !supabaseKey) {
+    // keep your standard error contract
+    return NextResponse.json(
+      { code: 'SERVER_MISCONFIG', missing: { supabaseUrl: !supabaseUrl, supabaseKey: !supabaseKey } },
+      { status: 500 }
+    );
+  }
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   const { data: r } = await supabase
     .from('restaurants')
