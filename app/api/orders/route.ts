@@ -135,108 +135,112 @@ export async function POST(req: NextRequest) {
     console.warn('Origin mismatch (continuing):', { candidates: cands, allowed: r?.allowed_origins, sessionOrigin: s?.origin });
   }
 
-  const items = itemsRaw.map((r: RawItem) => {
-    const itemId = r.itemId || r.id || '';
-    const qty = Number.isInteger(r.qty)? r.qty : Number(r.quantity)||0;
-    return {itemId, qty, notes: r.notes ?? null};
+  // ===== PRICE & LINES =====
+  // Build unique item list
+  const reqItems: Array<{ itemId: string; qty: number; notes?: string; selections?: any }> =
+    Array.isArray(itemsRaw) ? itemsRaw : [];
+  if (!reqItems.length) {
+    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'NO_ITEMS' }, { status: 400 });
+  }
+
+  // Fetch prices from menu_items_v2
+  const ids = Array.from(new Set(reqItems.map(x => x.itemId)));
+  const { data: dbItems, error: diErr } = await supabase
+    .from('menu_items_v2')
+    .select('id, restaurant_id, base_price_cents')
+    .in('id', ids);
+  if (diErr) {
+    return NextResponse.json({ code: 'ITEM_LOOKUP_FAILED', details: diErr.message }, { status: 500 });
+  }
+  // Map by id
+  const priceById = new Map<string, number>();
+  for (const row of dbItems ?? []) {
+    if (row.restaurant_id !== rid) {
+      return NextResponse.json({ code: 'ITEM_WRONG_TENANT', itemId: row.id }, { status: 400 });
+    }
+    priceById.set(row.id, row.base_price_cents ?? 0);
+  }
+  // Validate all requested ids exist
+  for (const it of reqItems) {
+    if (!priceById.has(it.itemId)) {
+      return NextResponse.json({ code: 'INVALID_ITEM_ID', itemId: it.itemId }, { status: 400 });
+    }
+  }
+
+  // Compute totals + line payloads
+  const lines = reqItems.map(it => {
+    const price = priceById.get(it.itemId)!; // cents
+    const qty = Math.max(1, Number(it.qty) || 1);
+    return {
+      item_id: it.itemId,
+      qty,
+      price_cents: price,
+      notes: it.notes ?? null,
+      selections: it.selections ?? {}, // jsonb
+      line_total: price * qty,
+    };
   });
-  if(items.some((i: any) => !i.itemId||(i.qty??0)<=0)) return NextResponse.json({code:'BAD_LINE'},{status:400});
+  const total_cents = lines.reduce((s, l) => s + l.line_total, 0);
 
-  // ✅ Optional: Server-side valve for legacy numeric IDs (temporary)
-  const numericIds = items.filter((i: any) => /^\d+$/.test(i.itemId)).map((i: any) => i.itemId);
-  if (numericIds.length) {
-    const { data: rows, error } = await supabase
-      .from('menu_items')
-      .select('id, nutritional_info')
-      .eq('restaurant_id', rid);
-    if (!error && rows) {
-      const numMap = new Map<string,string>();
-      for (const r of rows) {
-        const n = r.nutritional_info?.item_number;
-        if (n && /^\d+$/.test(String(n))) numMap.set(String(n), r.id);
-      }
-      items.forEach((i: any) => {
-        if (/^\d+$/.test(i.itemId) && numMap.get(i.itemId)) {
-          i.itemId = numMap.get(i.itemId)!;
-        }
-      });
-    }
+  // ===== SESSION ID (uuid) =====
+  const { data: sessionRow, error: sIdErr } = await supabase
+    .from('widget_sessions')
+    .select('id')
+    .eq('session_token', tok)
+    .maybeSingle();
+  if (sIdErr || !sessionRow) {
+    return NextResponse.json({ code: 'INVALID_SESSION', details: sIdErr?.message ?? 'not found' }, { status: 400 });
   }
 
-  // ✅ Enforce UUID format for item IDs
-  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  for (const l of items) {
-    if (!UUID.test(l.itemId)) {
-      return NextResponse.json({ code: 'BAD_LINE_ID_FORMAT', itemId: l.itemId }, { status: 400 });
-    }
+  // ===== INSERT ORDER =====
+  const order = {
+    restaurant_id: rid,
+    session_id: sessionRow.id,
+    type: orderType,
+    status: 'pending',
+    order_code: genCode(),
+    total_cents,
+    currency: 'SEK',
+    // optional customer fields if present in body:
+    customer_name: (body.customer?.name ?? null) as any,
+    phone_e164:   (body.customer?.phone ?? null) as any,
+    email:        (body.customer?.email ?? null) as any,
+  };
+
+  const { data: createdOrder, error: oErr } = await supabase
+    .from('orders')
+    .insert(order)
+    .select('id, order_code, total_cents, created_at')
+    .single();
+
+  if (oErr) {
+    return NextResponse.json({ code: 'ORDER_INSERT_FAILED', details: oErr.message }, { status: 500 });
   }
 
-  // Resolve session using the helper
-  let session = await resolveSession(supabase, rid, undefined, tok);
-  if ('code' in session) {
-    // Auto-mint safety net for legacy widget-* tokens
-    if (session.code === 'SESSION_INVALID' && tok && tok.startsWith('widget-')) {
-      // soft-mint a new session for active restaurants
-      const { data: r } = await supabase.from('restaurants').select('id, is_active').eq('id', rid).maybeSingle();
-      if (r?.is_active) {
-        const { data: sess, error: sErr } = await supabase
-          .from('widget_sessions')
-          .insert({ restaurant_id: rid, session_token: tok, locale: 'sv-SE' })
-          .select('id').single();
-        if (!sErr && sess) {
-          // retry resolve
-          const again = await resolveSession(supabase, rid, undefined, tok);
-          if (!('code' in again)) {
-            // continue with again.sessionId
-            session = again;
-          } else {
-            return NextResponse.json({ code: again.code }, { status: 401 });
-          }
-        } else {
-          return NextResponse.json({ code: session.code }, { status: 401 });
-        }
-      } else {
-        return NextResponse.json({ code: session.code }, { status: 401 });
-      }
-    } else {
-      return NextResponse.json({ code: session.code }, { status: 401 });
-    }
+  // ===== INSERT ORDER ITEMS =====
+  const orderItems = lines.map(l => ({
+    order_id: createdOrder.id,
+    item_id: l.item_id,
+    qty: l.qty,
+    price_cents: l.price_cents,
+    notes: l.notes,
+    selections: l.selections,
+  }));
+
+  const { error: oiErr } = await supabase.from('order_items').insert(orderItems);
+  if (oiErr) {
+    return NextResponse.json({ code: 'ORDER_ITEMS_INSERT_FAILED', details: oiErr.message }, { status: 500 });
   }
 
-  // Price lookup
-  const ids = Array.from(new Set(items.map((i: any) => i.itemId)));
-  const { data: menu, error: mErr } = await supabase.from('menu_items').select('id, price_cents, currency').in('id', ids);
-  if(mErr) return NextResponse.json({code:'MENU_LOOKUP_ERROR', error:mErr.message},{status:500});
-  const map = new Map(menu!.map((m: any) => [m.id,m]));
-  const lines = items.map((i: any) => {
-    const mi = map.get(i.itemId);
-    if(!mi) return null;
-    return { order_id:'', item_id:i.itemId, qty:i.qty, price_cents: mi.price_cents, notes:i.notes, selections:{} };
+  // ===== SUCCESS RESPONSE =====
+  return NextResponse.json({
+    orderId: createdOrder.id,
+    orderCode: createdOrder.order_code,
+    totalCents: createdOrder.total_cents,
+    currency: 'SEK',
+    items: orderItems.map(x => ({ itemId: x.item_id, qty: x.qty, price_cents: x.price_cents })),
+    createdAt: createdOrder.created_at,
   });
-  if(lines.some((l: any) => l===null)) return NextResponse.json({code:'BAD_LINE', why:'unknown item or unavailable'},{status:400});
-
-  const currency = menu?.[0]?.currency || 'SEK';
-  const total_cents = (lines as any[]).reduce((s: any, l: any) => s + l.price_cents*l.qty, 0);
-  const order_code = genCode(); const pin = orderType==='pickup'? genPin(): null;
-
-  const { data: order, error: oErr } = await supabase.from('orders').insert([{
-    restaurant_id: rid, session_id: session.sessionId, type: orderType, status:'pending',
-    order_code, total_cents, currency, pin, pin_issued_at: pin? new Date().toISOString(): null
-  }]).select('id, order_code, status, total_cents, currency, type, created_at').single();
-  if(oErr || !order){
-    const msg=oErr?.message?.toLowerCase?.()||'';
-    if(msg.includes('rls')||msg.includes('permission')) return NextResponse.json({code:'FORBIDDEN'},{status:403});
-    return NextResponse.json({code:'ORDER_INSERT_ERROR', error:oErr?.message},{status:500});
-  }
-
-  const payload=(lines as any[]).map((l: any) => ({...l, order_id: order.id}));
-  const { error: liErr } = await supabase.from('order_items').insert(payload);
-  if(liErr) return NextResponse.json({code:'LINE_INSERT_ERROR', error: liErr.message},{status:500});
-
-  return NextResponse.json({ order: {
-    id: order.id, order_code: order.order_code, status: order.status, total_cents: order.total_cents,
-    currency: order.currency, type: order.type, created_at: order.created_at, pin
-  } }, {status:201});
 
   } catch(e:any){
     return NextResponse.json({code:'ROUTE_THROW', error:String(e?.message||e)},{status:500});
