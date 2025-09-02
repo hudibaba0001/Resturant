@@ -9,7 +9,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
           <div className="flex justify-between items-center mb-2">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Today's Revenue</div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">Today&apos;s Revenue</div>
             <div className="w-5 h-5 bg-green-100 text-green-600 rounded flex items-center justify-center text-xs">💰</div>
           </div>
           <div className="text-xl font-semibold text-gray-900 mb-1">12,450 SEK</div>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
           {/* Performance Chart */}
           <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="font-semibold text-gray-900">Today's Performance</h3>
+              <h3 className="font-semibold text-gray-900">Today&apos;s Performance</h3>
               <Link href="/dashboard/analytics" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                 Full Analytics
               </Link>
