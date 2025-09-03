@@ -1,80 +1,77 @@
-export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Helper function to create Supabase client
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  return createClient(url, key, { auth: { persistSession: false } });
 }
 
-const CreateSectionSchema = z.object({
-  restaurantId: z.string().uuid(),
-  menu: z.string().min(1),
-  name: z.string().min(1),
-  description: z.string().optional().default(''),
-  sortIndex: z.number().int().optional().default(0),
-  isActive: z.boolean().optional().default(true),
+const BodySchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  // Accept either key; UI might send restaurant_id,
+  // earlier examples sent menu_id (actually restaurant id)
+  restaurant_id: z.string().uuid().optional(),
+  menu_id: z.string().uuid().optional(),
 });
 
-export async function POST(req: Request) {
-  const supabase = getSupabase();
-  const body = await req.json().catch(() => null);
-  const parsed = CreateSectionSchema.safeParse(body);
-  
-  if (!parsed.success) {
-    console.log("Section creation validation failed:", parsed.error);
-    return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
+export async function POST(req: NextRequest) {
+  try {
+    const json = await req.json().catch(() => ({}));
+    const parsed = BodySchema.safeParse(json);
+    
+    if (!parsed.success) {
+      return NextResponse.json(
+        { code: 'INVALID_INPUT', issues: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const { name } = parsed.data;
+    const restaurant_id = parsed.data.restaurant_id ?? parsed.data.menu_id;
+    
+    if (!restaurant_id) {
+      return NextResponse.json(
+        { code: 'MISSING_RESTAURANT_ID', message: 'restaurant_id or menu_id is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getSupabase();
+
+    const insertRow = {
+      restaurant_id,
+      name,
+      position: 0,
+    };
+
+    const { data, error } = await supabase
+      .from('menu_sections')
+      .insert(insertRow)
+      .select('*')
+      .single();
+
+    if (error) {
+      return NextResponse.json(
+        { code: 'SECTION_CREATE_FAILED', message: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, section: data });
+  } catch (err: any) {
+    return NextResponse.json(
+      { code: 'SERVER_ERROR', message: err?.message ?? 'Unknown error' },
+      { status: 500 }
+    );
   }
-
-  const { restaurantId, menu, name, description, sortIndex, isActive } = parsed.data;
-
-  // Check if section already exists
-  const { data: existing } = await supabase
-    .from('menu_items')
-    .select('id')
-    .eq('restaurant_id', restaurantId)
-    .eq('nutritional_info->>menu', menu)
-    .eq('nutritional_info->>section_path', JSON.stringify([name]))
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json({ code: 'SECTION_EXISTS' }, { status: 409 });
-  }
-
-  // Create a placeholder item to represent the section
-  const { data, error } = await supabase
-    .from('menu_items')
-    .insert({
-      restaurant_id: restaurantId,
-      name: `[SECTION] ${name}`,
-      description: description || `Section: ${name}`,
-      price_cents: null,
-      currency: 'SEK',
-      image_url: null,
-      is_available: isActive,
-      nutritional_info: {
-        menu,
-        section_path: [name],
-        is_section: true,
-        sort_index: sortIndex,
-        description,
-      },
-    })
-    .select('id, name, nutritional_info')
-    .single();
-
-  if (error) {
-    console.log("Section creation error:", error);
-    return NextResponse.json({ code: 'SECTION_CREATE_ERROR' }, { status: 500 });
-  }
-  
-  return NextResponse.json({ ok: true, data });
 }
 
 const ListSectionsQuery = z.object({
