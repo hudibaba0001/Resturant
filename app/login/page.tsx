@@ -2,25 +2,70 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ChefHat } from 'lucide-react';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    // TODO: Implement actual login logic
-    console.log('Login attempt:', { email, password });
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const supabase = getSupabaseBrowser();
+      
+      // Step 1: Sign in with Supabase
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(`Login failed: ${signInError.message}`);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data.session) {
+        setError('No session established after login');
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 2: Sync cookies with server (critical for RLS/SSR)
+      const syncResponse = await fetch('/auth/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'SIGNED_IN',
+          session: {
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          },
+        }),
+      });
+
+      if (!syncResponse.ok) {
+        setError('Failed to sync authentication session');
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 3: Redirect to dashboard
+      router.push('/dashboard/menu');
+      
+    } catch (err: any) {
+      setError(`Login error: ${err?.message || 'Unknown error occurred'}`);
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -53,6 +98,13 @@ export default function LoginPage() {
             Optimizing kitchens with intelligence for the restaurant industry.
           </p>
         </div>
+
+        {/* Error Display */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
