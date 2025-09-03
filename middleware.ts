@@ -10,7 +10,13 @@ export function middleware(req: NextRequest) {
   res.headers.set('X-Frame-Options', 'SAMEORIGIN'); // if you embed widget cross-domain, set only on dashboard pages
   
   // Light CSP starter (tighten post-MVP)
-  res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; connect-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'");
+  // Allow unsafe-eval in development for Next.js hot reload
+  const isDev = process.env.NODE_ENV === 'development';
+  const scriptSrc = isDev 
+    ? "'self' 'unsafe-inline' 'unsafe-eval'"
+    : "'self' 'unsafe-inline'";
+    
+  res.headers.set('Content-Security-Policy', `default-src 'self'; img-src 'self' data: https:; connect-src 'self' https:; style-src 'self' 'unsafe-inline'; script-src ${scriptSrc}`);
   
   // HSTS (only if you fully serve over HTTPS and want subdomains)
   res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
