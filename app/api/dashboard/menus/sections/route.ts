@@ -5,11 +5,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  // service role is required because this runs server-side for the dashboard
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Create Supabase client inside the function to avoid build-time issues
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  return createClient(url, key);
+}
 
 // Accept both camelCase and snake_case from the UI
 const BodySchema = z.object({
@@ -40,6 +44,9 @@ export async function POST(req: NextRequest) {
 
     const { name } = parsed.data;
     const menu_id = (parsed.data.menuId ?? parsed.data.menu_id)!;
+
+    // Get Supabase client
+    const supabase = getSupabase();
 
     // Insert new section (adjust the columns to match your schema)
     const insertRow: Record<string, any> = {
