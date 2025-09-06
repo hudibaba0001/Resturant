@@ -32,11 +32,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   // Load sections
   const loadSections = useCallback(async () => {
     try {
-      const res = await fetch(`/api/dashboard/menus/sections?restaurant_id=${restaurantId}`, {
-        headers: {
-          'X-Admin-Key': '2a4c64b93125596394ac18294c9e16e535289e8d117b5e70de4216cc5ccb9c17'
-        }
-      });
+      const res = await fetch(`/dashboard/_api/menus/sections?restaurant_id=${restaurantId}`);
       if (!res.ok) throw new Error('Failed to load sections');
       
       const data = await res.json();
@@ -66,11 +62,10 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch('/api/dashboard/menus/sections', {
+      const res = await fetch('/dashboard/_api/menus/sections', {
         method: 'POST',
         headers: { 
-          'content-type': 'application/json',
-          'X-Admin-Key': '2a4c64b93125596394ac18294c9e16e535289e8d117b5e70de4216cc5ccb9c17'
+          'content-type': 'application/json'
         },
         body: JSON.stringify({
           restaurant_id: restaurantId,
@@ -114,11 +109,8 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       if (!sectionItem) return;
 
       // Use the section ID for deletion
-      const res = await fetch(`/api/dashboard/menus/sections/${sectionItem.id}`, {
-        method: 'DELETE',
-        headers: {
-          'X-Admin-Key': '2a4c64b93125596394ac18294c9e16e535289e8d117b5e70de4216cc5ccb9c17'
-        }
+      const res = await fetch(`/dashboard/_api/menus/sections/${sectionItem.id}`, {
+        method: 'DELETE'
       });
 
       if (!res.ok) {
