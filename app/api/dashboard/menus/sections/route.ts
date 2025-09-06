@@ -44,17 +44,29 @@ export async function GET(req: Request) {
   
   const { client } = supaResult;
   const url = new URL(req.url);
-  const menu_id = url.searchParams.get('menu_id');
+  let menu_id = url.searchParams.get('menu_id');
   const restaurant_id = url.searchParams.get('restaurant_id');
 
-  if (!menu_id && !restaurant_id) {
+  // If restaurant_id provided, resolve to menu_id
+  if (!menu_id && restaurant_id) {
+    const { data: menu, error: mErr } = await client
+      .from('menus_v2')
+      .select('id')
+      .eq('restaurant_id', restaurant_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (mErr) return NextResponse.json({ code: 'DB_ERROR', error: mErr.message }, { status: 500 });
+    if (!menu) return NextResponse.json({ sections: [] }); // No menu exists yet
+    menu_id = menu.id;
+  }
+
+  if (!menu_id) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'menu_id_or_restaurant_id_required' }, { status: 400 });
   }
 
-  let q = client.from('menu_sections_v2').select('*').order('created_at', { ascending: true });
-
-  if (menu_id) q = q.eq('menu_id', menu_id);
-  if (restaurant_id) q = q.eq('restaurant_id', restaurant_id);
+  const q = client.from('menu_sections_v2').select('*').eq('menu_id', menu_id).order('created_at', { ascending: true });
 
   const { data, error } = await q;
   if (error) return NextResponse.json({ code: 'DB_ERROR', error: error.message }, { status: 500 });
@@ -119,7 +131,7 @@ export async function POST(req: Request) {
   // Insert section; store a simple path (array) for future nesting
   const { data, error } = await client
     .from('menu_sections_v2')
-    .insert({ menu_id, restaurant_id, name, path: [name] })
+    .insert({ menu_id, name, path: [name] })
     .select('*')
     .single();
 
