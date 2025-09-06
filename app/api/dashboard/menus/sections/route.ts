@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     } else {
       const { data: createdMenu, error: cErr } = await client
         .from('menus_v2')
-        .insert({ restaurant_id, name: 'Main' })
+        .insert({ restaurant_id, name: 'Main', slug: 'main' })
         .select('id')
         .single();
       if (cErr) return NextResponse.json({ code: 'DB_ERROR', error: cErr.message }, { status: 500 });
