@@ -204,3 +204,90 @@ block:
   - "Storing full Stripe payloads"
   - "Replacing RLS with Supabase anon keys on client"
   - "Moving data outside EU"
+# -------------------------------
+# QUALITY ENFORCEMENT (MANDATORY)
+# -------------------------------
+quality_requirements:
+  no_shortcuts:
+    - "NEVER use mock data or fake implementations - all APIs must connect to real database"
+    - "NEVER use any/unknown types - all TypeScript must be fully typed"
+    - "NEVER skip error handling - every API must handle all error cases"
+    - "NEVER hardcode values - use environment variables or database config"
+    - "NEVER generate placeholder functions - implement fully or not at all"
+  
+  code_standards:
+    - "Every database query MUST use parameterized queries (no string concatenation)"
+    - "Every API endpoint MUST validate input with Zod schemas"
+    - "Every async function MUST have proper try/catch blocks"
+    - "Every component MUST handle loading and error states"
+    - "Every form MUST have validation before submission"
+
+  forbidden_patterns:
+    - "// TODO: implement later"
+    - "return mockData"
+    - "console.log() in production code"
+    - "any as TypeName"
+    - "// @ts-ignore"
+    - "// eslint-disable"
+    - "setTimeout with arbitrary delays"
+    - "Math.random() for IDs"
+
+  required_patterns:
+    api_routes:
+      - "Input validation with Zod"
+      - "Try/catch with specific error messages"
+      - "Proper HTTP status codes (not all 200s)"
+      - "Return consistent response format"
+    
+    database:
+      - "Use transactions for multi-table operations"
+      - "Check row exists before update/delete"
+      - "Return affected rows count"
+      - "Use proper indexes (no full table scans)"
+
+  testing_requirements:
+    - "Include curl examples for every API endpoint"
+    - "Provide SQL to verify database changes"
+    - "No 'it should work' - must verify with actual commands"
+
+# -------------------------------
+# CURSOR BEHAVIOR RULES
+# -------------------------------
+cursor_directives:
+  NEVER:
+    - "Generate commented-out code"
+    - "Create mock/fake/stub implementations"
+    - "Use setTimeout for async coordination"
+    - "Skip authentication checks 'for now'"
+    - "Disable RLS 'temporarily'"
+    - "Use client-side price calculations"
+    - "Store sensitive data in localStorage"
+    
+  ALWAYS:
+    - "Complete the entire feature before moving on"
+    - "Test with real database queries"
+    - "Handle both success and failure paths"
+    - "Use proper TypeScript types (no any)"
+    - "Implement proper cleanup (close connections, clear timers)"
+    - "Add logging for debugging (but not sensitive data)"
+
+  implementation_order:
+    - "Database schema/migration first"
+    - "Backend API with full validation"
+    - "Frontend only after API is tested"
+    - "Never build UI for non-existent APIs"
+
+# -------------------------------
+# VERIFICATION REQUIREMENTS
+# -------------------------------
+verification:
+  before_completion:
+    - "Show the exact curl command to test the API"
+    - "Show the SQL query to verify data was saved"
+    - "Confirm no TypeScript errors with 'npx tsc --noEmit'"
+    - "Confirm no lint errors with 'npm run lint'"
+  
+  no_assumptions:
+    - "Don't assume database tables exist - check first"
+    - "Don't assume APIs work - provide test commands"
+    - "Don't assume auth works - verify headers"
