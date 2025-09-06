@@ -53,7 +53,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     } catch (err) {
       console.error('Failed to load sections:', err);
     }
-  }, [restaurantId, currentMenuSlug]);
+  }, [restaurantId]);
 
   useEffect(() => {
     loadSections();

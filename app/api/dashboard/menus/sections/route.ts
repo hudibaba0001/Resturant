@@ -69,7 +69,8 @@ export async function POST(req: Request) {
 
   const { client } = supa();
   const { name } = parsed.data;
-  let { menu_id, restaurant_id } = parsed.data;
+  let { menu_id } = parsed.data;
+  const { restaurant_id } = parsed.data;
 
   // If caller passed only restaurant_id, resolve or create a default menu
   if (!menu_id && restaurant_id) {
