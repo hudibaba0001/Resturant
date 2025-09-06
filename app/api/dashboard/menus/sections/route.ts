@@ -39,7 +39,10 @@ export async function GET(req: Request) {
   const guard = requireAdmin(req);
   if (guard) return guard;
 
-  const { client } = supa();
+  const supaResult = supa();
+  if ('err' in supaResult) return supaResult.err;
+  
+  const { client } = supaResult;
   const url = new URL(req.url);
   const menu_id = url.searchParams.get('menu_id');
   const restaurant_id = url.searchParams.get('restaurant_id');
@@ -67,7 +70,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 'INVALID_INPUT', issues: parsed.error.issues }, { status: 400 });
   }
 
-  const { client } = supa();
+  const supaResult = supa();
+  if ('err' in supaResult) return supaResult.err;
+  
+  const { client } = supaResult;
   const { name } = parsed.data;
   let { menu_id } = parsed.data;
   const { restaurant_id } = parsed.data;

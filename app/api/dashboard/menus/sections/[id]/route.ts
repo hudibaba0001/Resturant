@@ -41,7 +41,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ code: 'INVALID_INPUT', issues: parsed.error.issues }, { status: 400 });
   }
 
-  const { client } = supa();
+  const supaResult = supa();
+  if ('err' in supaResult) return supaResult.err;
+  
+  const { client } = supaResult;
   const patch: Record<string, unknown> = { ...parsed.data };
   if (patch.name) patch['path'] = [patch.name as string];
 
@@ -65,7 +68,10 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'invalid_id' }, { status: 400 });
   }
 
-  const { client } = supa();
+  const supaResult = supa();
+  if ('err' in supaResult) return supaResult.err;
+  
+  const { client } = supaResult;
   const { error } = await client.from('menu_sections_v2').delete().eq('id', id);
   if (error) {
     // if FK prevents delete (existing items), surface conflict
