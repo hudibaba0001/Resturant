@@ -1,31 +1,30 @@
 import { NextResponse } from 'next/server';
 
-function internal(url: string, req: Request) {
-  const origin = new URL(req.url).origin;
-  return new URL(url, origin);
-}
-
-async function forward(method: string, req: Request, path: string) {
-  const body = method === 'PATCH' || method === 'PUT' || method === 'POST' ? await req.text() : null;
-  const res = await fetch(internal(path, req), {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Admin-Key': process.env.DASHBOARD_ADMIN_KEY!,
-    },
-    body,
-  });
-  const text = await res.text();
-  return new NextResponse(text, {
-    status: res.status,
-    headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
-  });
-}
+const ADMIN = process.env.DASHBOARD_ADMIN_KEY!;
+const mk = (req: Request, p: string) => new URL(p, new URL(req.url).origin).toString();
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  return forward('PATCH', req, `/api/dashboard/menus/sections/${params.id}`);
+  const body = await req.text();
+  const r = await fetch(mk(req, `/api/dashboard/menus/sections/${params.id}`), {
+    method: 'PATCH',
+    headers: { 'X-Admin-Key': ADMIN, 'content-type': 'application/json' },
+    body,
+  });
+  const text = await r.text();
+  return new NextResponse(text, {
+    status: r.status,
+    headers: { 'content-type': r.headers.get('content-type') ?? 'application/json' },
+  });
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  return forward('DELETE', req, `/api/dashboard/menus/sections/${params.id}`);
+  const r = await fetch(mk(req, `/api/dashboard/menus/sections/${params.id}`), {
+    method: 'DELETE',
+    headers: { 'X-Admin-Key': ADMIN },
+  });
+  const text = await r.text();
+  return new NextResponse(text, {
+    status: r.status,
+    headers: { 'content-type': r.headers.get('content-type') ?? 'application/json' },
+  });
 }

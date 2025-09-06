@@ -1,34 +1,34 @@
 import { NextResponse } from 'next/server';
 
-function internal(url: string, req: Request) {
-  const origin = new URL(req.url).origin;
-  return new URL(url, origin);
-}
-
-async function forward(method: string, req: Request, path: string) {
-  const body = method === 'GET' || method === 'HEAD' ? null : await req.text();
-  const res = await fetch(internal(path, req), {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Admin-Key': process.env.DASHBOARD_ADMIN_KEY!, // server-only
-    },
-    body,
-    // stay same-origin; cookies not needed since we're injecting key
-  });
-
-  const text = await res.text();
-  return new NextResponse(text, {
-    status: res.status,
-    headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
-  });
+const ADMIN = process.env.DASHBOARD_ADMIN_KEY!;
+function apiUrl(req: Request, path: string) {
+  return new URL(path, new URL(req.url).origin).toString();
 }
 
 export async function GET(req: Request) {
-  const q = new URL(req.url).search; // passes ?restaurant_id=... or ?menu_id=...
-  return forward('GET', req, `/api/dashboard/menus/sections${q}`);
+  const urlIn  = new URL(req.url);
+  const urlOut = new URL(apiUrl(req, '/api/dashboard/menus/sections'));
+  // pass through all query params (restaurant_id | menu_id)
+  urlIn.searchParams.forEach((v, k) => urlOut.searchParams.set(k, v));
+
+  const r = await fetch(urlOut, { headers: { 'X-Admin-Key': ADMIN } });
+  const text = await r.text();
+  return new NextResponse(text, {
+    status: r.status,
+    headers: { 'content-type': r.headers.get('content-type') ?? 'application/json' },
+  });
 }
 
 export async function POST(req: Request) {
-  return forward('POST', req, '/api/dashboard/menus/sections');
+  const body = await req.text(); // don't assume JSON always; pass-thru
+  const r = await fetch(apiUrl(req, '/api/dashboard/menus/sections'), {
+    method: 'POST',
+    headers: { 'X-Admin-Key': ADMIN, 'content-type': 'application/json' },
+    body,
+  });
+  const text = await r.text();
+  return new NextResponse(text, {
+    status: r.status,
+    headers: { 'content-type': r.headers.get('content-type') ?? 'application/json' },
+  });
 }
