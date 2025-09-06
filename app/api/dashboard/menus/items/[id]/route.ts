@@ -1,4 +1,4 @@
-// app/api/dashboard/menus/sections/[id]/route.ts
+// app/api/dashboard/menus/items/[id]/route.ts
 export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
@@ -10,22 +10,27 @@ const env = {
   key: process.env.SUPABASE_SERVICE_ROLE_KEY,
   adminKey: process.env.DASHBOARD_ADMIN_KEY,
 };
+
 function supa() {
   if (!env.url || !env.key) {
     return { err: NextResponse.json({ code: 'SERVER_MISCONFIG' }, { status: 500 }) } as const;
   }
   return { client: createClient(env.url, env.key, { auth: { persistSession: false } }) } as const;
 }
+
 function requireAdmin(req: Request) {
   const h = req.headers.get('x-admin-key') || req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (!env.adminKey || !h || h !== env.adminKey) return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
   return null;
 }
 
-const PatchBody = z.object({
+const PatchItemBody = z.object({
   name: z.string().min(1).max(120).optional(),
+  base_price_cents: z.number().int().min(0).optional(),
+  description: z.string().max(500).optional(),
+  is_available: z.boolean().optional(),
   sort_index: z.number().int().optional(),
-  // add other updatable fields later (e.g., is_active)
+  section_id: z.string().uuid().optional(),
 });
 
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
@@ -37,7 +42,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'invalid_id' }, { status: 400 });
   }
 
-  const parsed = PatchBody.safeParse(await req.json().catch(() => ({})));
+  const parsed = PatchItemBody.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json({ code: 'INVALID_INPUT', issues: parsed.error.issues }, { status: 400 });
   }
@@ -46,18 +51,17 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   if ('err' in supaResult) return supaResult.err;
   
   const { client } = supaResult;
-  const patch: Record<string, unknown> = { ...parsed.data };
-  if (patch.name) patch['path'] = [patch.name as string];
+  const patch = { ...parsed.data };
 
   const { data, error } = await client
-    .from('menu_sections_v2')
+    .from('menu_items_v2')
     .update(patch)
     .eq('id', id)
     .select('*')
     .single();
 
   if (error) return NextResponse.json({ code: 'DB_ERROR', error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, section: data });
+  return NextResponse.json({ ok: true, item: data });
 }
 
 export async function DELETE(req: Request, ctx: { params: { id: string } }) {
@@ -73,9 +77,9 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
   if ('err' in supaResult) return supaResult.err;
   
   const { client } = supaResult;
-  const { error } = await client.from('menu_sections_v2').delete().eq('id', id);
+  const { error } = await client.from('menu_items_v2').delete().eq('id', id);
   if (error) {
-    // if FK prevents delete (existing items), surface conflict
+    // if FK prevents delete (existing orders), surface conflict
     const status = /foreign key|constraint/i.test(error.message) ? 409 : 500;
     return NextResponse.json({ code: 'DELETE_FAILED', error: error.message }, { status });
   }
