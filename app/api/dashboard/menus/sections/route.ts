@@ -1,78 +1,111 @@
+// app/api/dashboard/menus/sections/route.ts
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 
-// Create Supabase client inside the function to avoid build-time issues
-function getSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error('Missing Supabase environment variables');
+const env = {
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  key: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  adminKey: process.env.DASHBOARD_ADMIN_KEY, // same header you used for /api/dashboard/orders
+};
+
+function supa() {
+  if (!env.url || !env.key) {
+    return { err: NextResponse.json({ code: 'SERVER_MISCONFIG' }, { status: 500 }) } as const;
   }
-  return createClient(url, key);
+  return {
+    client: createClient(env.url, env.key, { auth: { persistSession: false } }),
+  } as const;
 }
 
-// Accept both camelCase and snake_case from the UI
-const BodySchema = z.object({
-  menuId: z.string().uuid().optional(),
+function requireAdmin(req: Request) {
+  const h = req.headers.get('x-admin-key') || req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  if (!env.adminKey || !h || h !== env.adminKey) {
+    return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
+  }
+  return null;
+}
+
+const CreateBody = z.object({
+  // allow either menu_id OR restaurant_id to keep the UI flexible
   menu_id: z.string().uuid().optional(),
-  name: z.string().trim().min(1, 'Name is required').max(120),
+  restaurant_id: z.string().uuid().optional(),
+  name: z.string().min(1).max(120),
 });
 
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .slice(0, 64);
+export async function GET(req: Request) {
+  const guard = requireAdmin(req);
+  if (guard) return guard;
 
-export async function POST(req: NextRequest) {
-  try {
-    const json = await req.json().catch(() => ({}));
-    const parsed = BodySchema.safeParse(json);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { code: 'INVALID_INPUT', issues: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
+  const { client } = supa();
+  const url = new URL(req.url);
+  const menu_id = url.searchParams.get('menu_id');
+  const restaurant_id = url.searchParams.get('restaurant_id');
 
-    const { name } = parsed.data;
-    const menu_id = (parsed.data.menuId ?? parsed.data.menu_id)!;
-
-    // Get Supabase client
-    const supabase = getSupabase();
-
-    // Insert new section (adjust the columns to match your schema)
-    const insertRow: Record<string, any> = {
-      restaurant_id: menu_id, // menu_sections uses restaurant_id, not menu_id
-      name,
-      position: 0,                  // optional default
-    };
-
-    const { data, error } = await supabase
-      .from('menu_sections')
-      .insert(insertRow)
-      .select('*')
-      .single();
-
-    if (error) {
-      return NextResponse.json(
-        { code: 'SECTION_CREATE_FAILED', message: error.message },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ ok: true, section: data });
-  } catch (err: any) {
-    return NextResponse.json(
-      { code: 'SERVER_ERROR', message: err?.message ?? 'Unknown error' },
-      { status: 500 }
-    );
+  if (!menu_id && !restaurant_id) {
+    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'menu_id_or_restaurant_id_required' }, { status: 400 });
   }
+
+  let q = client.from('menu_sections_v2').select('*').order('created_at', { ascending: true });
+
+  if (menu_id) q = q.eq('menu_id', menu_id);
+  if (restaurant_id) q = q.eq('restaurant_id', restaurant_id);
+
+  const { data, error } = await q;
+  if (error) return NextResponse.json({ code: 'DB_ERROR', error: error.message }, { status: 500 });
+  return NextResponse.json({ sections: data ?? [] });
+}
+
+export async function POST(req: Request) {
+  const guard = requireAdmin(req);
+  if (guard) return guard;
+
+  const parsed = CreateBody.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json({ code: 'INVALID_INPUT', issues: parsed.error.issues }, { status: 400 });
+  }
+
+  const { client } = supa();
+  const { name } = parsed.data;
+  let { menu_id, restaurant_id } = parsed.data;
+
+  // If caller passed only restaurant_id, resolve or create a default menu
+  if (!menu_id && restaurant_id) {
+    const { data: existingMenu, error: mErr } = await client
+      .from('menus_v2')
+      .select('id')
+      .eq('restaurant_id', restaurant_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (mErr) return NextResponse.json({ code: 'DB_ERROR', error: mErr.message }, { status: 500 });
+
+    if (existingMenu?.id) {
+      menu_id = existingMenu.id;
+    } else {
+      const { data: createdMenu, error: cErr } = await client
+        .from('menus_v2')
+        .insert({ restaurant_id, name: 'Main' })
+        .select('id')
+        .single();
+      if (cErr) return NextResponse.json({ code: 'DB_ERROR', error: cErr.message }, { status: 500 });
+      menu_id = createdMenu.id;
+    }
+  }
+
+  if (!menu_id) {
+    return NextResponse.json({ code: 'BAD_REQUEST', reason: 'menu_id_required' }, { status: 400 });
+  }
+
+  // Insert section; store a simple path (array) for future nesting
+  const { data, error } = await client
+    .from('menu_sections_v2')
+    .insert({ menu_id, restaurant_id, name, path: [name] })
+    .select('*')
+    .single();
+
+  if (error) return NextResponse.json({ code: 'DB_ERROR', error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, section: data });
 }
