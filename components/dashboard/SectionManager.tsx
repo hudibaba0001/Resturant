@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Trash2, FolderOpen } from 'lucide-react';
 
 type Section = {
+  id: string;
   name: string;
   itemCount: number;
   isActive: boolean;
@@ -31,12 +32,23 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   // Load sections
   const loadSections = useCallback(async () => {
     try {
-      const res = await fetch(`/api/dashboard/sections?restaurantId=${restaurantId}&menu=${currentMenuSlug}`);
+      const res = await fetch(`/api/dashboard/menus/sections?restaurant_id=${restaurantId}`, {
+        headers: {
+          'X-Admin-Key': process.env.NEXT_PUBLIC_DASHBOARD_ADMIN_KEY || 'dev-admin-key'
+        }
+      });
       if (!res.ok) throw new Error('Failed to load sections');
       
       const data = await res.json();
-      if (data.ok) {
-        setSections(data.data);
+      if (data.sections) {
+        // Transform the new API response to match the expected format
+        const transformedSections = data.sections.map((section: any) => ({
+          id: section.id,
+          name: section.name,
+          itemCount: 0, // TODO: Get actual item count
+          isActive: true
+        }));
+        setSections(transformedSections);
       }
     } catch (err) {
       console.error('Failed to load sections:', err);
@@ -54,24 +66,27 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch('/api/dashboard/sections', {
+      const res = await fetch('/api/dashboard/menus/sections', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 
+          'content-type': 'application/json',
+          'X-Admin-Key': process.env.NEXT_PUBLIC_DASHBOARD_ADMIN_KEY || 'dev-admin-key'
+        },
         body: JSON.stringify({
-          restaurantId,
-          menu: currentMenuSlug,
+          restaurant_id: restaurantId,
           name: newSectionName.trim(),
-          description: `Section for ${newSectionName.trim()}`,
         }),
       });
 
       const data = await res.json();
       
       if (!res.ok) {
-        if (data.code === 'SECTION_EXISTS') {
-          setError('Section already exists');
+        if (data.code === 'INVALID_INPUT') {
+          setError('Invalid section name');
+        } else if (data.code === 'DB_ERROR') {
+          setError('Database error: ' + data.error);
         } else {
-          setError('Failed to create section');
+          setError('Failed to create section: ' + (data.code || 'Unknown error'));
         }
         return;
       }
@@ -94,16 +109,21 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     if (!confirm(`Delete section "${sectionName}"? All items will be moved to General.`)) return;
     
     try {
-      // Find the section placeholder item
+      // Find the section by name to get its ID
       const sectionItem = sections.find(s => s.name === sectionName);
       if (!sectionItem) return;
 
-      const res = await fetch(`/api/dashboard/sections/${sectionItem.name}`, {
+      // Use the section ID for deletion
+      const res = await fetch(`/api/dashboard/menus/sections/${sectionItem.id}`, {
         method: 'DELETE',
+        headers: {
+          'X-Admin-Key': process.env.NEXT_PUBLIC_DASHBOARD_ADMIN_KEY || 'dev-admin-key'
+        }
       });
 
       if (!res.ok) {
-        alert('Failed to delete section');
+        const data = await res.json();
+        alert('Failed to delete section: ' + (data.error || 'Unknown error'));
         return;
       }
 
@@ -163,7 +183,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       <div className="space-y-3">
         {sections.map((section) => (
           <div 
-            key={section.name}
+            key={section.id}
             className={`group bg-white border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
               selectedSection === section.name 
                 ? 'border-blue-300 bg-blue-50 shadow-sm' 
