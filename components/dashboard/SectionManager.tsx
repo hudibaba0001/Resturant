@@ -32,10 +32,13 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   // Load sections
   const loadSections = useCallback(async () => {
     try {
-      const res = await fetch(`/api/dashboard-proxy/menus/sections?restaurant_id=${restaurantId}`);
+      const res = await fetch(`/dashboard/_api/menus/sections?restaurant_id=${restaurantId}`);
       if (!res.ok) throw new Error('Failed to load sections');
       
-      const data = await res.json();
+      const text = await res.text();
+      const data = text && res.headers.get('content-type')?.includes('application/json')
+        ? JSON.parse(text)
+        : null;
       if (data.sections) {
         // Transform the new API response to match the expected format
         const transformedSections = data.sections.map((section: any) => ({
@@ -62,7 +65,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch('/api/dashboard-proxy/menus/sections', {
+      const res = await fetch('/dashboard/_api/menus/sections', {
         method: 'POST',
         headers: { 
           'content-type': 'application/json'
@@ -73,7 +76,10 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      const data = text && res.headers.get('content-type')?.includes('application/json')
+        ? JSON.parse(text)
+        : null;
       
       if (!res.ok) {
         if (data.code === 'INVALID_INPUT') {
@@ -111,13 +117,16 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       if (!sectionItem) return;
 
       // Use the section ID for deletion
-      const res = await fetch(`/api/dashboard-proxy/menus/sections/${sectionItem.id}`, {
+      const res = await fetch(`/dashboard/_api/menus/sections/${sectionItem.id}`, {
         method: 'DELETE'
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        alert('Failed to delete section: ' + (data.error || 'Unknown error'));
+        const text = await res.text();
+        const data = text && res.headers.get('content-type')?.includes('application/json')
+          ? JSON.parse(text)
+          : null;
+        alert('Failed to delete section: ' + (data?.error || 'Unknown error'));
         return;
       }
 
