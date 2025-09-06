@@ -33,7 +33,7 @@ const CreateBody = z.object({
   menu_id: z.string().uuid().optional(),
   restaurant_id: z.string().uuid().optional(),
   name: z.string().min(1).max(120),
-});
+}).refine(v => v.menu_id || v.restaurant_id, { message: 'menu_id or restaurant_id is required' });
 
 export async function GET(req: Request) {
   const guard = requireAdmin(req);
@@ -84,6 +84,7 @@ export async function POST(req: Request) {
       .from('menus_v2')
       .select('id')
       .eq('restaurant_id', restaurant_id)
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -105,6 +106,15 @@ export async function POST(req: Request) {
   if (!menu_id) {
     return NextResponse.json({ code: 'BAD_REQUEST', reason: 'menu_id_required' }, { status: 400 });
   }
+
+  // Optional: prevent duplicates
+  const { data: dup } = await client
+    .from('menu_sections_v2')
+    .select('id')
+    .eq('menu_id', menu_id)
+    .eq('name', name)
+    .maybeSingle();
+  if (dup) return NextResponse.json({ code: 'ALREADY_EXISTS' }, { status: 409 });
 
   // Insert section; store a simple path (array) for future nesting
   const { data, error } = await client

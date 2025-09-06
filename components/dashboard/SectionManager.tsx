@@ -78,6 +78,8 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       if (!res.ok) {
         if (data.code === 'INVALID_INPUT') {
           setError('Invalid section name');
+        } else if (data.code === 'ALREADY_EXISTS') {
+          setError('Section already exists');
         } else if (data.code === 'DB_ERROR') {
           setError('Database error: ' + data.error);
         } else {
