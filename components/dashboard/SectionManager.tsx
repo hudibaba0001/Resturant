@@ -34,7 +34,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     try {
       const res = await fetch(`/api/dashboard/menus/sections?restaurant_id=${restaurantId}`, {
         headers: {
-          'X-Admin-Key': process.env.NEXT_PUBLIC_DASHBOARD_ADMIN_KEY || 'dev-admin-key'
+          'X-Admin-Key': '2a4c64b93125596394ac18294c9e16e535289e8d117b5e70de4216cc5ccb9c17'
         }
       });
       if (!res.ok) throw new Error('Failed to load sections');
@@ -70,7 +70,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         method: 'POST',
         headers: { 
           'content-type': 'application/json',
-          'X-Admin-Key': process.env.NEXT_PUBLIC_DASHBOARD_ADMIN_KEY || 'dev-admin-key'
+          'X-Admin-Key': '2a4c64b93125596394ac18294c9e16e535289e8d117b5e70de4216cc5ccb9c17'
         },
         body: JSON.stringify({
           restaurant_id: restaurantId,
@@ -117,7 +117,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       const res = await fetch(`/api/dashboard/menus/sections/${sectionItem.id}`, {
         method: 'DELETE',
         headers: {
-          'X-Admin-Key': process.env.NEXT_PUBLIC_DASHBOARD_ADMIN_KEY || 'dev-admin-key'
+          'X-Admin-Key': '2a4c64b93125596394ac18294c9e16e535289e8d117b5e70de4216cc5ccb9c17'
         }
       });
 
