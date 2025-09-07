@@ -32,7 +32,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   // Load sections
   const loadSections = useCallback(async () => {
     try {
-      const res = await fetch(`/dashboard/_api/menus/sections?restaurant_id=${restaurantId}`);
+      const res = await fetch(`/dashboard/proxy/menus/sections?restaurant_id=${restaurantId}`);
       if (!res.ok) throw new Error('Failed to load sections');
       
       const text = await res.text();
@@ -65,7 +65,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch('/dashboard/_api/menus/sections', {
+      const res = await fetch('/dashboard/proxy/menus/sections', {
         method: 'POST',
         headers: { 
           'content-type': 'application/json'
@@ -117,7 +117,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       if (!sectionItem) return;
 
       // Use the section ID for deletion
-      const res = await fetch(`/dashboard/_api/menus/sections/${sectionItem.id}`, {
+      const res = await fetch(`/dashboard/proxy/menus/sections/${sectionItem.id}`, {
         method: 'DELETE'
       });
 
