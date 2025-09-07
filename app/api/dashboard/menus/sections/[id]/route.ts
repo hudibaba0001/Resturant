@@ -54,9 +54,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     .update(patch)
     .eq('id', id)
     .select('*')
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ code: 'DB_ERROR', error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
   return NextResponse.json({ ok: true, section: data });
 }
 
@@ -73,11 +74,18 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
   if ('err' in supaResult) return supaResult.err;
   
   const { client } = supaResult;
-  const { error } = await client.from('menu_sections_v2').delete().eq('id', id);
+  const { data, error } = await client
+    .from('menu_sections_v2')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+  
   if (error) {
     // if FK prevents delete (existing items), surface conflict
     const status = /foreign key|constraint/i.test(error.message) ? 409 : 500;
     return NextResponse.json({ code: 'DELETE_FAILED', error: error.message }, { status });
   }
+  if (!data) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
