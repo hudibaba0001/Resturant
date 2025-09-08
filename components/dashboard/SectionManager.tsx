@@ -5,13 +5,19 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, Edit2 } from 'lucide-react';
 
-type Section = {
+export type Section = {
   id: string;
+  menu_id: string;
+  parent_id: string | null;
+  path: string[];
   name: string;
-  itemCount: number;
-  isActive: boolean;
+  description: string | null;
+  sort_index: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 type Props = {
@@ -24,9 +30,10 @@ type Props = {
 export function SectionManager({ restaurantId, currentMenuSlug, selectedSection, onSectionSelect }: Props) {
   const [sections, setSections] = useState<Section[]>([]);
   const [newSectionName, setNewSectionName] = useState('');
-  const [isAddingSection, setIsAddingSection] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
   const router = useRouter();
 
   // Load sections
@@ -39,18 +46,12 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       const data = text && res.headers.get('content-type')?.includes('application/json')
         ? JSON.parse(text)
         : null;
-      if (data.sections) {
-        // Transform the new API response to match the expected format
-        const transformedSections = data.sections.map((section: any) => ({
-          id: section.id,
-          name: section.name,
-          itemCount: 0, // TODO: Get actual item count
-          isActive: true
-        }));
-        setSections(transformedSections);
+      if (data?.sections) {
+        setSections(data.sections as Section[]);
       }
     } catch (err) {
       console.error('Failed to load sections:', err);
+      setError('Failed to load sections');
     }
   }, [restaurantId]);
 
@@ -59,7 +60,10 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   }, [loadSections]);
 
   async function addSection() {
-    if (!newSectionName.trim()) return;
+    if (!newSectionName.trim()) {
+      setError('Please enter a name.');
+      return;
+    }
     
     setBusy(true);
     setError('');
@@ -82,21 +86,20 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         : null;
       
       if (!res.ok) {
-        if (data.code === 'INVALID_INPUT') {
-          setError('Invalid section name');
-        } else if (data.code === 'ALREADY_EXISTS') {
-          setError('Section already exists');
-        } else if (data.code === 'DB_ERROR') {
-          setError('Database error: ' + data.error);
+        if (data?.code === 'INVALID_INPUT') {
+          setError('Please enter a name.');
+        } else if (data?.code === 'ALREADY_EXISTS') {
+          setError('Section already exists.');
+        } else if (data?.code === 'DB_ERROR') {
+          setError('Database error: ' + (data.error || 'Unknown error'));
         } else {
-          setError('Failed to create section: ' + (data.code || 'Unknown error'));
+          setError('Failed to create section: ' + (data?.code || 'Unknown error'));
         }
         return;
       }
 
       // Success - clear form and reload
       setNewSectionName('');
-      setIsAddingSection(false);
       await loadSections();
       router.refresh();
       
@@ -108,25 +111,80 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     }
   }
 
-  async function deleteSection(sectionName: string) {
-    if (!confirm(`Delete section "${sectionName}"? All items will be moved to General.`)) return;
+  async function renameSection(sectionId: string, newName: string) {
+    if (!newName.trim()) {
+      setError('Please enter a name.');
+      return;
+    }
+    
+    setBusy(true);
+    setError('');
     
     try {
-      // Find the section by name to get its ID
-      const sectionItem = sections.find(s => s.name === sectionName);
-      if (!sectionItem) return;
+      const res = await fetch(`/dashboard/proxy/menus/sections/${sectionId}`, {
+        method: 'PATCH',
+        headers: { 
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: newName.trim(),
+        }),
+      });
 
-      // Use the section ID for deletion
-      const res = await fetch(`/dashboard/proxy/menus/sections/${sectionItem.id}`, {
+      const text = await res.text();
+      const data = text && res.headers.get('content-type')?.includes('application/json')
+        ? JSON.parse(text)
+        : null;
+      
+      if (!res.ok) {
+        if (data?.code === 'INVALID_INPUT') {
+          setError('Please enter a name.');
+        } else if (data?.code === 'ALREADY_EXISTS') {
+          setError('Section already exists.');
+        } else if (data?.code === 'NOT_FOUND') {
+          setError('Section not found. Refresh?');
+        } else {
+          setError('Failed to rename section: ' + (data?.code || 'Unknown error'));
+        }
+        return;
+      }
+
+      // Success - clear edit state and reload
+      setEditingSection(null);
+      setEditName('');
+      await loadSections();
+      router.refresh();
+      
+    } catch (err) {
+      setError('Failed to rename section');
+      console.error('Section rename error:', err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteSection(sectionId: string, sectionName: string) {
+    if (!confirm(`Delete section "${sectionName}"? All items will be moved to General.`)) return;
+    
+    setBusy(true);
+    setError('');
+    
+    try {
+      const res = await fetch(`/dashboard/proxy/menus/sections/${sectionId}`, {
         method: 'DELETE'
       });
 
+      const text = await res.text();
+      const data = text && res.headers.get('content-type')?.includes('application/json')
+        ? JSON.parse(text)
+        : null;
+
       if (!res.ok) {
-        const text = await res.text();
-        const data = text && res.headers.get('content-type')?.includes('application/json')
-          ? JSON.parse(text)
-          : null;
-        alert('Failed to delete section: ' + (data?.error || 'Unknown error'));
+        if (data?.code === 'NOT_FOUND') {
+          setError('Section not found. Refresh?');
+        } else {
+          setError('Failed to delete section: ' + (data?.error || 'Unknown error'));
+        }
         return;
       }
 
@@ -139,8 +197,10 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       }
       
     } catch (err) {
-      alert('Failed to delete section');
+      setError('Failed to delete section');
       console.error('Section deletion error:', err);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -204,28 +264,70 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
                   <FolderOpen className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className={`font-medium ${
-                    selectedSection === section.name ? 'text-blue-900' : 'text-gray-900'
-                  }`}>
-                    {section.name}
-                  </div>
+                  {editingSection === section.id ? (
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          renameSection(section.id, editName);
+                        } else if (e.key === 'Escape') {
+                          setEditingSection(null);
+                          setEditName('');
+                        }
+                      }}
+                      onBlur={() => {
+                        if (editName.trim()) {
+                          renameSection(section.id, editName);
+                        } else {
+                          setEditingSection(null);
+                          setEditName('');
+                        }
+                      }}
+                      autoFocus
+                      className="h-8 text-sm"
+                      disabled={busy}
+                    />
+                  ) : (
+                    <div className={`font-medium ${
+                      selectedSection === section.name ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      {section.name}
+                    </div>
+                  )}
                   <div className="text-sm text-gray-500">
-                    {section.itemCount} item{section.itemCount !== 1 ? 's' : ''}
+                    {section.path.length > 0 ? section.path.join(' / ') : 'General'}
                   </div>
                 </div>
               </div>
               
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteSection(section.name);
-                }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSection(section.id);
+                    setEditName(section.name);
+                  }}
+                  className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                  disabled={busy}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSection(section.id, section.name);
+                  }}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  disabled={busy}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         ))}
