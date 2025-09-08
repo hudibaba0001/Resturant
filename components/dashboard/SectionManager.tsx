@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Trash2, FolderOpen, Edit2 } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, Edit2, Pencil, Check, X } from 'lucide-react';
 
 export type Section = {
   id: string;
@@ -20,6 +20,131 @@ export type Section = {
   updated_at: string;
 };
 
+function SectionRow({
+  section,
+  active,
+  onRename,
+  onDelete,
+  onSelect,
+  busy,
+}: {
+  section: Section;
+  active: boolean;
+  onRename: (id: string, name: string) => Promise<void>;
+  onDelete: (id: string, name: string) => Promise<void>;
+  onSelect: (name: string) => void;
+  busy: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(section.name);
+
+  async function save() {
+    if (!value.trim() || value.trim() === section.name) {
+      setEditing(false);
+      return;
+    }
+    await onRename(section.id, value.trim());
+    setEditing(false);
+  }
+
+  function cancel() {
+    setValue(section.name);
+    setEditing(false);
+  }
+
+  return (
+    <div
+      className={[
+        "group relative flex items-center justify-between rounded-md border px-3 py-2",
+        active ? "border-emerald-400 bg-emerald-50" : "border-slate-200 bg-white",
+      ].join(" ")}
+      onClick={() => onSelect(section.name)}
+    >
+      {/* Left: name / editor */}
+      <div className="min-w-0">
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              disabled={busy}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") save();
+                if (e.key === "Escape") cancel();
+              }}
+              onBlur={cancel}
+              placeholder="Section name"
+              aria-label="Section name"
+              className="w-56 rounded-md border border-slate-300 px-2 py-1 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+            />
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={save}
+              disabled={busy}
+              title="Save"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:opacity-50"
+            >
+              <Check className="h-4 w-4" />
+              Save
+            </button>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={cancel}
+              title="Cancel"
+              className="inline-flex items-center gap-1 rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="truncate font-medium text-slate-900">{section.name}</div>
+            <div className="truncate text-xs text-slate-500">
+              {section.path?.join(" › ") || section.name}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Right: actions (visible on hover; always visible on touch) */}
+      <div
+        className="
+          flex items-center gap-1
+          opacity-0 transition-opacity
+          group-hover:opacity-100
+          [@media(pointer:coarse)]:opacity-100
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        {!editing && (
+          <>
+            <button
+              title="Rename section"
+              onClick={() => setEditing(true)}
+              disabled={busy}
+              className="inline-flex items-center rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:opacity-50"
+            >
+              <Pencil className="mr-1 h-4 w-4" />
+              Edit
+            </button>
+            <button
+              title="Delete section"
+              onClick={() => onDelete(section.id, section.name)}
+              disabled={busy}
+              className="inline-flex items-center rounded-md border border-rose-300 px-2 py-1 text-sm text-rose-600 hover:bg-rose-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50"
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              Delete
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 type Props = {
   restaurantId: string;
   currentMenuSlug: string;
@@ -32,8 +157,6 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   const [newSectionName, setNewSectionName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
   const router = useRouter();
 
   // Load sections
@@ -149,9 +272,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         return;
       }
 
-      // Success - clear edit state and reload
-      setEditingSection(null);
-      setEditName('');
+      // Success - reload sections
       await loadSections();
       router.refresh();
       
@@ -174,10 +295,10 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         method: 'DELETE'
       });
 
-      const text = await res.text();
-      const data = text && res.headers.get('content-type')?.includes('application/json')
-        ? JSON.parse(text)
-        : null;
+        const text = await res.text();
+        const data = text && res.headers.get('content-type')?.includes('application/json')
+          ? JSON.parse(text)
+          : null;
 
       if (!res.ok) {
         if (data?.code === 'NOT_FOUND') {
@@ -215,13 +336,13 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
             onChange={(e) => setNewSectionName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addSection()}
             disabled={busy}
-            className="flex-1"
+            className="flex-1 rounded-md border px-3 py-2"
           />
           <Button 
             onClick={addSection} 
             disabled={busy || !newSectionName.trim()}
             size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-emerald-600 hover:bg-emerald-700"
           >
             {busy ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -243,93 +364,21 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
       </div>
 
       {/* Sections List */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         {sections.map((section) => (
-          <div 
+          <SectionRow
             key={section.id}
-            className={`group bg-white border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-              selectedSection === section.name 
-                ? 'border-blue-300 bg-blue-50 shadow-sm' 
-                : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-            }`}
-            onClick={() => onSectionSelect?.(section.name)}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                  selectedSection === section.name 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-gray-100 text-gray-600'
-                }`}>
-                  <FolderOpen className="h-4 w-4" />
-                </div>
-                <div>
-                  {editingSection === section.id ? (
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          renameSection(section.id, editName);
-                        } else if (e.key === 'Escape') {
-                          setEditingSection(null);
-                          setEditName('');
-                        }
-                      }}
-                      onBlur={() => {
-                        if (editName.trim()) {
-                          renameSection(section.id, editName);
-                        } else {
-                          setEditingSection(null);
-                          setEditName('');
-                        }
-                      }}
-                      autoFocus
-                      className="h-8 text-sm"
-                      disabled={busy}
-                    />
-                  ) : (
-                    <div className={`font-medium ${
-                      selectedSection === section.name ? 'text-blue-900' : 'text-gray-900'
-                    }`}>
-                      {section.name}
-                    </div>
-                  )}
-                  <div className="text-sm text-gray-500">
-                    {section.path.length > 0 ? section.path.join(' / ') : 'General'}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingSection(section.id);
-                    setEditName(section.name);
-                  }}
-                  className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                  disabled={busy}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteSection(section.id, section.name);
-                  }}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  disabled={busy}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+            section={section}
+            active={selectedSection === section.name}
+            onSelect={(name) => onSectionSelect?.(name)}
+            onRename={async (id, name) => {
+              await renameSection(id, name);
+            }}
+            onDelete={async (id, name) => {
+              await deleteSection(id, name);
+            }}
+            busy={busy}
+          />
         ))}
         
         {sections.length === 0 && (
@@ -345,29 +394,17 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
 
       {/* General Section (always available) */}
       <div 
-        className={`group bg-white border rounded-lg p-4 cursor-pointer transition-all duration-200 ${
+        className={[
+          "group relative flex items-center justify-between rounded-md border px-3 py-2 cursor-pointer",
           !selectedSection 
-            ? 'border-blue-300 bg-blue-50 shadow-sm' 
-            : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
-        }`}
+            ? "border-emerald-400 bg-emerald-50" 
+            : "border-slate-200 bg-white"
+        ].join(" ")}
         onClick={() => onSectionSelect?.('')}
       >
-        <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
-            !selectedSection 
-              ? 'bg-blue-100 text-blue-600' 
-              : 'bg-gray-100 text-gray-600'
-          }`}>
-            <FolderOpen className="h-4 w-4" />
-          </div>
-          <div>
-            <div className={`font-medium ${
-              !selectedSection ? 'text-blue-900' : 'text-gray-900'
-            }`}>
-              General
-            </div>
-            <div className="text-sm text-gray-500">No section assigned</div>
-          </div>
+        <div className="min-w-0">
+          <div className="truncate font-medium text-slate-900">General</div>
+          <div className="truncate text-xs text-slate-500">No section assigned</div>
         </div>
       </div>
     </div>
