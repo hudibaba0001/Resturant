@@ -107,66 +107,58 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true, data: created }, { status: 201 });
 }
 
+const AdminKey = process.env.DASHBOARD_ADMIN_KEY || process.env.ADMIN_KEY;
+
 const ListQuery = z.object({
+  restaurant_id: z.string().uuid().optional(),
   restaurantId: z.string().uuid().optional(),
-  menu_id: z.string().uuid().optional(),
+  category: z.string().min(1).optional(),
   menu: z.string().min(1).optional(),
-  section: z.string().optional(),
-}).refine(data => data.restaurantId || data.menu_id, {
-  message: "Either restaurantId or menu_id is required",
-  path: ["restaurantId"]
+  section: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  q: z.string().min(1).optional(),
 });
 
 export async function GET(req: Request) {
-  // Admin authentication
-  const adminKeyEnv = process.env.DASHBOARD_ADMIN_KEY;
-  if (!adminKeyEnv) {
-    return NextResponse.json(
-      { code: 'SERVER_MISCONFIG', missing: { DASHBOARD_ADMIN_KEY: true } },
-      { status: 500 }
-    );
-  }
-  const provided = req.headers.get('x-admin-key');
-  if (provided !== adminKeyEnv) {
+  if (req.headers.get('x-admin-key') !== AdminKey) {
     return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
   }
 
+  const url = new URL(req.url);
+  const raw = Object.fromEntries(url.searchParams.entries());
+  const parsed = ListQuery.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { ok: false, code: 'BAD_REQUEST', issues: parsed.error.issues },
+      { status: 400 }
+    );
+  }
+
+  const p = parsed.data;
+  const restaurant_id = p.restaurant_id ?? p.restaurantId ?? null;
+  const category = p.category ?? p.menu ?? null;
+  const { limit, offset, q, section } = p;
+
   const sb = getSupabaseService();
-  const { searchParams } = new URL(req.url);
-  const parsed = ListQuery.safeParse({
-    restaurantId: searchParams.get('restaurantId') || undefined,
-    menu_id: searchParams.get('menu_id') || undefined,
-    menu: searchParams.get('menu') || undefined,
-    section: searchParams.get('section') || undefined,
-  });
-  if (!parsed.success) return NextResponse.json({ 
-    code: 'BAD_REQUEST', 
-    message: 'Invalid query parameters',
-    issues: parsed.error.issues 
-  }, { status: 400 });
-
-  const { restaurantId, menu_id, menu, section } = parsed.data;
-  const finalRestaurantId = restaurantId || menu_id;
-  const finalMenu = menu || 'main';
-
-  const { data, error } = await sb
+  let query = sb
     .from('menu_items')
-    .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
-    .eq('restaurant_id', finalRestaurantId);
+    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
+  if (restaurant_id) query = query.eq('restaurant_id', restaurant_id);
+  if (category) query = query.eq('category', category);
+  if (section) query = query.contains('section_path', [section]);
+  if (q) query = query.ilike('name', `%${q}%`);
+
+  const { data, error, count } = await query;
   if (error) {
     return NextResponse.json(
-      { code: 'ITEMS_LIST_ERROR', message: 'DB select failed', details: error },
+      { ok: false, code: 'DB_ERROR', message: 'List failed', details: error },
       { status: 500 }
     );
   }
 
-  const items = (data ?? []).filter((row: any) => {
-    const ni = row.nutritional_info || {};
-    if (ni.menu !== finalMenu) return false;
-    if (section) return (ni.section_path || [])[0] === section;
-    return true;
-  });
-
-  return NextResponse.json({ ok: true, data: items });
+  return NextResponse.json({ ok: true, data, count }, { status: 200 });
 }
