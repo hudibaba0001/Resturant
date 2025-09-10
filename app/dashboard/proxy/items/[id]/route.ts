@@ -19,6 +19,20 @@ async function passthrough(res: Response) {
   });
 }
 
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const v = ZId.safeParse(params);
+  if (!v.success) {
+    return NextResponse.json({ code: "INVALID_INPUT", issues: v.error.issues }, { status: 400 });
+  }
+
+  const res = await fetch(upstreamUrl(req, params.id), {
+    method: "GET",
+    headers: { "X-Admin-Key": ADMIN },
+    cache: "no-store",
+  });
+  return passthrough(res);
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const v = ZId.safeParse(params);
   if (!v.success) {

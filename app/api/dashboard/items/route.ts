@@ -92,6 +92,7 @@ export async function POST(req: Request) {
       restaurant_id: finalRestaurantId,
       name,
       description,
+      section_path: finalSectionPath,
       // Maintain compatibility with legacy schemas
       price: finalPrice,
       price_cents: finalPriceCents,
