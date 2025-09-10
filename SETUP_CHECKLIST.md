@@ -100,6 +100,8 @@ curl -X POST https://<your-project>.vercel.app/api/orders \
 ```
 
 - [ ] Expect: `{ "orderCode": "XXXXXX" }`
+
+> Note: Deployment trigger check.
 - [ ] Check Supabase → orders table for new row
 
 ### **Order Test (pickup, with Stripe)**
