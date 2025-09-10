@@ -136,7 +136,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
   }
 
-  const sb = await getSupabaseServer();
+  const sb = getSupabaseService();
   const { searchParams } = new URL(req.url);
   const parsed = ListQuery.safeParse({
     restaurantId: searchParams.get('restaurantId') || undefined,
