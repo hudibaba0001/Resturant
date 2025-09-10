@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Trash2, FolderOpen, Edit2, Pencil, Check, X } from 'lucide-react';
+import AddItemClient from '@/components/dashboard/AddItemClient';
 
 export type Section = {
   id: string;
@@ -27,6 +28,8 @@ function SectionRow({
   onDelete,
   onSelect,
   busy,
+  restaurantId,
+  menuId,
 }: {
   section: Section;
   active: boolean;
@@ -34,6 +37,8 @@ function SectionRow({
   onDelete: (id: string, name: string) => Promise<void>;
   onSelect: (name: string) => void;
   busy: boolean;
+  restaurantId: string;
+  menuId: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(section.name);
@@ -120,6 +125,11 @@ function SectionRow({
       >
         {!editing && (
           <>
+            <AddItemClient
+              restaurantId={restaurantId}
+              menuId={menuId}
+              sectionPath={[section.name]}
+            />
             <button
               title="Rename section"
               onClick={() => setEditing(true)}
@@ -386,6 +396,8 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
               await deleteSection(id, name);
             }}
             busy={busy}
+            restaurantId={restaurantId}
+            menuId={currentMenuSlug}
           />
         ))}
         
@@ -413,6 +425,21 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         <div className="min-w-0">
           <div className="truncate font-medium text-slate-900">General</div>
           <div className="truncate text-xs text-slate-500">No section assigned</div>
+        </div>
+        <div
+          className="
+            flex items-center gap-1
+            opacity-0 transition-opacity
+            group-hover:opacity-100
+            [@media(pointer:coarse)]:opacity-100
+          "
+          onClick={(e) => e.stopPropagation()}
+        >
+          <AddItemClient
+            restaurantId={restaurantId}
+            menuId={currentMenuSlug}
+            sectionPath={['General']}
+          />
         </div>
       </div>
     </div>

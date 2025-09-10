@@ -10,7 +10,7 @@ const CreateSchema = z.object({
   menu: z.string().min(1),
   sectionPath: z.array(z.string()).optional().default([]),
   name: z.string().min(1),
-  description: z.string().optional().default(''),
+  description: z.string().trim().optional().transform(v => (v && v.length ? v : null)),
   price_cents: z.number().int().nonnegative().optional(),
   currency: z.string().min(1).optional().default('SEK'),
   image_url: z.string().url().optional(),

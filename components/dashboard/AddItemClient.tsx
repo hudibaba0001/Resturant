@@ -45,7 +45,7 @@ export default function AddItemClient({
           onSave={async (next) => {
             console.log("🚀 AddItemClient onSave called with:", next);
             try {
-              const res = await fetch('/api/dashboard/items', {
+              const res = await fetch('/dashboard/proxy/items', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({
@@ -53,7 +53,7 @@ export default function AddItemClient({
                   menu: menuId,
                   sectionPath,
                   name: next.name,
-                  description: next.description,
+                  description: next.description || undefined, // Let API handle null transformation
                   price_cents: next.price_cents,
                   currency: next.currency,
                   image_url: next.image_url,
