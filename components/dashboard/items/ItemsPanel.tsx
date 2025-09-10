@@ -39,7 +39,9 @@ export default function ItemsPanel({ restaurantId, menu, section }: Props) {
     setError(null);
     try {
       const url = `${base}?restaurantId=${encodeURIComponent(restaurantId)}&menu=${encodeURIComponent(menu)}&section=${encodeURIComponent(section)}&limit=50`;
-      const res = await fetch(url, { method: "GET", cache: "no-store", signal: (signal ?? null) as AbortSignal | null });
+      const init: RequestInit & { signal?: AbortSignal | null } = { method: "GET", cache: "no-store" };
+      if (signal) init.signal = signal;
+      const res = await fetch(url, init as RequestInit);
       const body = await res.json();
       if (!res.ok || body?.ok === false) throw new Error(body?.message || "Failed to load items");
       setItems((body?.data ?? body) as Item[]);
