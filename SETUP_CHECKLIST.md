@@ -58,6 +58,7 @@ select id as item_id, name from public.menu_items where restaurant_id=':restaura
 - [ ] `OPENAI_EMBEDDING_MODEL` = `text-embedding-3-small`
 - [ ] `STRIPE_SECRET_KEY` = `sk_test_...`
 - [ ] `NEXT_PUBLIC_WIDGET_ORIGIN` = `https://<your-project>.vercel.app`
+- [ ] `DASHBOARD_ADMIN_KEY` = `e160437597b784fa01f53ae789c1dc35961637e862f5137fa092b9c49892fb39`
 
 - [ ] **Save → Redeploy**
 - [ ] **Settings → Functions → Region = FRA1 (Frankfurt)**
