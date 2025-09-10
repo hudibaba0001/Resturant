@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { getSupabaseService } from '@/lib/supabase/service';
 
 const CreateSchema = z.object({
   // Accept either restaurantId or menu_id
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
   }
 
-  const sb = await getSupabaseServer();
+  const sb = getSupabaseService();
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
