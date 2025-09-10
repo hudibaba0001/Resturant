@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 
 import { z } from 'zod';
 import { NextResponse } from 'next/server';
-import { getSupabaseServer } from '@/lib/supabaseServer';
+import { getSupabaseService } from '@/lib/supabase/service';
 
 const PatchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -20,8 +20,43 @@ const PatchSchema = z.object({
   modifiers: z.any().optional(),
 });
 
+function requireAdmin(req: Request) {
+  const adminKeyEnv = process.env.DASHBOARD_ADMIN_KEY;
+  if (!adminKeyEnv) {
+    return NextResponse.json(
+      { code: 'SERVER_MISCONFIG', missing: { DASHBOARD_ADMIN_KEY: true } },
+      { status: 500 }
+    );
+  }
+  const provided = req.headers.get('x-admin-key');
+  if (provided !== adminKeyEnv) {
+    return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
+  }
+  return null;
+}
+
+export async function GET(req: Request, ctx: { params: { id: string } }) {
+  const auth = requireAdmin(req);
+  if (auth) return auth;
+
+  const sb = getSupabaseService();
+  const id = ctx.params.id;
+  const { data, error } = await sb
+    .from('menu_items')
+    .select('id, name, description, price_cents, price, currency, image_url, is_available, nutritional_info')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) return NextResponse.json({ code: 'ITEM_GET_ERROR', details: error }, { status: 500 });
+  if (!data) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
+  return NextResponse.json({ ok: true, data });
+}
+
 export async function PATCH(req: Request, ctx: { params: { id: string } }) {
-  const sb = await getSupabaseServer();
+  const auth = requireAdmin(req);
+  if (auth) return auth;
+
+  const sb = getSupabaseService();
   const id = ctx.params.id;
   const body = await req.json().catch(() => null);
   const parsed = PatchSchema.safeParse(body);
@@ -30,7 +65,10 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const patch: any = {};
   if ('name' in parsed.data) patch.name = parsed.data.name;
   if ('description' in parsed.data) patch.description = parsed.data.description;
-  if ('price_cents' in parsed.data) patch.price_cents = parsed.data.price_cents;
+  if ('price_cents' in parsed.data) {
+    patch.price_cents = parsed.data.price_cents;
+    patch.price = parsed.data.price_cents == null ? null : (parsed.data.price_cents / 100);
+  }
   if ('currency' in parsed.data) patch.currency = parsed.data.currency;
   if ('image_url' in parsed.data) patch.image_url = parsed.data.image_url;
   if ('is_available' in parsed.data) patch.is_available = parsed.data.is_available;
@@ -66,14 +104,17 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
     .single();
 
-  if (error) return NextResponse.json({ code: 'ITEM_UPDATE_ERROR' }, { status: 500 });
+  if (error) return NextResponse.json({ code: 'ITEM_UPDATE_ERROR', details: error }, { status: 500 });
   return NextResponse.json({ ok: true, data });
 }
 
 export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
-  const sb = await getSupabaseServer();
+  const auth = requireAdmin(_req);
+  if (auth) return auth;
+
+  const sb = getSupabaseService();
   const id = ctx.params.id;
   const { error } = await sb.from('menu_items').delete().eq('id', id);
-  if (error) return NextResponse.json({ code: 'ITEM_DELETE_ERROR' }, { status: 500 });
+  if (error) return NextResponse.json({ code: 'ITEM_DELETE_ERROR', details: error }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
