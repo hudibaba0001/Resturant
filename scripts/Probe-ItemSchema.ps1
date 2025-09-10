@@ -103,9 +103,8 @@ foreach ($combo in $combinations) {
     
     try {
         $body = $combo.payload | ConvertTo-Json -Compress
-        $response = Invoke-RestMethod -Method POST -Uri "$BaseUrl/api/dashboard/items" `
+        $response = Invoke-RestMethod -Method POST -Uri "$BaseUrl/dashboard/proxy/items" `
             -ContentType "application/json" `
-            -Headers @{ "X-Admin-Key" = $AdminKey } `
             -Body $body
         
         Write-Host "SUCCESS (201)" -ForegroundColor Green

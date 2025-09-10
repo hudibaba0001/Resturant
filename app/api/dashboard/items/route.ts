@@ -6,12 +6,18 @@ import { NextResponse } from 'next/server';
 import { getSupabaseServer } from '@/lib/supabaseServer';
 
 const CreateSchema = z.object({
-  restaurantId: z.string().uuid(),
-  menu: z.string().min(1),
+  // Accept either restaurantId or menu_id
+  restaurantId: z.string().uuid().optional(),
+  menu_id: z.string().uuid().optional(),
+  menu: z.string().min(1).optional(),
+  // Accept either sectionPath array or section string
   sectionPath: z.array(z.string()).optional().default([]),
+  section: z.string().optional(),
   name: z.string().min(1),
   description: z.string().trim().optional().transform(v => (v && v.length ? v : null)),
+  // Accept either price_cents or price
   price_cents: z.number().int().nonnegative().optional(),
+  price: z.number().nonnegative().optional(),
   currency: z.string().min(1).optional().default('SEK'),
   image_url: z.string().url().optional(),
   is_available: z.boolean().optional().default(true),
@@ -19,6 +25,9 @@ const CreateSchema = z.object({
   allergens: z.array(z.string()).optional().default([]),
   variants: z.any().optional(),
   modifiers: z.any().optional(),
+}).refine(data => data.restaurantId || data.menu_id, {
+  message: "Either restaurantId or menu_id is required",
+  path: ["restaurantId"]
 });
 
 export async function POST(req: Request) {
@@ -47,13 +56,23 @@ export async function POST(req: Request) {
   }
 
   const {
-    restaurantId, menu, sectionPath, name, description,
-    price_cents, currency, image_url, is_available, dietary, allergens, variants, modifiers,
+    restaurantId, menu_id, menu, sectionPath, section, name, description,
+    price_cents, price, currency, image_url, is_available, dietary, allergens, variants, modifiers,
   } = parsed.data;
 
+  // Resolve restaurant ID and menu
+  const finalRestaurantId = restaurantId || menu_id;
+  const finalMenu = menu || 'main';
+  
+  // Resolve section path
+  const finalSectionPath = sectionPath || (section ? [section] : []);
+  
+  // Resolve price in cents
+  const finalPriceCents = price_cents || (price ? Math.round(price * 100) : null);
+
   const nutritional_info = {
-    menu,
-    section_path: sectionPath,
+    menu: finalMenu,
+    section_path: finalSectionPath,
     dietary,
     allergens,
     variants,
@@ -63,10 +82,10 @@ export async function POST(req: Request) {
   const { data, error } = await sb
     .from('menu_items')
     .insert({
-      restaurant_id: restaurantId,
+      restaurant_id: finalRestaurantId,
       name,
       description,
-      price_cents: price_cents ?? null,
+      price_cents: finalPriceCents,
       currency,
       image_url: image_url ?? null,
       is_available,
@@ -80,9 +99,13 @@ export async function POST(req: Request) {
 }
 
 const ListQuery = z.object({
-  restaurantId: z.string().uuid(),
-  menu: z.string().min(1),
+  restaurantId: z.string().uuid().optional(),
+  menu_id: z.string().uuid().optional(),
+  menu: z.string().min(1).optional(),
   section: z.string().optional(),
+}).refine(data => data.restaurantId || data.menu_id, {
+  message: "Either restaurantId or menu_id is required",
+  path: ["restaurantId"]
 });
 
 export async function GET(req: Request) {
@@ -102,24 +125,31 @@ export async function GET(req: Request) {
   const sb = await getSupabaseServer();
   const { searchParams } = new URL(req.url);
   const parsed = ListQuery.safeParse({
-    restaurantId: searchParams.get('restaurantId') || '',
-    menu: searchParams.get('menu') || '',
+    restaurantId: searchParams.get('restaurantId') || undefined,
+    menu_id: searchParams.get('menu_id') || undefined,
+    menu: searchParams.get('menu') || undefined,
     section: searchParams.get('section') || undefined,
   });
-  if (!parsed.success) return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ 
+    code: 'BAD_REQUEST', 
+    message: 'Invalid query parameters',
+    issues: parsed.error.issues 
+  }, { status: 400 });
 
-  const { restaurantId, menu, section } = parsed.data;
+  const { restaurantId, menu_id, menu, section } = parsed.data;
+  const finalRestaurantId = restaurantId || menu_id;
+  const finalMenu = menu || 'main';
 
   const { data, error } = await sb
     .from('menu_items')
     .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
-    .eq('restaurant_id', restaurantId);
+    .eq('restaurant_id', finalRestaurantId);
 
   if (error) return NextResponse.json({ code: 'ITEMS_LIST_ERROR' }, { status: 500 });
 
   const items = (data ?? []).filter((row: any) => {
     const ni = row.nutritional_info || {};
-    if (ni.menu !== menu) return false;
+    if (ni.menu !== finalMenu) return false;
     if (section) return (ni.section_path || [])[0] === section;
     return true;
   });
