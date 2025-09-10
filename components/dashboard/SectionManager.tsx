@@ -301,10 +301,18 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
           : null;
 
       if (!res.ok) {
+        if (res.status === 409 && data?.code === 'HAS_ITEMS') {
+          setError(`Can't delete: ${data.count ?? "Some"} item(s) are still in this section. Move them first.`);
+          return;
+        }
+        if (res.status === 409 && data?.code === 'PROTECTED_SECTION') {
+          setError(`The "General" section cannot be deleted.`);
+          return;
+        }
         if (data?.code === 'NOT_FOUND') {
           setError('Section not found. Refresh?');
         } else {
-          setError('Failed to delete section: ' + (data?.error || 'Unknown error'));
+          setError(data?.code || `Delete failed (${res.status}).`);
         }
         return;
       }
