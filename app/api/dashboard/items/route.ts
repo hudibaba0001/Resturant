@@ -86,6 +86,19 @@ const ListQuery = z.object({
 });
 
 export async function GET(req: Request) {
+  // Admin authentication
+  const adminKeyEnv = process.env.DASHBOARD_ADMIN_KEY;
+  if (!adminKeyEnv) {
+    return NextResponse.json(
+      { code: 'SERVER_MISCONFIG', missing: { DASHBOARD_ADMIN_KEY: true } },
+      { status: 500 }
+    );
+  }
+  const provided = req.headers.get('x-admin-key');
+  if (provided !== adminKeyEnv) {
+    return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
+  }
+
   const sb = await getSupabaseServer();
   const { searchParams } = new URL(req.url);
   const parsed = ListQuery.safeParse({
