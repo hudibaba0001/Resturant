@@ -12,10 +12,18 @@ UPDATE public.menu_items
 SET price_cents = ROUND(price * 100)
 WHERE price_cents IS NULL AND price IS NOT NULL;
 
--- Add constraint to ensure price_cents is positive
-ALTER TABLE public.menu_items 
-ADD CONSTRAINT IF NOT EXISTS menu_items_price_cents_positive 
-CHECK (price_cents IS NULL OR price_cents >= 0);
+-- Add constraint to ensure price_cents is positive (only if it doesn't exist)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'menu_items_price_cents_positive'
+    ) THEN
+        ALTER TABLE public.menu_items 
+        ADD CONSTRAINT menu_items_price_cents_positive 
+        CHECK (price_cents IS NULL OR price_cents >= 0);
+    END IF;
+END $$;
 
 -- Add index for price_cents queries
 CREATE INDEX IF NOT EXISTS idx_menu_items_price_cents 
@@ -26,10 +34,18 @@ WHERE price_cents IS NOT NULL;
 ALTER TABLE public.orders 
 ALTER COLUMN currency SET DEFAULT 'SEK';
 
--- Add constraint to ensure orders currency is valid
-ALTER TABLE public.orders 
-ADD CONSTRAINT IF NOT EXISTS orders_currency_valid 
-CHECK (currency IN ('SEK', 'USD', 'EUR', 'GBP'));
+-- Add constraint to ensure orders currency is valid (only if it doesn't exist)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'orders_currency_valid'
+    ) THEN
+        ALTER TABLE public.orders 
+        ADD CONSTRAINT orders_currency_valid 
+        CHECK (currency IN ('SEK', 'USD', 'EUR', 'GBP'));
+    END IF;
+END $$;
 
 -- Create a function to get menu item price in cents (with fallback)
 CREATE OR REPLACE FUNCTION get_menu_item_price_cents(item_uuid UUID)

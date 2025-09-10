@@ -18,7 +18,7 @@ const CreateSchema = z.object({
   // Accept either price_cents or price
   price_cents: z.number().int().nonnegative().optional(),
   price: z.number().nonnegative().optional(),
-  currency: z.string().min(1).optional().default('SEK'),
+  currency: z.string().min(1).optional().default('SEK').transform(v => v.toUpperCase().slice(0, 3)),
   image_url: z.string().url().optional(),
   is_available: z.boolean().optional().default(true),
   dietary: z.array(z.string()).optional().default([]),
@@ -28,6 +28,9 @@ const CreateSchema = z.object({
 }).refine(data => data.restaurantId || data.menu_id, {
   message: "Either restaurantId or menu_id is required",
   path: ["restaurantId"]
+}).refine(data => typeof data.price_cents === 'number' || typeof data.price === 'number', {
+  message: 'Either price_cents or price is required',
+  path: ['price_cents']
 });
 
 export async function POST(req: Request) {
@@ -69,6 +72,10 @@ export async function POST(req: Request) {
   
   // Resolve price in cents
   const finalPriceCents = price_cents || (price ? Math.round(price * 100) : null);
+  // Resolve legacy decimal price (NOT NULL in some schemas)
+  const finalPrice = typeof price === 'number'
+    ? parseFloat(price.toFixed(2))
+    : (typeof finalPriceCents === 'number' ? parseFloat((finalPriceCents / 100).toFixed(2)) : null);
 
   const nutritional_info = {
     menu: finalMenu,
@@ -85,6 +92,8 @@ export async function POST(req: Request) {
       restaurant_id: finalRestaurantId,
       name,
       description,
+      // Maintain compatibility with legacy schemas
+      price: finalPrice,
       price_cents: finalPriceCents,
       currency,
       image_url: image_url ?? null,
@@ -94,7 +103,12 @@ export async function POST(req: Request) {
     .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
     .single();
 
-  if (error) return NextResponse.json({ code: 'ITEM_CREATE_ERROR' }, { status: 500 });
+  if (error) {
+    return NextResponse.json(
+      { code: 'ITEM_CREATE_ERROR', message: 'DB insert failed', details: error },
+      { status: 500 }
+    );
+  }
   return NextResponse.json({ ok: true, data });
 }
 
@@ -145,7 +159,12 @@ export async function GET(req: Request) {
     .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
     .eq('restaurant_id', finalRestaurantId);
 
-  if (error) return NextResponse.json({ code: 'ITEMS_LIST_ERROR' }, { status: 500 });
+  if (error) {
+    return NextResponse.json(
+      { code: 'ITEMS_LIST_ERROR', message: 'DB select failed', details: error },
+      { status: 500 }
+    );
+  }
 
   const items = (data ?? []).filter((row: any) => {
     const ni = row.nutritional_info || {};
