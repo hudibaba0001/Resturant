@@ -34,12 +34,12 @@ export default function ItemsPanel({ restaurantId, menu, section }: Props) {
 
   const base = "/dashboard/proxy/items";
 
-  async function fetchItems(signal?: AbortSignal) {
+  const fetchItems = React.useCallback(async (signal?: AbortSignal | null) => {
     setLoading(true);
     setError(null);
     try {
       const url = `${base}?restaurantId=${encodeURIComponent(restaurantId)}&menu=${encodeURIComponent(menu)}&section=${encodeURIComponent(section)}&limit=50`;
-      const res = await fetch(url, { method: "GET", cache: "no-store", signal });
+      const res = await fetch(url, { method: "GET", cache: "no-store", signal: (signal ?? null) as AbortSignal | null });
       const body = await res.json();
       if (!res.ok || body?.ok === false) throw new Error(body?.message || "Failed to load items");
       setItems((body?.data ?? body) as Item[]);
@@ -51,13 +51,13 @@ export default function ItemsPanel({ restaurantId, menu, section }: Props) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [base, restaurantId, menu, section]);
 
   React.useEffect(() => {
     const ctrl = new AbortController();
     fetchItems(ctrl.signal);
     return () => ctrl.abort();
-  }, [restaurantId, menu, section]);
+  }, [fetchItems]);
 
   function toCents(input: string) {
     const s = input.trim().replace(",", ".");
