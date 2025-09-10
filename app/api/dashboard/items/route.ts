@@ -5,32 +5,18 @@ import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { getSupabaseService } from '@/lib/supabase/service';
 
-const CreateSchema = z.object({
-  // Accept either restaurantId or menu_id
-  restaurantId: z.string().uuid().optional(),
-  menu_id: z.string().uuid().optional(),
-  menu: z.string().min(1).optional(),
-  // Accept either sectionPath array or section string
-  sectionPath: z.array(z.string()).optional().default([]),
-  section: z.string().optional(),
+// Canonical payload for create (after normalization)
+const ItemCreateSchema = z.object({
+  restaurant_id: z.string().uuid(),
+  category: z.string().min(1), // menu slug, e.g. "main"
+  section_path: z.array(z.string()).min(1),
   name: z.string().min(1),
-  description: z.string().trim().optional().transform(v => (v && v.length ? v : null)),
-  // Accept either price_cents or price
-  price_cents: z.number().int().nonnegative().optional(),
-  price: z.number().nonnegative().optional(),
-  currency: z.string().min(1).optional().default('SEK').transform(v => v.toUpperCase().slice(0, 3)),
-  image_url: z.string().url().optional(),
-  is_available: z.boolean().optional().default(true),
-  dietary: z.array(z.string()).optional().default([]),
-  allergens: z.array(z.string()).optional().default([]),
-  variants: z.any().optional(),
-  modifiers: z.any().optional(),
-}).refine(data => data.restaurantId || data.menu_id, {
-  message: "Either restaurantId or menu_id is required",
-  path: ["restaurantId"]
-}).refine(data => typeof data.price_cents === 'number' || typeof data.price === 'number', {
-  message: 'Either price_cents or price is required',
-  path: ['price_cents']
+  description: z.string().trim().nullable().optional(),
+  price_cents: z.number().int().nonnegative(),
+  price: z.number().nonnegative(),
+  currency: z.string().min(1).transform(v => v.toUpperCase().slice(0, 3)),
+  image_url: z.string().url().nullable().optional(),
+  is_available: z.boolean().default(true),
 });
 
 export async function POST(req: Request) {
@@ -48,60 +34,68 @@ export async function POST(req: Request) {
   }
 
   const sb = getSupabaseService();
-  const body = await req.json().catch(() => null);
-  const parsed = CreateSchema.safeParse(body);
+  const raw: any = await req.json().catch(() => null);
+  if (!raw || typeof raw !== 'object') {
+    return NextResponse.json({ code: 'BAD_REQUEST', message: 'Expected JSON body' }, { status: 400 });
+  }
+
+  // Normalize incoming keys to canonical columns
+  const restaurant_id: string | null = raw.restaurant_id ?? raw.restaurantId ?? null;
+  const category: string | null = raw.category ?? raw.menu ?? null;
+  const section_path: string[] | null = Array.isArray(raw.section_path)
+    ? raw.section_path
+    : (typeof raw.section === 'string' ? [raw.section] : null);
+  let price_cents: number | null = (typeof raw.price_cents === 'number')
+    ? raw.price_cents
+    : (typeof raw.price === 'number' ? Math.round(raw.price * 100) : null);
+  const currency: string = (raw.currency ?? 'SEK');
+  const name: string | null = raw.name ?? null;
+  const description: string | null = (raw.description ?? null);
+  const image_url: string | null = (raw.image_url ?? null);
+  const is_available: boolean = (typeof raw.is_available === 'boolean') ? raw.is_available : true;
+
+  if (price_cents != null && !Number.isInteger(price_cents)) {
+    price_cents = Math.round(price_cents as number);
+  }
+  const price: number | null = price_cents != null ? parseFloat((price_cents / 100).toFixed(2)) : null;
+
+  const parsed = ItemCreateSchema.safeParse({
+    restaurant_id,
+    category,
+    section_path,
+    name,
+    description,
+    price_cents,
+    price,
+    currency,
+    image_url,
+    is_available,
+  });
   if (!parsed.success) {
-    return NextResponse.json({ 
-      code: 'BAD_REQUEST', 
+    return NextResponse.json({
+      code: 'BAD_REQUEST',
       message: 'Invalid item payload',
-      issues: parsed.error.issues 
+      issues: parsed.error.issues,
     }, { status: 400 });
   }
 
-  const {
-    restaurantId, menu_id, menu, sectionPath, section, name, description,
-    price_cents, price, currency, image_url, is_available, dietary, allergens, variants, modifiers,
-  } = parsed.data;
+  const data = parsed.data;
 
-  // Resolve restaurant ID and menu
-  const finalRestaurantId = restaurantId || menu_id;
-  const finalMenu = menu || 'main';
-  
-  // Resolve section path
-  const finalSectionPath = sectionPath || (section ? [section] : []);
-  
-  // Resolve price in cents
-  const finalPriceCents = price_cents || (price ? Math.round(price * 100) : null);
-  // Resolve legacy decimal price (NOT NULL in some schemas)
-  const finalPrice = typeof price === 'number'
-    ? parseFloat(price.toFixed(2))
-    : (typeof finalPriceCents === 'number' ? parseFloat((finalPriceCents / 100).toFixed(2)) : null);
-
-  const nutritional_info = {
-    menu: finalMenu,
-    section_path: finalSectionPath,
-    dietary,
-    allergens,
-    variants,
-    modifiers,
-  };
-
-  const { data, error } = await sb
+  const { data: created, error } = await sb
     .from('menu_items')
     .insert({
-      restaurant_id: finalRestaurantId,
-      name,
-      description,
-      section_path: finalSectionPath,
-      // Maintain compatibility with legacy schemas
-      price: finalPrice,
-      price_cents: finalPriceCents,
-      currency,
-      image_url: image_url ?? null,
-      is_available,
-      nutritional_info,
+      restaurant_id: data.restaurant_id,
+      category: data.category,
+      section_path: data.section_path,
+      name: data.name,
+      description: data.description ?? null,
+      price_cents: data.price_cents,
+      price: data.price, // keep DECIMAL in sync
+      currency: data.currency,
+      image_url: data.image_url ?? null,
+      is_available: data.is_available,
     })
-    .select('id, name, description, price_cents, currency, image_url, is_available, nutritional_info')
+    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path')
     .single();
 
   if (error) {
@@ -110,7 +104,7 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-  return NextResponse.json({ ok: true, data });
+  return NextResponse.json({ ok: true, data: created }, { status: 201 });
 }
 
 const ListQuery = z.object({

@@ -43,7 +43,7 @@ export async function GET(req: Request, ctx: { params: { id: string } }) {
   const id = ctx.params.id;
   const { data, error } = await sb
     .from('menu_items')
-    .select('id, name, description, price_cents, price, currency, image_url, is_available, nutritional_info')
+    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path')
     .eq('id', id)
     .maybeSingle();
 
