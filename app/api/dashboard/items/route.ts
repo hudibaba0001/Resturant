@@ -22,10 +22,29 @@ const CreateSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  // Admin authentication
+  const adminKeyEnv = process.env.DASHBOARD_ADMIN_KEY;
+  if (!adminKeyEnv) {
+    return NextResponse.json(
+      { code: 'SERVER_MISCONFIG', missing: { DASHBOARD_ADMIN_KEY: true } },
+      { status: 500 }
+    );
+  }
+  const provided = req.headers.get('x-admin-key');
+  if (provided !== adminKeyEnv) {
+    return NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 });
+  }
+
   const sb = await getSupabaseServer();
   const body = await req.json().catch(() => null);
   const parsed = CreateSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ 
+      code: 'BAD_REQUEST', 
+      message: 'Invalid item payload',
+      issues: parsed.error.issues 
+    }, { status: 400 });
+  }
 
   const {
     restaurantId, menu, sectionPath, name, description,
