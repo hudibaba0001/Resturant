@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Trash2, FolderOpen, Edit2, Pencil, Check, X } from 'lucide-react';
 import AddItemClient from '@/components/dashboard/AddItemClient';
+import ItemsPanel from '@/components/dashboard/items/ItemsPanel';
 
 export type Section = {
   id: string;
@@ -441,6 +442,15 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
             sectionPath={['General']}
           />
         </div>
+      </div>
+
+      {/* Items panel for currently selected section */}
+      <div className="">
+        <ItemsPanel
+          restaurantId={restaurantId}
+          menu={currentMenuSlug}
+          section={selectedSection && selectedSection.length ? selectedSection : 'General'}
+        />
       </div>
     </div>
   );
