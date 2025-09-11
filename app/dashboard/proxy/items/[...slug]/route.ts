@@ -12,10 +12,16 @@ function upstreamUrl(req: NextRequest, slug: string[]) {
 }
 
 async function passthrough(res: Response) {
-  const text = await res.text();
-  return new NextResponse(text, {
-    status: res.status,
-    headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
+  const status = res.status;
+  const headers = new Headers(res.headers);
+  // No body allowed for 204/304 in NextResponse
+  if (status === 204 || status === 304) {
+    return new NextResponse(null, { status, headers });
+  }
+  const body = await res.text();
+  return new NextResponse(body, {
+    status,
+    headers: { "content-type": headers.get("content-type") ?? "application/json" },
   });
 }
 
@@ -29,31 +35,39 @@ export async function GET(req: NextRequest, { params }: { params: { slug: string
 }
 
 export async function POST(req: NextRequest, { params }: { params: { slug: string[] } }) {
-  // Forward raw body; let the upstream do body validation
-  const body = await req.text();
+  const method = req.method;
+  const contentLength = req.headers.get("content-length") ?? "0";
+  const hasBody = !["GET", "HEAD"].includes(method) && contentLength !== "0";
   const res = await fetch(upstreamUrl(req, params.slug), {
     method: "POST",
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       "X-Admin-Key": ADMIN,
     },
-    body,
+    body: hasBody ? req.body : undefined,
+    redirect: "manual",
     cache: "no-store",
+    // @ts-expect-error - duplex for streaming bodies
+    ...(hasBody ? { duplex: "half" } : {}),
   });
   return passthrough(res);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { slug: string[] } }) {
-  // Forward raw body; let the upstream do body validation & existence check
-  const body = await req.text();
+  const method = req.method;
+  const contentLength = req.headers.get("content-length") ?? "0";
+  const hasBody = !["GET", "HEAD"].includes(method) && contentLength !== "0";
   const res = await fetch(upstreamUrl(req, params.slug), {
     method: "PATCH",
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       "X-Admin-Key": ADMIN,
     },
-    body,
+    body: hasBody ? req.body : undefined,
+    redirect: "manual",
     cache: "no-store",
+    // @ts-expect-error - duplex for streaming bodies
+    ...(hasBody ? { duplex: "half" } : {}),
   });
   return passthrough(res);
 }
@@ -62,6 +76,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { slug: str
   const res = await fetch(upstreamUrl(req, params.slug), {
     method: "DELETE",
     headers: { "X-Admin-Key": ADMIN },
+    redirect: "manual",
     cache: "no-store",
   });
   return passthrough(res);
