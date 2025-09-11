@@ -38,17 +38,16 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
   const method = req.method;
   const contentLength = req.headers.get("content-length") ?? "0";
   const hasBody = !["GET", "HEAD"].includes(method) && contentLength !== "0";
+  const bodyText = hasBody ? await req.text() : undefined;
   const res = await fetch(upstreamUrl(req, params.slug), {
     method: "POST",
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       "X-Admin-Key": ADMIN,
     },
-    body: hasBody ? req.body : undefined,
+    body: bodyText,
     redirect: "manual",
     cache: "no-store",
-    // @ts-expect-error - duplex for streaming bodies
-    ...(hasBody ? { duplex: "half" } : {}),
   });
   return passthrough(res);
 }
@@ -57,17 +56,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { slug: stri
   const method = req.method;
   const contentLength = req.headers.get("content-length") ?? "0";
   const hasBody = !["GET", "HEAD"].includes(method) && contentLength !== "0";
+  const bodyText = hasBody ? await req.text() : undefined;
   const res = await fetch(upstreamUrl(req, params.slug), {
     method: "PATCH",
     headers: {
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       "X-Admin-Key": ADMIN,
     },
-    body: hasBody ? req.body : undefined,
+    body: bodyText,
     redirect: "manual",
     cache: "no-store",
-    // @ts-expect-error - duplex for streaming bodies
-    ...(hasBody ? { duplex: "half" } : {}),
   });
   return passthrough(res);
 }
