@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { slug: strin
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       "X-Admin-Key": ADMIN,
     },
-    body: bodyText,
+    body: (bodyText ?? null) as BodyInit | null,
     redirect: "manual",
     cache: "no-store",
   });
@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { slug: stri
       "Content-Type": req.headers.get("content-type") ?? "application/json",
       "X-Admin-Key": ADMIN,
     },
-    body: bodyText,
+    body: (bodyText ?? null) as BodyInit | null,
     redirect: "manual",
     cache: "no-store",
   });
