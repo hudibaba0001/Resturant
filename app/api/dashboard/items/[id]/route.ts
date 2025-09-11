@@ -66,7 +66,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const patch: any = {};
   if ('name' in parsed.data) patch.name = parsed.data.name;
   if ('description' in parsed.data) patch.description = parsed.data.description;
-  if ('price_cents' in parsed.data) {
+  if (typeof parsed.data.price_cents === 'number') {
     patch.price_cents = parsed.data.price_cents;
     patch.price = parsed.data.price_cents / 100; // keep DECIMAL column in sync
   }
