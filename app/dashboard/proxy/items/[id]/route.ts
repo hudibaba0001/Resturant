@@ -28,15 +28,13 @@ async function handle(req: NextRequest, { params }: { params: { id: string } }) 
   const contentLength = headers.get("content-length") ?? "0";
   const hasBody = !["GET", "HEAD"].includes(method) && contentLength !== "0";
 
-  // Read body text only when present to satisfy RequestInit typing
-  const bodyText = hasBody ? await req.text() : undefined;
-
   const upstream = await fetch(target, {
     method,
     headers,
-    body: (bodyText ?? null) as BodyInit | null,
+    body: hasBody ? (req.body as any) : undefined,
     redirect: "manual",
     cache: "no-store",
+    ...(hasBody ? { duplex: "half" } : {}),
   });
 
   const status = upstream.status;
@@ -45,8 +43,7 @@ async function handle(req: NextRequest, { params }: { params: { id: string } }) 
   if (status === 204 || status === 304) {
     return new NextResponse(null, { status, headers: outHeaders });
   }
-  const text = await upstream.text();
-  return new NextResponse(text, { status, headers: outHeaders });
+  return new NextResponse(upstream.body, { status, headers: outHeaders });
 }
 
 export const GET = handle;
