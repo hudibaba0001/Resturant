@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+// Note: Proxy normalizes 204/304 responses to no-body and forwards X-Admin-Key
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
