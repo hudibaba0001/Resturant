@@ -116,5 +116,5 @@ export async function DELETE(_req: Request, ctx: { params: { id: string } }) {
   const id = ctx.params.id;
   const { error } = await sb.from('menu_items').delete().eq('id', id);
   if (error) return NextResponse.json({ code: 'ITEM_DELETE_ERROR', details: error }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return new NextResponse(null, { status: 204 });
 }
