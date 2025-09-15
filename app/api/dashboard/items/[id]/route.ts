@@ -61,7 +61,12 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
   const id = ctx.params.id;
   const body = await req.json().catch(() => null);
   const parsed = PatchSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ code: 'BAD_REQUEST' }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { code: 'BAD_REQUEST', issues: parsed.error.issues },
+      { status: 400 }
+    );
+  }
 
   const patch: any = {};
   if ('name' in parsed.data) patch.name = parsed.data.name;
@@ -85,7 +90,7 @@ export async function PATCH(req: Request, ctx: { params: { id: string } }) {
     .from('menu_items')
     .update(patch)
     .eq('id', id)
-    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path,tags,details,variant_groups,modifier_groups')
+    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path')
     .single();
 
   if (error) return NextResponse.json({ code: 'ITEM_UPDATE_ERROR', details: error }, { status: 500 });

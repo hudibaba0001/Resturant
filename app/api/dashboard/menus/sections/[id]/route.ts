@@ -72,17 +72,58 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
 
   const supaResult = supa();
   if ('err' in supaResult) return supaResult.err;
-  
   const { client } = supaResult;
+
+  // Load the section to derive restaurant and menu slug
+  const { data: section, error: sErr } = await client
+    .from('menu_sections_v2')
+    .select('id, restaurant_id, menu_id, path')
+    .eq('id', id)
+    .maybeSingle();
+  if (sErr) return NextResponse.json({ code: 'DB_ERROR', details: sErr }, { status: 500 });
+  if (!section) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
+
+  const leafName = Array.isArray((section as any).path) && (section as any).path.length > 0
+    ? (section as any).path[(section as any).path.length - 1]
+    : null;
+
+  // Resolve menu slug
+  let menuSlug: string | null = null;
+  if ((section as any).menu_id) {
+    const { data: menuRow, error: mErr } = await client
+      .from('menus_v2')
+      .select('slug')
+      .eq('id', (section as any).menu_id)
+      .maybeSingle();
+    if (mErr) return NextResponse.json({ code: 'DB_ERROR', details: mErr }, { status: 500 });
+    menuSlug = (menuRow as any)?.slug ?? null;
+  }
+
+  // Guard: if any items exist in canonical table for this section, block delete
+  if (leafName && menuSlug) {
+    const { count, error: cErr } = await client
+      .from('menu_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('restaurant_id', (section as any).restaurant_id)
+      .eq('category', menuSlug)
+      .contains('section_path', [leafName]);
+    if (cErr) return NextResponse.json({ code: 'DB_ERROR', details: cErr }, { status: 500 });
+    if ((count ?? 0) > 0) {
+      return NextResponse.json(
+        { code: 'SECTION_NOT_EMPTY', message: `Section has ${count} item(s). Move or remove items first.` },
+        { status: 409 }
+      );
+    }
+  }
+
+  // Proceed with delete
   const { data, error } = await client
     .from('menu_sections_v2')
     .delete()
     .eq('id', id)
     .select('id')
     .maybeSingle();
-  
   if (error) {
-    // if FK prevents delete (existing items), surface conflict
     const status = /foreign key|constraint/i.test(error.message) ? 409 : 500;
     return NextResponse.json({ code: 'DELETE_FAILED', error: error.message }, { status });
   }
