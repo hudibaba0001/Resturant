@@ -50,3 +50,4 @@ async function handle(req: NextRequest, { params }: { params: { id: string } }) 
 export const GET = handle;
 export const PATCH = handle;
 export const DELETE = handle;
+// noop: manual deploy trigger
