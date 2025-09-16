@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+// build: no-op comment to trigger deploy
 // Note: Proxy normalizes 204/304 responses to no-body and forwards X-Admin-Key
 import { NextResponse } from "next/server";
 
