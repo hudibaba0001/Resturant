@@ -1,6 +1,9 @@
 // app/menu/[restaurantId]/[menu]/page.tsx
 import type { Metadata } from "next";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type Params = { restaurantId: string; menu: string };
 
 type Item = {
@@ -16,9 +19,18 @@ type Item = {
 };
 
 async function fetchPublicMenu(restaurantId: string, menu: string) {
-  const res = await fetch(`/api/public/menu?restaurantId=${restaurantId}&menu=${menu}`, { cache: "no-store" });
+  // Try absolute first (helps some hosting setups), then fallback to relative path
+  const absBase = process.env.NEXT_PUBLIC_BASE_URL || '';
+  const absUrl = absBase ? `${absBase}/api/public/menu?restaurantId=${restaurantId}&menu=${menu}` : '';
+  if (absUrl) {
+    try {
+      const r = await fetch(absUrl, { cache: 'no-store' });
+      if (r.ok) return (await r.json()) as { ok: boolean; data: Item[] };
+    } catch {}
+  }
+  const res = await fetch(`/api/public/menu?restaurantId=${restaurantId}&menu=${menu}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Public API failed: ${res.status}`);
-  return res.json() as Promise<{ ok: boolean; data: Item[] }>;
+  return (await res.json()) as { ok: boolean; data: Item[] };
 }
 
 function groupBySection(items: Item[]): Record<string, Item[]> {
