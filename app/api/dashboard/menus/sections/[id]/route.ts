@@ -77,7 +77,7 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
   // Load the section to derive restaurant and menu slug
   const { data: section, error: sErr } = await client
     .from('menu_sections_v2')
-    .select('id, restaurant_id, menu_id, path')
+    .select('id, menu_id, path')
     .eq('id', id)
     .maybeSingle();
   if (sErr) return NextResponse.json({ code: 'DB_ERROR', details: sErr }, { status: 500 });
@@ -87,24 +87,26 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
     ? (section as any).path[(section as any).path.length - 1]
     : null;
 
-  // Resolve menu slug
+  // Resolve menu slug and restaurant reference via menus_v2
   let menuSlug: string | null = null;
+  let menuRestaurantId: string | null = null;
   if ((section as any).menu_id) {
     const { data: menuRow, error: mErr } = await client
       .from('menus_v2')
-      .select('slug')
+      .select('slug, restaurant_id')
       .eq('id', (section as any).menu_id)
       .maybeSingle();
     if (mErr) return NextResponse.json({ code: 'DB_ERROR', details: mErr }, { status: 500 });
     menuSlug = (menuRow as any)?.slug ?? null;
+    menuRestaurantId = (menuRow as any)?.restaurant_id ?? null;
   }
 
   // Guard: if any items exist in canonical table for this section, block delete
-  if (leafName && menuSlug) {
+  if (leafName && menuSlug && menuRestaurantId) {
     const { count, error: cErr } = await client
       .from('menu_items')
       .select('id', { count: 'exact', head: true })
-      .eq('restaurant_id', (section as any).restaurant_id)
+      .eq('restaurant_id', menuRestaurantId)
       .eq('category', menuSlug)
       .contains('section_path', [leafName]);
     if (cErr) return NextResponse.json({ code: 'DB_ERROR', details: cErr }, { status: 500 });
