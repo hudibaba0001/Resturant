@@ -72,6 +72,7 @@ const nextConfig = {
   // Optimizations
   compress: true,
   poweredByHeader: false,
+  trailingSlash: false,
   
   // Bundle analyzer (optional)
   // webpack: (config, { isServer }) => {
