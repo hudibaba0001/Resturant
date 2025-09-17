@@ -14,11 +14,13 @@ function upstreamUrl(req: NextRequest, id: string) {
 }
 
 async function passthrough(res: Response) {
+  const status = res.status;
+  const headers = new Headers(res.headers);
+  if (status === 204 || status === 304) {
+    return new NextResponse(null, { status, headers });
+  }
   const text = await res.text();
-  return new NextResponse(text, {
-    status: res.status,
-    headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
-  });
+  return new NextResponse(text, { status, headers: { "content-type": headers.get("content-type") ?? "application/json" } });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

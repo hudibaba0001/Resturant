@@ -128,5 +128,6 @@ export async function DELETE(req: Request, ctx: { params: { id: string } }) {
     return NextResponse.json({ code: 'DELETE_FAILED', error: error.message }, { status });
   }
   if (!data) return NextResponse.json({ code: 'NOT_FOUND' }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  // Success: no content
+  return new NextResponse(null, { status: 204 });
 }
