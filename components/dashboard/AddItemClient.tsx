@@ -85,6 +85,10 @@ export default function AddItemClient({
               const result = await createItem(payload);
               console.log("🚀 API success:", result);
               setOpen(false);
+              // Notify any listeners (e.g., ItemsPanel) to refresh
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('items:refresh'));
+              }
               router.refresh();
             } catch (error) {
               console.error("🚀 API error:", error);

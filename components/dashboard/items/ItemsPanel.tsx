@@ -61,6 +61,13 @@ export default function ItemsPanel({ restaurantId, menu, section }: Props) {
     return () => ctrl.abort();
   }, [fetchItems]);
 
+  // Refresh when someone elsewhere creates/updates items
+  React.useEffect(() => {
+    function onExternalRefresh() { fetchItems(); }
+    window.addEventListener('items:refresh', onExternalRefresh);
+    return () => window.removeEventListener('items:refresh', onExternalRefresh);
+  }, [fetchItems]);
+
   function toCents(input: string) {
     const s = input.trim().replace(",", ".");
     if (s === "") return null;
