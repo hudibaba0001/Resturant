@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { EditItemDialog } from '@/components/dashboard/EditItemDialog';
+import { createItem } from '@/lib/api/items';
+import type { ItemClient } from '@/lib/validators/itemClient';
 
 export default function AddItemClient({
   restaurantId,
@@ -45,41 +47,51 @@ export default function AddItemClient({
           onSave={async (next) => {
             console.log("🚀 AddItemClient onSave called with:", next);
             try {
-              const res = await fetch('/dashboard/proxy/items', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                  restaurantId,
-                  menu: menuId,
-                  sectionPath,
-                  name: next.name,
-                  description: next.description || undefined, // Let API handle null transformation
-                  price_cents: next.price_cents,
-                  currency: next.currency,
-                  image_url: next.image_url,
-                  is_available: next.is_available,
-                  allergens: next.allergens,
-                  dietary: next.dietary,
-                  variants: next.variant_groups,
-                  modifiers: next.modifier_groups,
-                }),
-              });
-              
-              console.log("🚀 API response status:", res.status);
-              
-              if (!res.ok) {
-                const error = await res.json().catch(() => ({}));
-                throw new Error(error.code || 'ITEM_CREATE_ERROR');
-              }
-              
-              const result = await res.json();
+              const payload: ItemClient = {
+                restaurantId,
+                menu: menuId,
+                name: next.name,
+                price_cents: next.price_cents ?? 0,
+                currency: (next.currency || 'SEK').toUpperCase(),
+                section_path: sectionPath,
+                description: next.description || undefined,
+                image_url: next.image_url || undefined,
+                is_available: next.is_available,
+                // Map variant UI structure to API structure (choices array)
+                variant_groups: (next.variant_groups || []).map(g => ({
+                  name: g.name,
+                  choices: (g.options || []).map(o => ({ name: o.name }))
+                })),
+                // Map modifier UI structure to API structure
+                modifier_groups: (next.modifier_groups || []).map(g => ({
+                  group: g.name,
+                  min: g.min,
+                  max: g.max,
+                  required: g.required,
+                  choices: (g.options || []).map(o => ({ name: o.name, price_cents: o.price_delta_cents ?? 0 }))
+                })),
+                // Fold common flags into tags; keep optional
+                tags: [
+                  ...(next.allergens || []),
+                  ...(next.dietary || []),
+                ].filter(Boolean) as string[],
+                // Preserve extra structured fields under details
+                details: {
+                  ...(next.item_number ? { item_number: next.item_number } : {}),
+                  ...(next.price_matrix && Object.keys(next.price_matrix).length ? { price_matrix: next.price_matrix } : {}),
+                },
+              };
+
+              const result = await createItem(payload);
               console.log("🚀 API success:", result);
-              
               setOpen(false);
               router.refresh();
             } catch (error) {
               console.error("🚀 API error:", error);
-              alert(`Could not create item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              const msg = (error as any)?.issues
+                ? (error as any).issues.map((i: any) => `${i.path?.join('.')}: ${i.message}`).join(' · ')
+                : (error instanceof Error ? error.message : 'Unknown error');
+              alert(`Could not create item: ${msg}`);
             }
           }}
         />
