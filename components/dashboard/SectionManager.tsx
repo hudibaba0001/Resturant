@@ -131,6 +131,7 @@ function SectionRow({
               restaurantId={restaurantId}
               menuId={menuId}
               sectionPath={[section.name]}
+              sectionId={section.id}
             />
             <button
               title="Rename section"

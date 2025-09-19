@@ -38,6 +38,7 @@ export const itemClientSchema = z.object({
   price_cents: z.number().int().min(0),
   currency: z.string().length(3),
   section_path: z.array(z.string().min(1)).min(1).max(4),
+  section_id: z.string().uuid().optional(), // NEW: direct section reference
   description: z.string().max(3000).optional().nullable(),
   image_url: z.string().url().optional().nullable(),
   is_available: z.boolean().optional(),

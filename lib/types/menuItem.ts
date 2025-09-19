@@ -33,6 +33,7 @@ export type ItemClient = {
   price_cents: number;
   currency: string; // e.g., "SEK"
   section_path: string[]; // ["Drinks"]
+  section_id?: string; // NEW: direct section reference
   description?: string | null;
   image_url?: string | null;
   is_available?: boolean;

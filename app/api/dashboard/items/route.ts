@@ -10,6 +10,7 @@ const ItemCreateSchema = z.object({
   restaurant_id: z.string().uuid(),
   category: z.string().min(1), // menu slug, e.g. "main"
   section_path: z.array(z.string()).min(1),
+  section_id: z.string().uuid().optional(), // NEW: direct section reference
   name: z.string().min(1),
   description: z.string().trim().nullable().optional(),
   price_cents: z.number().int().nonnegative(),
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   const section_path: string[] | null = Array.isArray(raw.section_path)
     ? raw.section_path
     : (typeof raw.section === 'string' ? [raw.section] : null);
+  const section_id: string | null = raw.section_id ?? null; // NEW: direct section reference
   let price_cents: number | null = (typeof raw.price_cents === 'number')
     ? raw.price_cents
     : (typeof raw.price === 'number' ? Math.round(raw.price * 100) : null);
@@ -63,6 +65,7 @@ export async function POST(req: Request) {
     restaurant_id,
     category,
     section_path,
+    section_id,
     name,
     description,
     price_cents,
@@ -81,12 +84,16 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
+  // Debug logging
+  console.log('🔍 API Debug - section_id being inserted:', data.section_id);
+
   const { data: created, error } = await sb
     .from('menu_items')
     .insert({
       restaurant_id: data.restaurant_id,
       category: data.category,
       section_path: data.section_path,
+      section_id: data.section_id ?? null, // NEW: direct section reference
       name: data.name,
       description: data.description ?? null,
       price_cents: data.price_cents,
@@ -95,8 +102,15 @@ export async function POST(req: Request) {
       image_url: data.image_url ?? null,
       is_available: data.is_available,
     })
-    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path')
+    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path,section_id')
     .single();
+
+  // Debug logging
+  if (error) {
+    console.log('🔍 API Debug - Database error:', error);
+  } else {
+    console.log('🔍 API Debug - Created item section_id:', created?.section_id);
+  }
 
   if (error) {
     return NextResponse.json(
@@ -143,7 +157,7 @@ export async function GET(req: Request) {
   const sb = getSupabaseService();
   let query = sb
     .from('menu_items')
-    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path', { count: 'exact' })
+    .select('id,name,description,price_cents,price,currency,image_url,is_available,restaurant_id,category,section_path,section_id', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 

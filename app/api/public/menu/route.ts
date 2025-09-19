@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await sb
     .from('menu_items')
-    .select('id,name,description,price_cents,price,currency,is_available,category,section_path,tags,details,variant_groups,modifier_groups')
+    .select('id,name,description,price_cents,price,currency,is_available,category,section_path,section_id,tags,details,variant_groups,modifier_groups')
     .eq('restaurant_id', restaurantId)
     .eq('category', menu)
     .eq('is_available', true)
