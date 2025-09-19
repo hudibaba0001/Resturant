@@ -16,7 +16,7 @@ export default function AddItemClient({
   restaurantId: string;
   menuId: string;
   sectionPath: string[];
-  sectionId: string;
+  sectionId?: string; // Make optional
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function AddItemClient({
                 price_cents: next.price_cents ?? 0,
                 currency: (next.currency || 'SEK').toUpperCase(),
                 section_path: sectionPath,
-                section_id: sectionId, // NEW: direct section reference
+                section_id: sectionId || undefined, // NEW: direct section reference (optional)
                 is_available: next.is_available,
                 // Map variant UI structure to API structure (choices array)
                 variant_groups: (next.variant_groups || []).map(g => ({

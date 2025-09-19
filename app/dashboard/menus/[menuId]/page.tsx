@@ -136,7 +136,7 @@ export default function MenuEditorPage({ params }: { params: { menuId: string } 
           <h2 className="text-lg font-semibold">
             Items in {firstSection.path.length > 0 ? firstSection.path.join(' / ') : 'General'}
           </h2>
-          <AddItemClient restaurantId={restaurantId} menuId={params.menuId} sectionPath={firstSection.path} />
+          <AddItemClient restaurantId={restaurantId} menuId={params.menuId} sectionPath={firstSection.path} sectionId={firstSection.id} />
         </div>
         <div className="grid grid-cols-1 gap-3">
           {items.map((it) => (
