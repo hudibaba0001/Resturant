@@ -426,7 +426,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
         <div className="min-w-0">
           <div className="truncate font-medium text-slate-900">General</div>
           <div className="truncate text-xs text-slate-500">No section assigned</div>
-        </div>
+          </div>
         <div
           className="
             flex items-center gap-1
@@ -441,8 +441,8 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
             menuId={currentMenuSlug}
             sectionPath={['General']}
           />
+          </div>
         </div>
-      </div>
 
       {/* Items panel for currently selected section */}
       <div className="">

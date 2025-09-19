@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { EditItemDialog } from '@/components/dashboard/EditItemDialog';
 import { createItem } from '@/lib/api/items';
-import type { ItemClient } from '@/lib/validators/itemClient';
+import type { ItemClient } from '@/lib/types/menuItem';
 
 export default function AddItemClient({
   restaurantId,
@@ -54,8 +54,6 @@ export default function AddItemClient({
                 price_cents: next.price_cents ?? 0,
                 currency: (next.currency || 'SEK').toUpperCase(),
                 section_path: sectionPath,
-                description: next.description || undefined,
-                image_url: next.image_url || undefined,
                 is_available: next.is_available,
                 // Map variant UI structure to API structure (choices array)
                 variant_groups: (next.variant_groups || []).map(g => ({
@@ -63,24 +61,32 @@ export default function AddItemClient({
                   choices: (g.options || []).map(o => ({ name: o.name }))
                 })),
                 // Map modifier UI structure to API structure
-                modifier_groups: (next.modifier_groups || []).map(g => ({
-                  group: g.name,
-                  min: g.min,
-                  max: g.max,
-                  required: g.required,
-                  choices: (g.options || []).map(o => ({ name: o.name, price_cents: o.price_delta_cents ?? 0 }))
-                })),
+                modifier_groups: (next.modifier_groups || []).map(g => {
+                  const mg: any = {
+                    group: g.name,
+                    choices: (g.options || []).map(o => ({ name: o.name, price_cents: o.price_delta_cents ?? 0 })),
+                  };
+                  if (typeof g.min === 'number') mg.min = g.min;
+                  if (typeof g.max === 'number') mg.max = g.max;
+                  if (typeof g.required === 'boolean') mg.required = g.required;
+                  return mg;
+                }),
                 // Fold common flags into tags; keep optional
                 tags: [
                   ...(next.allergens || []),
                   ...(next.dietary || []),
                 ].filter(Boolean) as string[],
-                // Preserve extra structured fields under details
-                details: {
-                  ...(next.item_number ? { item_number: next.item_number } : {}),
-                  ...(next.price_matrix && Object.keys(next.price_matrix).length ? { price_matrix: next.price_matrix } : {}),
-                },
               };
+              if (next.description && next.description.trim()) {
+                (payload as any).description = next.description.trim();
+              }
+              if (next.image_url && next.image_url.trim()) {
+                (payload as any).image_url = next.image_url.trim();
+              }
+              const details: Record<string, unknown> = {};
+              if (next.item_number) details.item_number = next.item_number;
+              if (next.price_matrix && Object.keys(next.price_matrix).length) details.price_matrix = next.price_matrix;
+              if (Object.keys(details).length) (payload as any).details = details;
 
               const result = await createItem(payload);
               console.log("🚀 API success:", result);

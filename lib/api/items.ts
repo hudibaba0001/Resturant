@@ -1,4 +1,5 @@
-import { itemClientSchema, type ItemClient } from "@/lib/validators/itemClient";
+import { itemClientSchema } from "@/lib/validators/itemClient";
+import type { ItemClient } from "@/lib/types/menuItem";
 
 async function asJson(res: Response) {
   const txt = await res.text();
@@ -20,7 +21,7 @@ export async function createItem(payload: ItemClient) {
 }
 
 export async function updateItem(id: string, payload: Partial<ItemClient>) {
-  const partial = itemClientSchema.partial().parse(payload);
+  const partial = itemClientSchema.partial().parse(payload as any);
   const res = await fetch(`/dashboard/proxy/items/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
