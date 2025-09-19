@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { getSupabaseBrowser } from '@/lib/supabaseBrowser';
 import { trackOrderStatusChange, trackOrderConflict, trackOrderError } from '@/utils/analytics';
 import { formatMoney } from '@/lib/format';
 
@@ -126,10 +126,7 @@ export default function OrdersTable({ orders, restaurantId }: OrdersTableProps) 
   const [loadingOrderId, setLoadingOrderId] = useState<string | null>(null);
   const itemsCache = useRef<Map<string, OrderItem[]>>(new Map());
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = getSupabaseBrowser();
 
   const filteredOrders = localOrders.filter(order => {
     const matchesSearch = 

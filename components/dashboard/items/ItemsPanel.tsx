@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { API } from "@/lib/api/paths";
 
 type Item = {
   id: string;
@@ -32,7 +33,7 @@ export default function ItemsPanel({ restaurantId, menu, section }: Props) {
   const [description, setDescription] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
 
-  const base = "/dashboard/proxy/items";
+  const base = API.items;
 
   const fetchItems = React.useCallback(async (signal?: AbortSignal | null) => {
     setLoading(true);

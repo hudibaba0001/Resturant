@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Plus, Trash2, FolderOpen, Edit2, Pencil, Check, X } from 'lucide-react';
 import AddItemClient from '@/components/dashboard/AddItemClient';
 import ItemsPanel from '@/components/dashboard/items/ItemsPanel';
+import { API } from '@/lib/api/paths';
 
 export type Section = {
   id: string;
@@ -173,7 +174,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
   // Load sections
   const loadSections = useCallback(async () => {
     try {
-      const res = await fetch(`/dashboard/proxy/menus/sections?restaurant_id=${restaurantId}`);
+      const res = await fetch(`${API.sections}?restaurant_id=${restaurantId}`);
       if (!res.ok) throw new Error('Failed to load sections');
       
       const text = await res.text();
@@ -203,7 +204,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch('/dashboard/proxy/menus/sections', {
+      const res = await fetch(API.sections, {
         method: 'POST',
         headers: { 
           'content-type': 'application/json'
@@ -255,7 +256,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch(`/dashboard/proxy/menus/sections/${sectionId}`, {
+      const res = await fetch(`${API.sections}/${sectionId}`, {
         method: 'PATCH',
         headers: { 
           'content-type': 'application/json'
@@ -302,7 +303,7 @@ export function SectionManager({ restaurantId, currentMenuSlug, selectedSection,
     setError('');
     
     try {
-      const res = await fetch(`/dashboard/proxy/menus/sections/${sectionId}`, {
+      const res = await fetch(`${API.sections}/${sectionId}`, {
         method: 'DELETE'
       });
 

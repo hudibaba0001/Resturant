@@ -1,5 +1,6 @@
 import { itemClientSchema } from "@/lib/validators/itemClient";
 import type { ItemClient } from "@/lib/types/menuItem";
+import { API } from "@/lib/api/paths";
 
 async function asJson(res: Response) {
   const txt = await res.text();
@@ -8,7 +9,7 @@ async function asJson(res: Response) {
 
 export async function createItem(payload: ItemClient) {
   const data = itemClientSchema.parse(payload);
-  const res = await fetch("/dashboard/proxy/items", {
+  const res = await fetch(API.items, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -22,7 +23,7 @@ export async function createItem(payload: ItemClient) {
 
 export async function updateItem(id: string, payload: Partial<ItemClient>) {
   const partial = itemClientSchema.partial().parse(payload as any);
-  const res = await fetch(`/dashboard/proxy/items/${id}`, {
+  const res = await fetch(`${API.items}/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(partial),

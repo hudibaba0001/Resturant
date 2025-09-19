@@ -110,7 +110,7 @@ export default function DashboardPage() {
                   <div className="w-6 h-6 bg-green-100 text-green-600 rounded mx-auto mb-2 flex items-center justify-center text-xs">🍽️</div>
                   <div className="text-xs font-medium text-gray-900">Edit Menu</div>
                 </Link>
-                <Link href="/dashboard/items" className="p-3 bg-gray-50 border border-gray-200 rounded-md text-center hover:bg-gray-100 transition-colors">
+                <Link href="/dashboard/menus" className="p-3 bg-gray-50 border border-gray-200 rounded-md text-center hover:bg-gray-100 transition-colors">
                   <div className="w-6 h-6 bg-yellow-100 text-yellow-600 rounded mx-auto mb-2 flex items-center justify-center text-xs">🍕</div>
                   <div className="text-xs font-medium text-gray-900">Add Item</div>
                 </Link>
@@ -159,7 +159,7 @@ export default function DashboardPage() {
                 <Menu className="h-4 w-4" />
                 Create Menu
               </Link>
-              <Link href="/dashboard/widget" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 text-sm font-medium rounded-md border border-blue-200 hover:bg-blue-50 transition-colors">
+              <Link href="/dashboard/settings" className="inline-flex items-center gap-2 px-4 py-2 bg-white text-blue-600 text-sm font-medium rounded-md border border-blue-200 hover:bg-blue-50 transition-colors">
                 <LinkIcon className="h-4 w-4" />
                 Setup Widget
               </Link>

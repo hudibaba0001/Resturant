@@ -118,14 +118,14 @@ export default async function DashboardLayout({
                Orders
              </Link>
             <Link
-              href="/dashboard/items"
+              href="/dashboard/menus"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
             >
               <FileText className="h-4 w-4" />
               Menu Items
             </Link>
             <Link
-              href="/dashboard/sections"
+              href="/dashboard/menus"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
             >
               <FileText className="h-4 w-4" />
@@ -146,7 +146,7 @@ export default async function DashboardLayout({
                Restaurant Settings
              </Link>
             <Link
-              href="/dashboard/widget"
+              href="/dashboard/settings"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
             >
               <LinkIcon className="h-4 w-4" />
@@ -159,7 +159,7 @@ export default async function DashboardLayout({
               Account
             </div>
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/settings"
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
             >
               <User className="h-4 w-4" />
