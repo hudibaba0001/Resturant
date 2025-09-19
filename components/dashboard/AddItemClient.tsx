@@ -56,7 +56,6 @@ export default function AddItemClient({
                 price_cents: next.price_cents ?? 0,
                 currency: (next.currency || 'SEK').toUpperCase(),
                 section_path: sectionPath,
-                section_id: sectionId || undefined, // NEW: direct section reference (optional)
                 is_available: next.is_available,
                 // Map variant UI structure to API structure (choices array)
                 variant_groups: (next.variant_groups || []).map(g => ({
@@ -80,6 +79,12 @@ export default function AddItemClient({
                   ...(next.dietary || []),
                 ].filter(Boolean) as string[],
               };
+              
+              // Add section_id if provided
+              if (sectionId) {
+                (payload as any).section_id = sectionId;
+              }
+              
               if (next.description && next.description.trim()) {
                 (payload as any).description = next.description.trim();
               }
