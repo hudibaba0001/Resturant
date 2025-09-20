@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useEffect, useState } from 'react';
 import type { Item } from '@/lib/types/menu';
 import AddItemClient from '@/components/dashboard/AddItemClient';
-import { ItemRowClient } from './ItemRowClient';
+import ItemsClient from './ItemsClient';
 import SectionManager from '@/components/dashboard/SectionManager';
 import Link from 'next/link';
 
@@ -20,7 +20,6 @@ const supabase = createClient(
 export default function MenuEditorPage({ params }: { params: { menuId: string } }) {
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
   const [sections, setSections] = useState<any[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSection, setSelectedSection] = useState<string>('');
 
@@ -64,18 +63,6 @@ export default function MenuEditorPage({ params }: { params: { menuId: string } 
             const firstSection = processedSections.find((s: any) => s.path.length === 1) || 
                                { id: 'default', menuId: params.menuId, name: 'General', path: [] };
             setSelectedSection(firstSection.path[0] || '');
-            
-            // Load items for the first section
-            const { data: itemsData } = await supabase
-              .from('menu_items')
-              .select('*')
-              .eq('restaurant_id', restaurantData.id)
-              .eq('nutritional_info->>menu', params.menuId)
-              .not('nutritional_info->>is_section', 'eq', 'true');
-            
-            if (itemsData) {
-              setItems(itemsData as Item[]);
-            }
           }
         }
       } catch (error) {
@@ -138,11 +125,11 @@ export default function MenuEditorPage({ params }: { params: { menuId: string } 
           </h2>
           <AddItemClient restaurantId={restaurantId} menuId={params.menuId} sectionPath={firstSection.path} sectionId={firstSection.id} />
         </div>
-        <div className="grid grid-cols-1 gap-3">
-          {items.map((it) => (
-            <ItemRowClient key={it.id} item={it} />
-          ))}
-        </div>
+        <ItemsClient 
+          restaurantId={restaurantId} 
+          menu={params.menuId} 
+          sectionPath={firstSection.path}
+        />
       </div>
     </div>
   );
