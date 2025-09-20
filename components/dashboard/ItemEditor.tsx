@@ -83,7 +83,7 @@ export function ItemEditor({
     name: initialItem?.name || '',
     price_cents: initialItem?.price_cents || 0,
     currency: initialItem?.currency || 'SEK',
-    section_path: sectionPath,
+    section_path: sectionPath, // Always use the passed sectionPath
     ...(sectionId && { section_id: sectionId }),
     description: initialItem?.description || '',
     image_url: initialItem?.image_url || '',
@@ -135,13 +135,19 @@ export function ItemEditor({
         })(),
       };
 
+      // For CREATE, remove the id from payload (only use in URL for PATCH)
+      const creating = !initialItem?.id;
+      if (creating) {
+        delete (payload as any).id;
+      }
+
       console.log('🚀 Saving item with payload:', payload);
 
-      const url = initialItem?.id 
-        ? `/dashboard/proxy/items/${initialItem.id}`
-        : '/dashboard/proxy/items';
+      const url = creating 
+        ? '/dashboard/proxy/items'
+        : `/dashboard/proxy/items/${initialItem!.id}`;
       
-      const method = initialItem?.id ? 'PATCH' : 'POST';
+      const method = creating ? 'POST' : 'PATCH';
 
       const response = await fetch(url, {
         method,
@@ -152,6 +158,12 @@ export function ItemEditor({
       const result = await response.json();
 
       if (!response.ok) {
+        console.group('❌ Create/Update item failed');
+        console.log('Status:', response.status);
+        console.log('Payload sent:', payload);
+        console.log('Response body:', result);
+        console.groupEnd();
+
         if (result.issues) {
           // Zod validation errors
           const fieldErrors: Record<string, string> = {};
@@ -160,7 +172,7 @@ export function ItemEditor({
             fieldErrors[field] = issue.message;
           });
           setErrors(fieldErrors);
-          setTopError('Please fix the validation errors below');
+          setTopError(`Validation errors: ${result.issues.map((i: any) => `${i.path?.join('.')}: ${i.message}`).join(', ')}`);
         } else {
           setTopError(result.message || `Save failed: ${response.status}`);
         }
