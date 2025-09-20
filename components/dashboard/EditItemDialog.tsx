@@ -42,6 +42,7 @@ export function EditItemDialog({
   const [variantGroups, setVariantGroups] = useState<OptionGroup[]>(initial.variant_groups || []);
   const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>(initial.modifier_groups || []);
   const [priceMatrix, setPriceMatrix] = useState<PriceMatrix>(initial.price_matrix || {});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<typeof ItemSchema>>({
     resolver: zodResolver(ItemSchema),
@@ -75,6 +76,15 @@ export function EditItemDialog({
     console.log("🔍 onSubmit called with:", v);
     console.log("🔍 Form errors:", errors);
     
+    // Check for validation errors
+    if (Object.keys(errors).length > 0) {
+      console.error("❌ Form validation errors:", errors);
+      alert(`Form validation errors: ${Object.entries(errors).map(([key, error]) => `${key}: ${error?.message}`).join(', ')}`);
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     const next: Item = {
       ...initial,
       name: v.name,
@@ -91,8 +101,15 @@ export function EditItemDialog({
     };
     
     console.log("🔍 Calling onSave with:", next);
-    await onSave(next);
-    onOpenChange(false);
+    try {
+      await onSave(next);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("❌ onSave failed:", error);
+      alert(`Save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -112,12 +129,14 @@ export function EditItemDialog({
           <TabsContent value="basic" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>Name *</Label>
                 <Input {...register('name')} />
+                {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Price (öre)</Label>
+                <Label>Price (öre) *</Label>
                 <Input type="number" inputMode="numeric" {...register('price_cents', { valueAsNumber: true })} />
+                {errors.price_cents && <p className="text-sm text-red-500">{errors.price_cents.message}</p>}
               </div>
             </div>
             <div className="space-y-2">
@@ -194,8 +213,10 @@ export function EditItemDialog({
         </Tabs>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit(onSubmit)}>Save Item</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>Cancel</Button>
+          <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : 'Save Item'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

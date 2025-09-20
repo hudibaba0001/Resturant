@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Save Issue</title>
+</head>
+<body>
+    <h1>Debug Save Issue</h1>
+    <p>Open browser console and check for errors when clicking save.</p>
+    
+    <script>
+        // Test the exact payload that should be sent
+        const testPayload = {
+            restaurantId: "64806e5b-714f-4388-a092-29feff9b64c0",
+            menu: "main",
+            name: "Test Item",
+            price_cents: 1500,
+            currency: "SEK",
+            section_path: ["Test Drinks"],
+            section_id: "fb32d946-a551-4754-8fed-f59767357d68",
+            is_available: true
+        };
+
+        console.log("Test payload:", testPayload);
+
+        // Test the API call
+        async function testSave() {
+            try {
+                console.log("Testing save...");
+                const response = await fetch('/dashboard/proxy/items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPayload)
+                });
+                
+                console.log("Response status:", response.status);
+                const data = await response.json();
+                console.log("Response data:", data);
+                
+                if (response.ok) {
+                    console.log("✅ Save successful!");
+                } else {
+                    console.log("❌ Save failed:", data);
+                }
+            } catch (error) {
+                console.error("❌ Network error:", error);
+            }
+        }
+
+        // Run test
+        testSave();
+    </script>
+</body>
+</html>
