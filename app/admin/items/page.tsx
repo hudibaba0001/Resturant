@@ -141,17 +141,17 @@ export default function AdminItemsPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-white p-6 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Menu Items Admin</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Menu Items Admin</h1>
         <div className="flex gap-2">
           <button
             onClick={fetchItems}
-            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+            className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
           >
             Refresh
           </button>
-          <span className="text-sm text-gray-500 self-center">
+          <span className="text-sm text-gray-600 self-center">
             {items.length} items
           </span>
         </div>
@@ -159,15 +159,15 @@ export default function AdminItemsPage() {
 
       <div className="space-y-4">
         {items.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>No items found.</p>
-            <p className="text-sm">Add items through the dashboard to see them here.</p>
+          <div className="text-center py-8 text-gray-600">
+            <p className="text-lg">No items found.</p>
+            <p className="text-sm text-gray-500">Add items through the dashboard to see them here.</p>
           </div>
         ) : (
           items.map((item) => (
             <div
               key={item.id}
-              className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+              className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm transition-all"
             >
               {/* Item Header */}
               <div className="flex items-center justify-between">
@@ -193,14 +193,14 @@ export default function AdminItemsPage() {
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                    className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+                    className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded border border-blue-600"
                   >
                     {expandedId === item.id ? 'Close' : 'Open'}
                   </button>
                   
                   <button
                     onClick={() => setEditingId(editingId === item.id ? null : item.id)}
-                    className="px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded"
+                    className="px-3 py-1 text-sm bg-yellow-600 text-white hover:bg-yellow-700 rounded border border-yellow-600"
                   >
                     {editingId === item.id ? 'Cancel' : 'Edit'}
                   </button>
@@ -208,7 +208,7 @@ export default function AdminItemsPage() {
                   <button
                     onClick={() => handleDelete(item.id)}
                     disabled={deletingId === item.id}
-                    className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded disabled:opacity-50"
+                    className="px-3 py-1 text-sm bg-red-600 text-white hover:bg-red-700 rounded border border-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {deletingId === item.id ? 'Deleting...' : 'Delete'}
                   </button>
@@ -217,34 +217,34 @@ export default function AdminItemsPage() {
 
               {/* Expanded Details */}
               {expandedId === item.id && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4 border-t border-gray-200 bg-gray-50 rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Details</h4>
-                      <div className="space-y-1 text-sm">
-                        <div><strong>ID:</strong> {item.id}</div>
-                        <div><strong>Description:</strong> {item.description || 'None'}</div>
-                        <div><strong>Available:</strong> {item.is_available ? 'Yes' : 'No'}</div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Details</h4>
+                      <div className="space-y-1 text-sm text-gray-700">
+                        <div><strong className="text-gray-900">ID:</strong> <span className="font-mono text-xs">{item.id}</span></div>
+                        <div><strong className="text-gray-900">Description:</strong> {item.description || 'None'}</div>
+                        <div><strong className="text-gray-900">Available:</strong> <span className={item.is_available ? 'text-green-600' : 'text-red-600'}>{item.is_available ? 'Yes' : 'No'}</span></div>
                         {item.image_url && (
-                          <div><strong>Image:</strong> <a href={item.image_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View</a></div>
+                          <div><strong className="text-gray-900">Image:</strong> <a href={item.image_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Image</a></div>
                         )}
                       </div>
                     </div>
                     
                     <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Metadata</h4>
-                      <div className="space-y-1 text-sm">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Metadata</h4>
+                      <div className="space-y-1 text-sm text-gray-700">
                         {item.tags && item.tags.length > 0 && (
-                          <div><strong>Tags:</strong> {item.tags.join(', ')}</div>
+                          <div><strong className="text-gray-900">Tags:</strong> <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{item.tags.join(', ')}</span></div>
                         )}
                         {item.variant_groups && item.variant_groups.length > 0 && (
-                          <div><strong>Variants:</strong> {item.variant_groups.length} groups</div>
+                          <div><strong className="text-gray-900">Variants:</strong> <span className="text-green-600">{item.variant_groups.length} groups</span></div>
                         )}
                         {item.modifier_groups && item.modifier_groups.length > 0 && (
-                          <div><strong>Modifiers:</strong> {item.modifier_groups.length} groups</div>
+                          <div><strong className="text-gray-900">Modifiers:</strong> <span className="text-green-600">{item.modifier_groups.length} groups</span></div>
                         )}
                         {item.details && Object.keys(item.details).length > 0 && (
-                          <div><strong>Details:</strong> {Object.keys(item.details).length} fields</div>
+                          <div><strong className="text-gray-900">Details:</strong> <span className="text-purple-600">{Object.keys(item.details).length} fields</span></div>
                         )}
                       </div>
                     </div>
@@ -301,24 +301,24 @@ function EditForm({
   };
 
   return (
-    <div className="mt-4 pt-4 border-t border-gray-200">
+    <div className="mt-4 pt-4 border-t border-gray-200 bg-yellow-50 rounded-lg p-4">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-900 mb-1">
               Name
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               required
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-900 mb-1">
               Price
             </label>
             <div className="flex gap-2">
@@ -327,13 +327,13 @@ function EditForm({
                 step="0.01"
                 value={formData.price}
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 required
               />
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               >
                 <option value="SEK">SEK</option>
                 <option value="USD">USD</option>
@@ -344,13 +344,13 @@ function EditForm({
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-900 mb-1">
             Description
           </label>
           <textarea
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
             rows={3}
           />
         </div>
@@ -361,23 +361,23 @@ function EditForm({
               type="checkbox"
               checked={formData.is_available}
               onChange={(e) => setFormData(prev => ({ ...prev, is_available: e.target.checked }))}
-              className="mr-2"
+              className="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
             />
-            <span className="text-sm text-gray-700">Available for ordering</span>
+            <span className="text-sm text-gray-900 font-medium">Available for ordering</span>
           </label>
         </div>
         
         <div className="flex gap-2">
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
           >
             Save Changes
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium"
           >
             Cancel
           </button>
