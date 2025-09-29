@@ -306,6 +306,22 @@ export function ItemEditor({
                       Remove
                     </Button>
                   </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        // Save this variant group to the main form data
+                        updateFormData({
+                          variant_groups: variants
+                        });
+                        alert('Variant group saved!');
+                      }}
+                    >
+                      Save Variant Group
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -344,6 +360,22 @@ export function ItemEditor({
                       onClick={() => setModifiers(modifiers.filter((_, i) => i !== index))}
                     >
                       Remove
+                    </Button>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        // Save this modifier group to the main form data
+                        updateFormData({
+                          modifier_groups: modifiers
+                        });
+                        alert('Modifier group saved!');
+                      }}
+                    >
+                      Save Modifier Group
                     </Button>
                   </div>
                 </div>
