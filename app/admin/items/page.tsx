@@ -145,12 +145,12 @@ export default function AdminItemsPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Menu Items Admin</h1>
         <div className="flex gap-2">
-          <button
-            onClick={fetchItems}
-            className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
-          >
-            Refresh
-          </button>
+        <button
+          onClick={fetchItems}
+          className="px-4 py-2 text-sm bg-black text-white hover:bg-gray-800 rounded-lg"
+        >
+          Refresh
+        </button>
           <span className="text-sm text-gray-600 self-center">
             {items.length} items
           </span>
@@ -193,14 +193,14 @@ export default function AdminItemsPage() {
                 <div className="flex items-center gap-2 ml-4">
                   <button
                     onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded border border-blue-600"
+                    className="px-3 py-1 text-sm bg-black text-white hover:bg-gray-800 rounded border border-black"
                   >
                     {expandedId === item.id ? 'Close' : 'Open'}
                   </button>
                   
                   <button
                     onClick={() => setEditingId(editingId === item.id ? null : item.id)}
-                    className="px-3 py-1 text-sm bg-yellow-600 text-white hover:bg-yellow-700 rounded border border-yellow-600"
+                    className="px-3 py-1 text-sm bg-black text-white hover:bg-gray-800 rounded border border-black"
                   >
                     {editingId === item.id ? 'Cancel' : 'Edit'}
                   </button>
@@ -208,7 +208,7 @@ export default function AdminItemsPage() {
                   <button
                     onClick={() => handleDelete(item.id)}
                     disabled={deletingId === item.id}
-                    className="px-3 py-1 text-sm bg-red-600 text-white hover:bg-red-700 rounded border border-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm bg-black text-white hover:bg-gray-800 rounded border border-black disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {deletingId === item.id ? 'Deleting...' : 'Delete'}
                   </button>
@@ -370,14 +370,14 @@ function EditForm({
         <div className="flex gap-2">
           <button
             type="submit"
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 font-medium"
           >
             Save Changes
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-medium"
+            className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 font-medium"
           >
             Cancel
           </button>
